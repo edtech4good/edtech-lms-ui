@@ -1,0 +1,49 @@
+<nz-skeleton [nzLoading]="optionsLoading" [nzParagraph]="{ rows: 10 }">
+</nz-skeleton>
+<form nzLayout="vertical" nz-form [hidden]="optionsLoading">
+  <nz-form-item>
+    <nz-form-label [nzSm]="6" [nzXs]="24"
+      >Options
+    </nz-form-label>
+    <div nz-typography nzType="danger">{{ errorText }}</div>
+    <nz-form-control>
+      <div *ngFor="let control of listOfOption; let i = index">
+        <nz-divider nzDashed [nzText]="text">
+          <ng-template #text>
+            Option {{ i + 1 }}
+            <button
+              *ngIf="
+                [2, 6, 7, 8].includes(templateType)
+                  ? listOfOption.length < 4
+                  : templateType === 5
+                  ? listOfOption.length < 8
+                  : listOfOption.length < 6
+              "
+              (click)="addField($event)"
+              nz-button
+              nzType="primary"
+              nzSize="small"
+              style="margin-right: 5px"
+            >
+              <i nz-icon nzType="plus"></i>
+            </button>
+            <button
+              *ngIf="i !== 0"
+              (click)="removeField(control, $event)"
+              nz-button
+              nzType="primary"
+              nzDanger
+              nzSize="small"
+            >
+              <i nz-icon nzType="delete"></i>
+            </button>
+          </ng-template>
+        </nz-divider>
+        <app-question-option
+          [optionIndex]="i + 1"
+          [templateType]="templateType"
+        ></app-question-option>
+      </div>
+    </nz-form-control>
+  </nz-form-item>
+</form>

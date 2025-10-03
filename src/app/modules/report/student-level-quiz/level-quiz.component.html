@@ -1,0 +1,190 @@
+<div style="margin-bottom: 1rem;">
+  <button
+  nz-button style="margin-right: 1rem;"
+  nzType="primary"
+  routerLink="{{this.online ? '/report/student-level-quiz/online' : '/report/student-level-quiz'}}"
+  [queryParams]="{online: this.online ? 'true' : 'false'}"
+  *ngxPermissionsOnly="studentquizscoreperms"
+  >Student Level Quiz</button>
+  <button
+  nz-button nzType="primary"
+  routerLink="{{this.online ? '/report/class-level-quiz/online' : '/report/class-level-quiz'}}"
+  [queryParams]="{online: this.online ? 'true' : 'false'}"
+  *ngxPermissionsOnly="classquizscoreperms"
+  >Class Level Quiz</button>
+</div>
+<div>
+  <nz-select
+    nzPlaceHolder="Select countries"
+    nzAllowClear
+    nzShowSearch
+    nzServerSearch
+    [(ngModel)]="searchFields.countryid"
+    (ngModelChange)="onSearchSchool('')"
+    (nzOnSearch)="onSearchCountry($event)"
+    style="width: 200px;"
+  >
+    <ng-container *ngFor="let o of countryList">
+      <nz-option *ngIf="!isCountryLoading" [nzValue]="o.countryid" [nzLabel]="o.countryname"></nz-option>
+    </ng-container>
+    <nz-option *ngIf="isCountryLoading" nzDisabled nzCustomContent>
+      <span nz-icon nzType="loading" class="loading-icon"></span>
+      Loading Data...
+    </nz-option>
+  </nz-select>
+  <nz-select
+    nzPlaceHolder="Select schools"
+    nzAllowClear
+    nzShowSearch
+    nzServerSearch
+    [(ngModel)]="searchFields.schoolname"
+    (ngModelChange)="resetValue1()"
+    (nzFocus)="onSearchSchool('')"
+    (nzOnSearch)="onSearchSchool($event)"
+    style="width: 200px;"
+  >
+    <ng-container *ngFor="let o of schoolList">
+      <nz-option *ngIf="!isSchoolLoading" [nzValue]="o.schoolname" [nzLabel]="o.schoolname"></nz-option>
+    </ng-container>
+    <nz-option *ngIf="isSchoolLoading" nzDisabled nzCustomContent>
+      <span nz-icon nzType="loading" class="loading-icon"></span>
+      Loading Data...
+    </nz-option>
+  </nz-select>
+  <nz-select
+    nzPlaceHolder="Select students"
+    [disabled]="searchFields.schoolname ? false : true"
+    nzAllowClear
+    nzShowSearch
+    nzServerSearch
+    [(ngModel)]="searchFields.studentid"
+    (ngModelChange)="resetValue2()"
+    (nzFocus)="onSearchUser('')"
+    (nzOnSearch)="onSearchUser($event)"
+    style="width: 200px;"
+  >
+    <ng-container *ngFor="let o of userList">
+      <nz-option *ngIf="!isUserLoading" [nzValue]="o.studentid" [nzLabel]="o.schooluser.schoolusername"></nz-option>
+    </ng-container>
+    <nz-option *ngIf="isUserLoading" nzDisabled nzCustomContent>
+      <span nz-icon nzType="loading" class="loading-icon"></span>
+      Loading Data...
+    </nz-option>
+  </nz-select>
+  <nz-select
+    [disabled]="searchFields.studentid ? false : true"
+    nzPlaceHolder="Select curriculum"
+    nzAllowClear
+    nzShowSearch
+    nzServerSearch
+    [(ngModel)]="searchFields.curriculumid"
+    (ngModelChange)="resetValue3()"
+    (nzFocus)="onSearchCur('')"
+    (nzOnSearch)="onSearchCur($event)"
+    style="width: 200px;"
+  >
+    <ng-container *ngFor="let o of curList">
+      <nz-option *ngIf="!isCurLoading" [nzValue]="o.curriculumid" [nzLabel]="o.curriculumname"></nz-option>
+    </ng-container>
+    <nz-option *ngIf="isCurLoading" nzDisabled nzCustomContent>
+      <span nz-icon nzType="loading" class="loading-icon"></span>
+      Loading Data...
+    </nz-option>
+  </nz-select>
+  <nz-select
+    [disabled]="searchFields.curriculumid ? false : true"
+    nzPlaceHolder="Select course"
+    nzAllowClear
+    nzShowSearch
+    nzServerSearch
+    [(ngModel)]="searchFields.gradeid"
+    (ngModelChange)="resetValue4()"
+    (nzFocus)="onSearchGrade('')"
+    (nzOnSearch)="onSearchGrade($event)"
+    style="width: 200px;"
+  >
+    <ng-container *ngFor="let o of gradeList">
+      <nz-option *ngIf="!isGradeLoading" [nzValue]="o.gradeid" [nzLabel]="o.gradename"></nz-option>
+    </ng-container>
+    <nz-option *ngIf="isGradeLoading" nzDisabled nzCustomContent>
+      <span nz-icon nzType="loading" class="loading-icon"></span>
+      Loading Data...
+    </nz-option>
+  </nz-select>
+  <nz-select
+    [disabled]="searchFields.gradeid ? false : true"
+    nzPlaceHolder="Select levels"
+    nzAllowClear
+    nzShowSearch
+    nzServerSearch
+    [(ngModel)]="searchFields.levelid"
+    (nzFocus)="onSearchLevel('')"
+    (nzOnSearch)="onSearchLevel($event)"
+    style="width: 200px;"
+  >
+    <ng-container *ngFor="let o of levelList">
+      <nz-option *ngIf="!isLevelLoading" [nzValue]="o.levelid" [nzLabel]="o.levelname"></nz-option>
+    </ng-container>
+    <nz-option *ngIf="isLevelLoading" nzDisabled nzCustomContent>
+      <span nz-icon nzType="loading" class="loading-icon"></span>
+      Loading Data...
+    </nz-option>
+  </nz-select>
+  <button nz-button nzType="primary" (click)="search()" [disabled]="searchFields.studentid ? false : true" [nzLoading]="isLoadingOne">Search</button>
+  <button nz-button nzType="primary" style="margin-left: 2rem;" (click)="downloadStudent()" [nzLoading]="downloading"
+  *ngxPermissionsOnly="downloadperms"
+  >Download Excel</button>
+</div>
+<div nz-row>
+  <div nz-col nzSpan="24">
+    <nz-card [nzBordered]="true" nzTitle="Level Quiz Data">
+      <nz-table
+        nzShowSizeChanger
+        [nzLoading]="dataloading"
+        [nzData]="data"
+        [nzFrontPagination]="false"
+        nzSize="small"
+        [nzHideOnSinglePage]="true"
+        [nzBordered]="true"
+        [nzPageSizeOptions]="[100, 500]"
+        [nzScroll]="{ y: '640px' }"
+        (nzQueryParams)="onQueryParamsChange($event)"
+        [nzShowTotal]="totalTemplate"
+      >
+        <thead>
+          <tr>
+            <th nzColumnKey="">Curriculum</th>
+            <!-- <th nzColumnKey="">Country</th> -->
+            <th nzColumnKey="">School</th>
+            <th nzColumnKey="">User ID</th>
+            <th nzColumnKey="">Class</th>
+            <th nzColumnKey="">Course</th>
+            <th nzColumnKey="">Level</th>
+            <th nzColumnKey="">Marks</th>
+            <th nzColumnKey="">Percentage</th>
+            <th nzColumnKey="">Quiz Score</th>
+            <th nzColumnKey="">Result</th>
+            <th nzColumnKey="">Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let data of studentprogresses$ | async">
+            <td>{{ data.grade?.curriculum?.curriculumname }}</td>
+            <!-- <td>{{ data.school?.countries?.countryname ?? 'N/A' }}</td> -->
+            <td>{{ data.student?.schoolname ?? 'N/A' }}</td>
+            <td>{{ data.student?.schooluser?.schoolusername }}</td>
+            <td>{{ data.student?.class?.standardname ?? 'N/A' }}</td>
+            <td>{{ data.grade?.gradename }}</td>
+            <td>{{ data.levelname }}</td>
+            <td>{{ data.laststudentprogress ? data.laststudentprogress?.marks + ' / ' + data.laststudentprogress?.totalquestions : 'N/A' }} </td>
+            <td>{{ data.laststudentprogress ? data.laststudentprogress?.resultpercentage : 0  }} %</td>
+            <td>{{ data.laststudentprogress?.scores ?? 0}}</td>
+            <td>{{ data.laststudentprogress ? (data.laststudentprogress.resultpercentage >= 80 ? 'Pass' : 'Redo') : 'N/A' }}</td>
+            <td>{{ data.starttime | date: 'medium'}}</td>
+          </tr>
+        </tbody>
+      </nz-table>
+    </nz-card>
+  </div>
+</div>
+<ng-template #totalTemplate> Total : {{ total }} </ng-template>

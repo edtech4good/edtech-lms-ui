@@ -1,0 +1,94 @@
+<div nz-row>
+  <div nz-col nzSpan="24">
+    <nz-card [nzBordered]="true" nzTitle="Class" [nzExtra]="extraTemplate">
+      <nz-table
+        nzShowSizeChanger
+        [nzLoading]="dataloading"
+        [nzData]="data"
+        [nzFrontPagination]="false"
+        nzSize="small"
+        [nzTotal]="total"
+        [nzPageSize]="pageSize"
+        [nzPageIndex]="pageIndex"
+        [nzHideOnSinglePage]="true"
+        [nzBordered]="true"
+        [nzPageSizeOptions]="[100, 500]"
+        [nzScroll]="{ y: '640px' }"
+        (nzQueryParams)="onQueryParamsChange($event)"
+        [nzShowTotal]="totalTemplate"
+      >
+        <thead>
+          <tr>
+            <th nzColumnKey="standardname" nzCustomFilter>
+              Class Name
+              <nz-filter-trigger
+                [(nzVisible)]="visible"
+                [nzActive]="searchValue.length > 0"
+                [nzDropdownMenu]="standardname"
+              >
+                <i nz-icon nzType="search"></i>
+              </nz-filter-trigger>
+            </th>
+            <th nzColumnKey="schoolid" [nzFilters]="filterField.school" [nzFilterFn]="true">
+              School Name
+            </th>
+            <th nzColumnKey="">Tools</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let data of data">
+            <td>{{ data.standardname }}</td>
+            <td>{{ data.school?.schoolname}}</td>
+            <td>
+              <a
+                nz-button
+                nzDanger
+                nzSize="small"
+                style="margin-right: 20px"
+                nz-popconfirm
+                nzPopconfirmTitle="Sure to delete?"
+                (nzOnConfirm)="deletetag(data.standardid)"
+                *ngxPermissionsOnly="['delete_standard']"
+                >Delete</a
+              >
+              <a
+              nz-button
+              nzType="primary"
+              nzSize="small"
+              style="margin-right: 20px"
+              [routerLink]="['/standard','update', data.standardid]"
+              >Edit</a
+            >
+            </td>
+          </tr>
+        </tbody>
+      </nz-table>
+    </nz-card>
+    <ng-template #extraTemplate>
+      <a nz-button routerLink="/standard/create" nzType="primary" *ngxPermissionsOnly="['create_standard']">Create</a>
+    </ng-template>
+    <nz-dropdown-menu #standardname="nzDropdownMenu">
+      <div class="ant-table-filter-dropdown">
+        <div class="search-box">
+          <input
+            type="text"
+            nz-input
+            placeholder="Search class"
+            [(ngModel)]="searchValue"
+          />
+          <button
+            nz-button
+            nzSize="small"
+            nzType="primary"
+            (click)="search()"
+            class="search-button"
+          >
+            Search
+          </button>
+          <button nz-button nzSize="small" (click)="reset()">Reset</button>
+        </div>
+      </div>
+    </nz-dropdown-menu>
+  </div>
+</div>
+<ng-template #totalTemplate> Total : {{ total }} </ng-template>

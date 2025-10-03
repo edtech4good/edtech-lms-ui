@@ -1,0 +1,206 @@
+<form nzLayout="vertical" nz-form [formGroup]="questionOptionForm">
+  <nz-form-item *ngIf="![11,13,15,16,17].includes(templateType)">
+    <nz-form-control [nzErrorTip]="errorMessages.questionoptiontext">
+      <grammarly-editor-plugin>
+        <input
+          type="text"
+          maxlength="100"
+          nz-input
+          formControlName="questionoptiontext"
+          placeholder="Enter option text"
+        />
+      </grammarly-editor-plugin>
+    </nz-form-control>
+  </nz-form-item>
+
+  <nz-form-item *ngIf="![5,8,10,12,14,19,21,22,23,24].includes(templateType)">
+    <nz-form-control
+      nzExtra="Minimum 4 characters to search."
+      [nzErrorTip]="templateType === 5 ? '' : errorMessages.questionoptionfile"
+    >
+      <nz-select
+        [nzDisabled]="templateType === 5"
+        formControlName="questionoptionfile"
+        nzPlaceHolder="Select option file"
+        nzAllowClear
+        nzShowSearch
+        nzServerSearch
+        (nzOnSearch)="optiononSearch($event)"
+      >
+        <ng-container *ngFor="let o of optionoptionList">
+          <nz-option
+            nzCustomContent
+            *ngIf="!optionisLoading"
+            [nzLabel]="o.documentname"
+            [nzValue]="o.documentname"
+          >
+            {{ o.documentname }}<br />
+            <ng-container *ngIf="o.documenttags && o.documenttags.length > 0">
+              <nz-tag
+                [nzColor]="'cyan'"
+                *ngFor="let documenttag of o.documenttags; let i = index"
+                >{{ documenttag }}</nz-tag
+              >
+            </ng-container>
+          </nz-option>
+        </ng-container>
+        <nz-option
+          *ngFor="let o of defaultOption"
+          nzCustomContent
+          [nzLabel]="o.documentname"
+          [nzValue]="o.documentname"
+        >
+          {{ o.documentname }}
+        </nz-option>
+        <nz-option *ngIf="optionisLoading" nzDisabled nzCustomContent>
+          <i nz-icon nzType="loading" class="loading-icon"></i>
+          Loading Data...
+        </nz-option>
+      </nz-select>
+    </nz-form-control>
+  </nz-form-item>
+
+  <nz-form-control
+    *ngIf="[19, 20, 21, 22, 23].includes(templateType)"
+    nzExtra="Option Correct Value"
+    [nzErrorTip]="errorMessages.questionoptionvalue"
+    >
+    <nz-input-number
+      formControlName="questionoptionvalue"
+      [nzMin]="0"
+      [nzStep]="1"
+      [nzPlaceHolder]="'Enter option value'"
+    ></nz-input-number>
+  </nz-form-control>
+  <nz-form-item *ngIf="[19,22].includes(templateType)">
+    <nz-form-control>
+      <label nz-checkbox formControlName="questionoptionisstaticfile">Is Static File?</label>
+    </nz-form-control>
+  </nz-form-item>
+  <nz-form-control
+    *ngIf="[24].includes(templateType)"
+    [nzErrorTip]="errorMessages.questionoptiondefault">
+    <nz-form-item>
+      <grammarly-editor-plugin>
+        <nz-form-label
+          [nzSm]="6"
+          [nzXs]="24"
+        >Numerator value</nz-form-label>
+        <input
+          type="text"
+          maxlength="100"
+          nz-input
+          formControlName="questionoptionnumeratorvalue"
+        />
+      </grammarly-editor-plugin>
+      <nz-form-item>
+        <label nz-checkbox formControlName="questionoptionnumeratorisstatic">Numerator is static?</label>
+      </nz-form-item>
+    </nz-form-item>
+
+
+    <nz-form-item>
+      <grammarly-editor-plugin>
+        <nz-form-label
+          [nzSm]="6"
+          [nzXs]="24"
+        >Denominator value</nz-form-label>
+        <input
+          type="text"
+          maxlength="100"
+          nz-input
+          formControlName="questionoptiondenominatorvalue"
+        />
+      </grammarly-editor-plugin>
+      <nz-form-item >
+        <label nz-checkbox formControlName="questionoptiondenominatorisstatic">Denominator is static?</label>
+      </nz-form-item>
+    </nz-form-item>
+
+
+    <nz-form-control>
+      <nz-form-item >
+        <label nz-checkbox formControlName="questionoptionisfraction">Is fraction?</label>
+      </nz-form-item>
+      <nz-form-item >
+        <label nz-checkbox formControlName="questionoptionistext">Is text?</label>
+      </nz-form-item>
+    </nz-form-control>
+  </nz-form-control>
+  <app-question-associate
+    #questionAssociate
+    *ngIf="templateType === 7"
+  ></app-question-associate>
+
+  <nz-form-item *ngIf="![5, 6, 7,9, 10, 11, 12, 13, 14, 15, 16, 17, 20].includes(templateType)">
+    <nz-form-control [nzErrorTip]="errorMessages.questionoptioniscorrect">
+      <label nz-checkbox formControlName="questionoptioniscorrect"
+        >Is Correct?</label
+      >
+    </nz-form-control>
+  </nz-form-item>
+
+
+  <nz-form-item *ngIf="[ 11, 14, 15,].includes(templateType)">
+    <nz-form-control [nzErrorTip]="errorMessages.optionassociatetext">
+      <grammarly-editor-plugin>
+        <input
+          type="text"
+          maxlength="100"
+          nz-input
+          formControlName="optionassociatetext"
+          placeholder="Enter associate text"
+        />
+      </grammarly-editor-plugin>
+    </nz-form-control>
+  </nz-form-item>
+
+  <nz-form-item *ngIf="[9,10,12,13,16,17].includes(templateType)">
+    <nz-form-control
+      nzExtra="Minimum 4 charater to search."
+      [nzErrorTip]="errorMessages.optionassociatefile"
+    >
+      <nz-select
+        [nzDisabled]="templateType === 5"
+        formControlName="optionassociatefile"
+        nzPlaceHolder="Select associate file"
+        nzAllowClear
+        nzShowSearch
+        nzServerSearch
+        (nzOnSearch)="optiononSearch($event)"
+      >
+        <ng-container *ngFor="let o of optionoptionList">
+          <nz-option
+            nzCustomContent
+            *ngIf="!optionisLoading"
+            [nzLabel]="o.documentname"
+            [nzValue]="o.documentname"
+          >
+            {{ o.documentname }}<br />
+            <ng-container *ngIf="o.documenttags && o.documenttags.length > 0">
+              <nz-tag
+                [nzColor]="'cyan'"
+                *ngFor="let documenttag of o.documenttags; let i = index"
+                >{{ documenttag }}</nz-tag
+              >
+            </ng-container>
+          </nz-option>
+        </ng-container>
+        <nz-option
+          *ngFor="let o of defaultOption"
+          nzCustomContent
+          [nzLabel]="o.documentname"
+          [nzValue]="o.documentname"
+        >
+          {{ o.documentname }}
+        </nz-option>
+        <nz-option *ngIf="optionisLoading" nzDisabled nzCustomContent>
+          <i nz-icon nzType="loading" class="loading-icon"></i>
+          Loading Data...
+        </nz-option>
+      </nz-select>
+    </nz-form-control>
+  </nz-form-item>
+
+  <input hidden formControlName="questionoptionid" />
+</form>

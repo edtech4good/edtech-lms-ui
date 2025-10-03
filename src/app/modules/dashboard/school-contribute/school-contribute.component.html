@@ -1,0 +1,70 @@
+<div style="display: flex; justify-content: center; margin-top: 20px;">
+  <h1>Fees Collection</h1>
+</div>
+<nz-select
+  nzAllowClear
+  nzShowSearch
+  nzServerSearch
+  nzPlaceHolder="Select Country"
+  [(ngModel)]="defualtcountry"
+  style="width: 200px"
+  (nzOnSearch)="onSearchCountry($event)"
+  (ngModelChange)="SearchCountry($event)"
+  >
+  <!-- (ngModelChange)="onSearch()" -->
+  <ng-container *ngFor="let option of country">
+    <nz-option
+      *ngIf="!isCountryLoading"
+      [nzLabel]="option.countryname"
+      [nzValue]="option.countryid"
+    ></nz-option>
+  </ng-container>
+  <nz-option *ngIf="isCountryLoading" nzDisabled nzCustomContent>
+    <span nz-icon nzType="loading" class="loading-icon"></span>
+    Loading Data...
+  </nz-option>
+</nz-select>
+
+<nz-select
+  nzAllowClear
+  nzShowSearch
+  nzServerSearch
+  nzPlaceHolder="Select School"
+  [ngModel]="defaultSchool"
+  style="width: 200px"
+  (nzOnSearch)="onSearchSchool($event)"
+  (ngModelChange)="SearchSchool($event)"
+  >
+  <!-- (ngModelChange)="onSearch()" -->
+  <ng-container *ngFor="let option of school">
+    <nz-option
+      *ngIf="!isSchoolLoading"
+      [nzLabel]="option.schoolname"
+      [nzValue]="option.schoolname"
+    ></nz-option>
+  </ng-container>
+  <nz-option *ngIf="isSchoolLoading" nzDisabled nzCustomContent>
+    <span nz-icon nzType="loading" class="loading-icon"></span>
+    Loading Data...
+  </nz-option>
+</nz-select>
+<nz-date-picker nzMode="month" [ngModel]="Date" (ngModelChange)="SearchDate($event)" [nzFormat]="monthFormat"></nz-date-picker>
+<button style="margin-left: 10px;" nz-button nzType="primary" (click)="downloadReportContribute()" [nzLoading]="downloading" >Download as Excel</button>
+<div style="display: flex;flex-direction: row; margin-top: 30px;">
+  <ngx-charts-bar-vertical-2d
+  [view]="view"
+  [scheme]="colorScheme"
+  [results]="multi_bar_chart"
+  [gradient]="gradient"
+  [xAxis]="showXAxis"
+  [yAxis]="showYAxis"
+  [legend]="showLegend"
+  [showXAxisLabel]="showXAxisLabel"
+  [showYAxisLabel]="showYAxisLabel"
+  [xAxisLabel]="xAxisLabel"
+  [yAxisLabel]="yAxisLabel"
+  [legendTitle]="LegendTitle"
+  [legendPosition]="legendPosition"
+  [roundDomains]="roundDomains">
+</ngx-charts-bar-vertical-2d>
+</div>

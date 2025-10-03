@@ -1,0 +1,94 @@
+<div nz-row>
+  <div nz-col nzSpan="12">
+    <nz-card [nzBordered]="true" nzTitle="User" [nzLoading]="dataloading">
+      <form nz-form [formGroup]="updateForm">
+        <nz-form-item>
+          <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="lmsusername"
+            >User Email</nz-form-label
+          >
+          <nz-form-control nzErrorTip="Please enter user email!">
+            <input
+              type="text"
+              nz-input
+              formControlName="lmsusername"
+              placeholder="Enter user email"
+            />
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item>
+          <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="lmsuserpasswordhash"
+            >User Password</nz-form-label
+          >
+          <nz-form-control nzErrorTip="Please enter user password!">
+            <input
+              type="text"
+              nz-input
+              formControlName="lmsuserpasswordhash"
+              placeholder="Enter user password"
+            />
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item>
+          <nz-form-label [nzSm]="6" [nzXs]="24" nzFor="countryid">Country</nz-form-label>
+          <nz-form-control nzErrorTip="Please select country">
+            <nz-select
+              formControlName="countryids"
+              nzPlaceHolder="Select country"
+              nzMode="multiple"
+              (ngModelChange)="onSelected($event)"
+              [nzMaxMultipleCount]="1"
+            >
+              <nz-option
+                *ngFor="let option of countries$ | async"
+                [nzLabel]="option.countryname"
+                [nzValue]="option.countryid"
+              ></nz-option>
+            </nz-select>
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item>
+          <nz-form-label [nzSm]="6" [nzXs]="24" nzFor="schoolid">School</nz-form-label>
+          <nz-form-control nzErrorTip="Please select school">
+            <nz-select
+              formControlName="schoolids"
+              [nzMaxTagPlaceholder]="tagPlaceHolder"
+              nzMode="multiple"
+              nzPlaceHolder="Please select the school"
+              nzAllowClear
+              nzShowSearch
+              nzServerSearch
+              (nzOnSearch)="onSearchSchool($event)"
+            >
+              <nz-option *ngFor="let item of schoolList" [nzLabel]="item.schoolname" [nzValue]="item.schoolid"></nz-option>
+            </nz-select>
+            <ng-template #tagPlaceHolder let-selectedList>and {{ selectedList.length }} more selected</ng-template>
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item>
+          <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="lmsuserroles"
+            >User Roles</nz-form-label
+          >
+          <nz-form-control nzErrorTip="Please enter user password!">
+            <div class="col-md-12">
+              <section class="checkbox-section text-center" *ngIf="roles  && roles.length > 0">
+                <p *ngFor="let n of roles; let i = index" formArrayName="lmsuserroles">
+                  <input class="checkbox-margin" (change)="updateChkbxArray(n.id, $event, 'lmsuserroles')" type="checkbox" value="{{n.id}}" [checked]="n.checked"/>
+                  <label>{{n.text}}</label>
+                </p>
+              </section>
+            </div>
+          </nz-form-control>
+        </nz-form-item>
+
+        <button
+          nz-button style="float: right;"
+          type="button"
+          [nzType]="'primary'"
+          (click)="submitcreateForm()"
+        >
+          Submit
+        </button>
+      </form>
+    </nz-card>
+  </div>
+</div>

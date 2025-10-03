@@ -1,0 +1,131 @@
+<div nz-row>
+  <div nz-col nzSpan="24">
+    <nz-card [nzBordered]="true" nzTitle="Schools" [nzExtra]="extraTemplate">
+      <nz-table
+        nzShowSizeChanger
+        [nzLoading]="dataloading"
+        [nzData]="data"
+        [nzFrontPagination]="false"
+        nzSize="small"
+        [nzTotal]="total"
+        [nzPageSize]="pageSize"
+        [nzPageIndex]="pageIndex"
+        [nzHideOnSinglePage]="true"
+        [nzBordered]="true"
+        (nzQueryParams)="onQueryParamsChange($event)"
+        [nzShowTotal]="totalTemplate"
+      >
+        <thead>
+          <tr>
+            <th nzColumnKey="schoolname" nzCustomFilter>
+              School Name
+              <nz-filter-trigger
+                [(nzVisible)]="visible"
+                [nzActive]="searchValue.length > 0"
+                [nzDropdownMenu]="menu"
+              >
+                <i nz-icon nzType="search"></i>
+              </nz-filter-trigger>
+            </th>
+            <th nzColumnKey="countryid" [nzFilters]="filterField.countries" [nzFilterFn]="true">
+              Country
+            </th>
+            <th nzColumnKey="curriculums" [nzFilters]="filterField.curriculums" [nzFilterFn]="true">
+              Curriculum
+            </th>
+            <th nzColumnKey="">Tools</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let data of data">
+            <td >{{ data.schoolname }}</td>
+            <td>{{ data.countries?.countryname }}</td>
+            <td>
+              <div nzSize="small" *ngFor="let cur of data.curriculums">
+                {{ cur }}
+              </div>
+            </td>
+            <td>
+              <a
+                nz-button
+                nzDanger
+                nzSize="small"
+                style="margin-right: 20px"
+                nz-popconfirm
+                nzPopconfirmTitle="Sure to delete?"
+                (nzOnConfirm)="deletetag(data.schoolid)"
+                *ngxPermissionsOnly="['delete_school']"
+                >Delete</a
+              >
+              <a
+                *ngxPermissionsOnly="['zr5ER4QD', 'Mapyr2Pw', 'superadmin', 'view_download_student']"
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                style="margin-right: 20px"
+                nz-popconfirm
+                nzPopconfirmTitle="Sure to download?"
+                (nzOnConfirm)="exportStudents(data.schoolname)"
+                >Download Students</a
+              >
+              <a
+                *ngxPermissionsOnly="['zr5ER4QD', 'Mapyr2Pw', 'superadmin', 'sync_student']"
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                style="margin-right: 20px"
+                nz-popconfirm
+                nzPopconfirmTitle="Sure to sync?"
+                (nzOnConfirm)="synccloudStudents(data.schoolname)"
+                >Sync Students</a
+              >
+              <a
+                nz-button
+                [routerLink]="['/school', 'update', data.schoolid]"
+                style="margin-right: 20px"
+                nzType="primary"
+                nzSize="small"
+                *ngxPermissionsOnly="['update_school']"
+                >Edit</a
+              >
+              <a
+                nz-button
+                [routerLink]="['/school', 'schoolcontribute', data.schoolid]"
+                nzType="primary"
+                nzSize="small"
+                *ngxPermissionsOnly="['view_school_contribution']"
+                >Fees Collection</a
+              >
+            </td>
+          </tr>
+        </tbody>
+      </nz-table>
+    </nz-card>
+    <ng-template #extraTemplate>
+      <a nz-button routerLink="/school/create" nzType="primary" *ngxPermissionsOnly="['create_school']">Create</a>
+    </ng-template>
+    <nz-dropdown-menu #menu="nzDropdownMenu">
+      <div class="ant-table-filter-dropdown">
+        <div class="search-box">
+          <input
+            type="text"
+            nz-input
+            placeholder="Search school"
+            [(ngModel)]="searchValue"
+          />
+          <button
+            nz-button
+            nzSize="small"
+            nzType="primary"
+            (click)="search()"
+            class="search-button"
+          >
+            Search
+          </button>
+          <button nz-button nzSize="small" (click)="reset()">Reset</button>
+        </div>
+      </div>
+    </nz-dropdown-menu>
+  </div>
+</div>
+<ng-template #totalTemplate> Total : {{ total }} </ng-template>

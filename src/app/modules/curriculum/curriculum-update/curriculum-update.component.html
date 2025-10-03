@@ -1,0 +1,88 @@
+<div nz-row>
+  <div nz-col nzSpan="14">
+    <nz-card [nzBordered]="true" nzTitle="Curriculum" [nzLoading]="dataloading">
+      <form nz-form [formGroup]="editForm">
+        <nz-form-item>
+          <nz-form-label
+            [nzSm]="6"
+            [nzXs]="24"
+            nzRequired
+            nzFor="curriculumname"
+            >Curriculum Name</nz-form-label
+          >
+          <nz-form-control nzErrorTip="Please enter curriculum name!">
+            <grammarly-editor-plugin>
+              <input
+                type="text"
+                nz-input
+                formControlName="curriculumname"
+                placeholder="Enter curriculum name"
+                (input)="restrictSpecialCharecter()"
+  
+              />
+            </grammarly-editor-plugin>
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item>
+          <nz-form-label
+            [nzSm]="6"
+            [nzXs]="24"
+            nzFor="curriculumdescription"
+            >Curriculum Description</nz-form-label
+          >
+          <nz-form-control nzErrorTip="Please enter curriculum description!">
+            <grammarly-editor-plugin>
+              <textarea
+                maxlength="200"
+                type="text"
+                nz-input
+                formControlName="curriculumdescription"
+                placeholder="Enter curriculum description"
+                style="resize: none"
+                rows="5"
+              >
+              </textarea>
+            </grammarly-editor-plugin>
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item>
+          <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="countryid">Country</nz-form-label>
+          <nz-form-control nzErrorTip="Please select the country">
+            <nz-select
+              formControlName="countryid"
+              [nzMaxTagPlaceholder]="tagPlaceHolder"
+              nzMode="multiple"
+              nzPlaceHolder="Please select"
+            >
+              <nz-option *ngFor="let item of country$ | async" [nzLabel]="item.countryname" [nzValue]="item.countryid"></nz-option>
+            </nz-select>
+            <ng-template #tagPlaceHolder let-selectedList>and {{ selectedList.length }} more selected</ng-template>
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item>
+          <nz-form-label [nzSm]="6" [nzXs]="24" nzFor="subjectid">Subject</nz-form-label>
+          <nz-form-control nzErrorTip="Please select the subject">
+            <nz-select
+              formControlName="subjectid"
+              [nzMaxTagPlaceholder]="tagPlaceHolder"
+              nzPlaceHolder="Please select a subject"
+            >
+              <nz-option *ngFor="let item of subject$ | async" [nzLabel]="item.subjectname" [nzValue]="item.subjectid"></nz-option>
+            </nz-select>
+            <ng-template #tagPlaceHolder let-selectedList>and {{ selectedList.length }} more selected</ng-template>
+          </nz-form-control>
+        </nz-form-item>
+        
+        <button
+          nz-button
+          style="float: right"
+          type="button"
+          [nzType]="'primary'"
+          (click)="submiteditForm()"
+        >
+          Submit
+        </button>
+      </form>
+    </nz-card>
+  </div>
+</div>

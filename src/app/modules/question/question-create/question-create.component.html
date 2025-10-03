@@ -1,0 +1,205 @@
+<form nz-form [formGroup]="questionForm" nzLayout="vertical">
+  <nz-card [nzBordered]="true" nzTitle="New Question" [nzExtra]="extraTemplate" [nzLoading]="dataloading">
+    <div nz-row [nzGutter]="16" style="margin-bottom: 20px">
+      <div nz-col nzSpan="12">
+        <nz-card [nzBordered]="true">
+          <nz-form-item>
+            <nz-form-label
+              [nzSm]="6"
+              [nzXs]="24"
+              nzRequired
+              nzFor="templatetypeid"
+              >Template Type</nz-form-label
+            >
+            <nz-form-control nzErrorTip="Please select template type!">
+              <nz-select
+                formControlName="templatetypeid"
+                nzPlaceHolder="Select template type"
+                (ngModelChange)="modelvalueCheck($event)"
+              >
+                <nz-option
+                  *ngFor="let option of templatetypes"
+                  [nzLabel]="option.templatename"
+                  [nzValue]="option.templateid"
+                ></nz-option>
+              </nz-select>
+            </nz-form-control>
+          </nz-form-item>
+          <nz-form-item>
+            <nz-form-label
+              [nzSm]="6"
+              [nzXs]="24"
+              nzRequired
+              nzFor="questionidentifier"
+              >Question Identifier</nz-form-label
+            >
+            <nz-form-control nzExtra="Maximum 250 characters."
+              nzErrorTip="Please enter identifier!">
+              <grammarly-editor-plugin>
+                <input
+                  nz-input
+                  maxlength="250"
+                  formControlName="questionidentifier"
+                  placeholder="Enter question identifier"
+                />
+              </grammarly-editor-plugin>
+            </nz-form-control>
+          </nz-form-item>
+          <app-question-heading #questionHeading></app-question-heading>
+          <nz-form-item *ngIf="![5, 6, 20].includes(selectedtemplatetype)">
+            <nz-form-label
+              [nzSm]="6"
+              [nzXs]="24"
+              nzRequired
+              nzFor="questiontext"
+              >Question</nz-form-label
+            >
+            <nz-form-control
+              [nzExtra]="
+                selectedtemplatetype === 8
+                  ? 'Sample : Vuthy has-----fish. He has-----yellow fish, but he has-----one red fish.'
+                  : 'Maximum 500 characters.'
+              "
+              [nzErrorTip]="errorMessages.questiontext"
+            >
+            <grammarly-editor-plugin>
+              <textarea
+                *ngIf="selectedtemplatetype !== 8; else type8"
+                nz-input
+                maxlength="500"
+                style="resize: none"
+                rows="5"
+                formControlName="questiontext"
+                placeholder="Enter question"
+              ></textarea>
+            </grammarly-editor-plugin>
+            <ng-template #type8>
+              <textarea
+                nz-input
+                style="resize: none"
+                rows="5"
+                formControlName="questiontext"
+                placeholder="Enter question"
+              ></textarea>
+            </ng-template>
+            </nz-form-control>
+          </nz-form-item>
+          <nz-form-item>
+            <nz-form-label
+              [nzSm]="6"
+              [nzXs]="24"
+              nzRequired
+              nzFor="questionfile"
+              >Question File
+            </nz-form-label>
+            <nz-form-control
+              nzExtra="Minimum 4 characters to search."
+              [nzErrorTip]="errorMessages.questiontext"
+            >
+              <nz-select
+                formControlName="questionfile"
+                nzPlaceHolder="Select question file"
+                nzAllowClear
+                nzShowSearch
+                nzServerSearch
+                (nzOnSearch)="questioncreateonSearch($event)"
+              >
+                <ng-container *ngFor="let o of questioncreateoptionList">
+                  <nz-option
+                    nzCustomContent
+                    *ngIf="!questioncreateisLoading"
+                     [nzLabel]="o.documentname"
+                     [nzValue]="o.documentname"
+                  >
+                    {{ o.documentname }}<br />
+                    <ng-container
+                      *ngIf="o.documenttags && o.documenttags.length > 0"
+                    >
+                      <nz-tag
+                        [nzColor]="'cyan'"
+                        *ngFor="
+                          let documenttag of o.documenttags;
+                          let i = index
+                        "
+                        >{{ documenttag }}</nz-tag
+                      >
+                    </ng-container>
+                  </nz-option>
+                </ng-container>
+                <nz-option
+                  *ngIf="questioncreateisLoading"
+                  nzDisabled
+                  nzCustomContent
+                >
+                  <i nz-icon nzType="loading" class="loading-icon"></i>
+                  Loading Data...
+                </nz-option>
+              </nz-select>
+            </nz-form-control>
+          </nz-form-item>
+          <nz-form-item>
+            <nz-form-label
+              [nzSm]="6"
+              [nzXs]="24"
+              nzRequired
+              nzFor="questionfile"
+              >Question Tags</nz-form-label
+            >
+            <nz-form-control nzErrorTip="Select Question Tags">
+              <nz-select
+                formControlName="questiontags"
+                nzMode="tags"
+                nzPlaceHolder="Select Question tags"
+              >
+                <nz-option
+                  *ngFor="let option of questiontags"
+                  [nzLabel]="option.questiontagname"
+                  [nzValue]="option.questiontagname"
+                  nzCustomContent
+                >
+                  {{ option.questiontagname }}
+                </nz-option>
+              </nz-select>
+            </nz-form-control>
+          </nz-form-item>
+          <nz-form-item *ngIf="[20,21].includes(selectedtemplatetype)">
+            <nz-form-label nzFor="questioncorrectvalue">Correct Value</nz-form-label>
+            <nz-form-control nzErrorTip="Please enter a valid correct value!">
+              <nz-input-number
+                formControlName="questioncorrectvalue"
+                [nzMin]="0"
+                [nzStep]="1"
+                [nzPlaceHolder]="'Enter correct value'"
+                class="full-width">
+              </nz-input-number>
+            </nz-form-control>
+          </nz-form-item>
+        </nz-card>
+      </div>
+      <div nz-col nzSpan="12">
+        <nz-card [nzBordered]="true">
+          <app-question-distractor
+            *ngIf="[8, 19, 21, 22, 23, 24].includes(selectedtemplatetype)"
+            #questionDistractors
+          ></app-question-distractor>
+          <app-question-option-holder
+            #questionOptionHolder
+            [templateType]="selectedtemplatetype"
+          ></app-question-option-holder>
+        </nz-card>
+      </div>
+    </div>
+    <button
+      nz-button
+      style="float: right"
+      type="button"
+      [nzType]="'primary'"
+      (click)="questioncreateonSubmit()"
+    >
+      Submit
+    </button>
+  </nz-card>
+</form>
+<ng-template #extraTemplate>
+  <app-uploader></app-uploader>
+</ng-template>

@@ -1,0 +1,43 @@
+<form nzLayout="vertical" nz-form [formGroup]="questionDistractorForm">
+  <nz-form-item>
+    <nz-form-label [nzSm]="6" [nzXs]="24">
+      <span
+        >Distractors
+        <button
+          nz-button
+          nzSize="small"
+          nzType="primary"
+          class="add-button"
+          (click)="addField($event)"
+        >
+          <i nz-icon nzType="plus"></i>
+        </button>
+      </span>
+    </nz-form-label>
+  </nz-form-item>
+
+  <nz-form-item *ngFor="let control of listOfDistractor; let i = index">
+    <nz-form-control nzErrorTip="Please enter distractor text!">
+      <nz-input-group nzSearch [nzAddOnAfter]="suffixIconButton">
+        <grammarly-editor-plugin>
+          <input
+            nz-input
+            placeholder="Enter distractor text"
+            [attr.id]="control.questiondistractorid"
+            [formControlName]="control.questiondistractorid"
+          />
+        </grammarly-editor-plugin>
+      </nz-input-group>
+      <ng-template #suffixIconButton>
+        <button
+          nz-button
+          nzType="primary"
+          nzDanger
+          (click)="removeField(control, $event)"
+        >
+          <i nz-icon nzType="delete"></i>
+        </button>
+      </ng-template>
+    </nz-form-control>
+  </nz-form-item>
+</form>

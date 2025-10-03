@@ -1,0 +1,32 @@
+<div nz-row>
+  <div nz-col nzSpan="12">
+    <nz-card [nzBordered]="true" nzTitle="Question Tag" [nzLoading]="dataloading">
+      <form nz-form [formGroup]="createForm">
+        <nz-form-item>
+          <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="questiontagname"
+            >Question Tag Name</nz-form-label
+          >
+          <nz-form-control nzErrorTip="Please enter question tag name!">
+            <grammarly-editor-plugin>
+              <input
+                type="text"
+                nz-input
+                formControlName="questiontagname"
+                placeholder="Enter question tag name"
+              />
+            </grammarly-editor-plugin>
+          </nz-form-control>
+        </nz-form-item>
+
+        <button
+          nz-button style="float: right;"
+          type="button"
+          [nzType]="'primary'"
+          (click)="submitcreateForm()"
+        >
+          Submit
+        </button>
+      </form>
+    </nz-card>
+  </div>
+</div>

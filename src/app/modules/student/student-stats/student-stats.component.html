@@ -1,0 +1,251 @@
+<div nz-row>
+  <div nz-col nzSpan="24">
+    <nz-card [nzLoading]="dataloading">
+      <nz-card nzTitle="Student Information" [nzLoading]="dataloading">
+        <nz-descriptions nzBordered>
+          <nz-descriptions-item nzTitle="Name">
+            <nz-badge
+              [nzStatus]="studentdetails?.isactive ? 'error' : 'success'"
+              [nzText]="
+                studentdetails?.studentfirstname + ' ' +
+                studentdetails?.studentlastname
+              "
+            ></nz-badge>
+          </nz-descriptions-item>
+          <nz-descriptions-item nzTitle="Mother Name">{{
+            studentdetails?.mothername
+          }}</nz-descriptions-item>
+          <nz-descriptions-item nzTitle="Father Name">{{
+            studentdetails?.fathername
+          }}</nz-descriptions-item>
+          <nz-descriptions-item nzTitle="Contact">{{
+            studentdetails?.contact
+          }}</nz-descriptions-item>
+          <nz-descriptions-item nzTitle="Date of Birth">
+            {{ studentdetails?.dateofbirth | date: "MMM d, y, h:mm:ss a" }}
+          </nz-descriptions-item>
+
+          <nz-descriptions-item nzTitle="Gender">
+            {{ studentdetails?.genderid === 1 ? "Male" : "Female" }}
+          </nz-descriptions-item>
+
+          <nz-descriptions-item nzTitle="Country">{{
+            studentdetails?.country
+          }}</nz-descriptions-item>
+          <nz-descriptions-item nzTitle="State">{{
+            studentdetails?.state
+          }}</nz-descriptions-item>
+          <nz-descriptions-item nzTitle="City">{{
+            studentdetails?.city
+          }}</nz-descriptions-item>
+        </nz-descriptions>
+        <br />
+        <nz-descriptions nzBordered>
+          <nz-descriptions-item nzTitle="School">{{
+            studentdetails?.schoolname
+          }}</nz-descriptions-item>
+          <nz-descriptions-item nzTitle="Date of Join">
+            {{ studentdetails?.dateofjoin | date: "MMM d, y, h:mm:ss a" }}
+          </nz-descriptions-item>
+
+          <nz-descriptions-item nzTitle="Class">{{
+            studentdetails?.standard
+          }}</nz-descriptions-item>
+
+          <nz-descriptions-item nzTitle="Curriculum">{{
+            studentdetails?.curriculum.curriculumname
+          }}</nz-descriptions-item>
+          <nz-descriptions-item nzTitle="School User Name"
+            ><nz-badge
+              [nzStatus]="
+                studentdetails?.schooluser.isdisabled ? 'error' : 'success'
+              "
+              [nzText]="studentdetails?.schooluser.schoolusername"
+            ></nz-badge
+          ></nz-descriptions-item>
+          <nz-descriptions-item nzTitle="Last Login">
+            {{ studentdetails?.lastlogin | date: "MMM d, y, h:mm:ss a" }}
+          </nz-descriptions-item>
+        </nz-descriptions>
+      </nz-card>
+
+      <nz-collapse>
+        <nz-collapse-panel nzHeader="Curriculum Progress">
+          <nz-tree
+            [nzMultiple]="false"
+            [nzData]="curriculumtree"
+            nzShowLine
+            [nzTreeTemplate]="nzTreeTemplate"
+          ></nz-tree>
+        </nz-collapse-panel>
+        <nz-collapse-panel nzHeader="Levels History" [nzActive]="false">
+          <nz-card>
+            <nz-table
+              #levelTable
+              [nzData]="studentlevel"
+              nzSize="small"
+              [nzFrontPagination]="false"
+              [nzShowPagination]="false"
+            >
+              <thead>
+                <tr>
+                  <th>Level</th>
+                  <th>Grade</th>
+                  <th>Start Time</th>
+                  <th>End Time</th>
+                  <th>Pass</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let data of levelTable.data">
+                  <td>{{ data.levelname }} {{ data.levelid }}</td>
+                  <td>{{ data.gradename }}</td>
+                  <td>{{ data.starttime | date: "MMM d, y, h:mm:ss a" }}</td>
+                  <td>{{ data.endtime | date: "MMM d, y, h:mm:ss a" }}</td>
+                  <td>
+                    <nz-badge
+                      [nzStatus]="data.ispass === 1 ? 'success' : 'error'"
+                    ></nz-badge>
+                  </td>
+                </tr>
+              </tbody>
+            </nz-table>
+          </nz-card>
+        </nz-collapse-panel>
+        <nz-collapse-panel nzHeader="Practice History" [nzActive]="false">
+          <nz-card>
+            <nz-table
+              #practiceTable
+              [nzData]="studentpractice"
+              nzSize="small"
+              [nzFrontPagination]="false"
+              [nzShowPagination]="false"
+            >
+              <thead>
+                <tr>
+                  <th>Practice</th>
+                  <th>Lesson</th>
+                  <th>Level</th>
+                  <th>Grade</th>
+                  <th>Start Time</th>
+                  <th>End Time</th>
+                  <th>Pass</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let data of practiceTable.data">
+                  <td>
+                    {{ data.lessonpracticename }}
+                  </td>
+                  <td>
+                    {{ data.lessonname }}
+                  </td>
+                  <td>
+                    {{ data.levelname }}
+                  </td>
+                  <td>{{ data.gradename }}</td>
+                  <td>{{ data.starttime | date: "MMM d, y, h:mm:ss a" }}</td>
+                  <td>{{ data.endtime | date: "MMM d, y, h:mm:ss a" }}</td>
+                  <td>
+                    <nz-badge
+                      [nzStatus]="data.ispass === 1 ? 'success' : 'error'"
+                    ></nz-badge>
+                  </td>
+                </tr>
+              </tbody>
+            </nz-table>
+          </nz-card>
+        </nz-collapse-panel>
+        <nz-collapse-panel nzHeader="Quiz History" [nzActive]="false">
+          <nz-card>
+            <nz-table
+              #quizTable
+              [nzData]="studentquiz"
+              nzSize="small"
+              [nzFrontPagination]="false"
+              [nzShowPagination]="false"
+            >
+              <thead>
+                <tr>
+                  <th>Quiz</th>
+                  <th>Lesson</th>
+                  <th>Level</th>
+                  <th>Grade</th>
+                  <th>Start Time</th>
+                  <th>End Time</th>
+                  <th>Pass</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let data of quizTable.data">
+                  <td>
+                    {{ data.lessonquizname }}
+                  </td>
+                  <td>
+                    {{ data.lessonname }}
+                  </td>
+                  <td>
+                    {{ data.levelname }}
+                  </td>
+                  <td>{{ data.gradename }}</td>
+                  <td>{{ data.starttime | date: "MMM d, y, h:mm:ss a" }}</td>
+                  <td>{{ data.endtime | date: "MMM d, y, h:mm:ss a" }}</td>
+                  <td>
+                    <nz-badge
+                      [nzStatus]="data.ispass === 1 ? 'success' : 'error'"
+                    ></nz-badge>
+                  </td>
+                  <td>{{ data.country }}</td>
+                </tr>
+              </tbody>
+            </nz-table>
+          </nz-card>
+        </nz-collapse-panel>
+      </nz-collapse>
+    </nz-card>
+  </div>
+</div>
+<ng-template #nzTreeTemplate let-node let-origin="origin">
+  <span *ngIf="origin.data.status" class="custom-node">
+    <nz-badge
+      *ngIf="isPass(node.key, origin.data.type) !== null"
+      [nzStatus]="
+        isPass(node.key, origin.data.type) === true ? 'success' : 'error'
+      "
+    ></nz-badge>
+    <span *ngIf="!node.isLeaf" (click)="openFolder(node)">
+      <span
+        [style.text-decoration]="origin.data.status ? 'none' : 'line-through'"
+        class="folder-name"
+        >{{ node.title }}</span
+      >
+      <span
+        *ngIf="
+          isPass(node.key, origin.data.type) !== null &&
+          passDate(node.key, origin.data.type)
+        "
+      >
+        ({{
+          passDate(node.key, origin.data.type) | date: "MMM d, y, h:mm:ss a"
+        }})
+      </span>
+    </span>
+    <span *ngIf="node.isLeaf" (click)="openFolder(node)">
+      <span
+        [style.text-decoration]="origin.data.status ? 'none' : 'line-through'"
+        class="folder-name"
+        >{{ node.title }}
+      </span>
+      <span
+        *ngIf="
+          isPass(node.key, origin.data.type) !== null &&
+          passDate(node.key, origin.data.type)
+        "
+      >
+        ({{
+          passDate(node.key, origin.data.type) | date: "MMM d, y, h:mm:ss a"
+        }})
+      </span>
+    </span>
+  </span>
+</ng-template>

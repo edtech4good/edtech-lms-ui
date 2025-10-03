@@ -1,0 +1,34 @@
+<button nz-button nzSize="small" nzType="link" (click)="showuploadDocument()">
+  Upload
+</button>
+<nz-modal
+  [nzWidth]="'calc(73vw)'"
+  [nzBodyStyle]="{ minheight: '300px' }"
+  [(nzVisible)]="showUpload"
+  nzTitle="Upload Document"
+  nzOkText="Submit"
+  nzCancelText="Cancel"
+  (nzOnOk)="handleUpload()"
+  (nzOnCancel)="hideuploadDocument()"
+  [nzOkLoading]="uploading"
+>
+  <ng-container *nzModalContent>
+    <nz-spin [nzSpinning]="uploading">
+      <nz-upload
+        [(nzFileList)]="fileList"
+        [nzBeforeUpload]="beforeUpload"
+        nzType="drag"
+        [nzMultiple]="false"
+      >
+        <p class="ant-upload-drag-icon">
+          <i nz-icon nzType="inbox"></i>
+        </p>
+        <p class="ant-upload-text">Click or drag file to this area to upload</p>
+        <p class="ant-upload-hint">
+          Support for a single or bulk upload. Strictly prohibit from uploading
+          company data or other band files
+        </p>
+      </nz-upload>
+    </nz-spin>
+  </ng-container>
+</nz-modal>

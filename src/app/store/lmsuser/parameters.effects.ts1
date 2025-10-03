@@ -1,0 +1,37 @@
+import { Injectable } from '@angular/core';
+import { Actions, createEffect, ofType } from '@ngrx/effects';
+import { Action } from '@ngrx/store';
+import { Observable } from 'rxjs';
+import { mergeMap } from 'rxjs/operators';
+import { ParametersService } from '../../services/parameters/parameters.service';
+import * as parametersActions from './parameters.action';
+import { ParametersState } from './parameters.reducer';
+import * as applicationparameterenum from '@armax_cloud/allspark-data-models/models/enum/applicationparameter.enum';
+@Injectable()
+export class ParametersEffects {
+	GetToDos$: Observable<Action> = createEffect(() =>
+		this.actions$.pipe(
+			ofType(parametersActions.getparametersAction),
+			mergeMap(async () => {
+				const parameters1 = await this.parameterservice
+					.getparameterbyparametername(applicationparameterenum.WMS_GHI.key)
+					.toPromise();
+				const parameters2 = await this.parameterservice
+					.getparameterbyparametername(applicationparameterenum.WMS_POA.key)
+					.toPromise();
+				const tempparameter = new ParametersState();
+				tempparameter.parameterid = [];
+				tempparameter.parameterdetails = {
+					...{ [parameters1.parameterid]: parameters1 },
+					...{ [parameters2.parameterid]: parameters2 },
+				};
+				return parametersActions.getparametersSuccessAction(tempparameter);
+			})
+		)
+	);
+
+	constructor(
+		private actions$: Actions,
+		private parameterservice: ParametersService
+	) {}
+}

@@ -1,0 +1,62 @@
+<form nzLayout="vertical" nz-form [formGroup]="questionHeadingForm">
+  <nz-form-item>
+    <nz-form-label nzRequired nzFor="headingtext">Heading Text</nz-form-label>
+    <nz-form-control nzExtra="Maximum 250 characters." [nzErrorTip]="errorMessages.headingtext">
+      <grammarly-editor-plugin>
+        <input
+          type="text"
+          maxlength="250"
+          nz-input
+          formControlName="headingtext"
+          placeholder="Enter heading text"
+        />
+      </grammarly-editor-plugin>
+    </nz-form-control>
+  </nz-form-item>
+  <nz-form-item>
+    <nz-form-label nzRequired nzFor="headingfile">Heading Audio</nz-form-label>
+    <nz-form-control
+      nzExtra="Minimum 4 characters to search."
+      [nzErrorTip]="errorMessages.headingfile"
+    >
+      <nz-select
+        formControlName="headingfile"
+        nzPlaceHolder="Select heading audio file"
+        nzAllowClear
+        nzShowSearch
+        nzServerSearch
+        (nzOnSearch)="headingfileonSearch($event)"
+      >
+        <ng-container *ngFor="let o of headingfileoptionList">
+          <nz-option
+            nzCustomContent
+            *ngIf="!headingfileisLoading"
+            [nzLabel]="o.documentname"
+            [nzValue]="o.documentname"
+          >
+            {{ o.documentname }}<br />
+            <ng-container *ngIf="o.documenttags && o.documenttags.length > 0">
+              <nz-tag
+                [nzColor]="'cyan'"
+                *ngFor="let documenttag of o.documenttags; let i = index"
+                >{{ documenttag }}</nz-tag
+              >
+            </ng-container>
+          </nz-option>
+        </ng-container>
+        <nz-option
+          *ngFor="let o of defaultOption"
+          nzCustomContent
+          [nzLabel]="o.documentname"
+          [nzValue]="o.documentname"
+        >
+          {{ o.documentname }}
+        </nz-option>
+        <nz-option *ngIf="headingfileisLoading" nzDisabled nzCustomContent>
+          <i nz-icon nzType="loading" class="loading-icon"></i>
+          Loading Data...
+        </nz-option>
+      </nz-select>
+    </nz-form-control>
+  </nz-form-item>
+</form>

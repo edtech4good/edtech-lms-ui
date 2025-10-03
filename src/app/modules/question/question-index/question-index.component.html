@@ -1,0 +1,308 @@
+<div nz-row >
+  <div nz-col nzSpan="24" >
+    <nz-card [nzBordered]="true" nzTitle="Questions" [nzExtra]="extraTemplate">
+      <nz-table
+        nzShowSizeChanger
+        [nzLoading]="dataloading"
+        [nzData]="data"
+        [nzFrontPagination]="false"
+        [nzTotal]="total"
+        [nzPageSize]="pageSize"
+        nzSize="small"
+        [nzPageIndex]="pageIndex"
+        nzSize="small"
+        [nzHideOnSinglePage]="true"
+        [nzBordered]="true"
+        [nzPageSizeOptions]="[10, 20, 50, 100, 200]"
+        (nzQueryParams)="onQueryParamsChange($event)"
+        [nzShowTotal]="totalTemplate"
+      >
+        <thead>
+          <tr>
+            <th nzWidth="60px"></th>
+            <th nzColumnKey="questionidentifier" nzCustomFilter>
+              Question Identifier
+              <nz-filter-trigger
+                [(nzVisible)]="showquestionIdentifierFilter"
+                [nzActive]="searchquestionIdentifierValue.length > 0"
+                [nzDropdownMenu]="questionidentifierMenu"
+              >
+                <i nz-icon nzType="search"></i>
+              </nz-filter-trigger>
+            </th>
+
+            <th nzColumnKey="questiontypename" nzCustomFilter>
+              Template Type
+              <nz-filter-trigger
+                [(nzVisible)]="showquestionTypeFilter"
+                [nzActive]="searchquestionTypeValue.length > 0"
+                [nzDropdownMenu]="questionTypeMenu"
+              >
+                <i nz-icon nzType="search"></i>
+              </nz-filter-trigger>
+            </th>
+
+            <th nzColumnKey="questiontags" nzCustomFilter>
+              Tags
+              <nz-filter-trigger
+                [(nzVisible)]="showquestionTagFilter"
+                [nzActive]="searchquestionTagValue.length > 0"
+                [nzDropdownMenu]="questionTagMenu"
+              >
+                <i nz-icon nzType="search"></i>
+              </nz-filter-trigger>
+            </th>
+
+            <th nzColumnKey="">Tools</th>
+          </tr>
+        </thead>
+        <tbody>
+          <ng-container *ngFor="let data of data; let i = index">
+            <tr>
+              <td
+                [nzExpand]="expandSet.has(data.questionid)"
+                (nzExpandChange)="onExpandChange(data.questionid, $event)"
+              ></td>
+              <td>
+                <div
+                  class="editable-cell"
+                  [hidden]="questioneditId === data.questionid"
+                >
+                  <span
+                    [style.text-decoration]="
+                      data.questionstatus ? 'none' : 'line-through'
+                    "
+                  >
+                    {{ data.questionidentifier }}
+                  </span>
+                  <button
+                    (click)="startEdit(data)"
+                    nz-button
+                    nzSize="small"
+                    nzType="text"
+                    *ngxPermissionsOnly="['update_question']"
+                  >
+                    <i nz-icon nzType="edit"></i>
+                  </button>
+                </div>
+                <nz-input-group
+                  [hidden]="questioneditId !== data.questionid"
+                  nzSearch
+                  [nzAddOnAfter]="suffixIconButton"
+                >
+                  <input type="text" nz-input [(ngModel)]="questioneditvalue" />
+                </nz-input-group>
+                <ng-template #suffixIconButton>
+                  <button
+                    (click)="saveQuestionIdentifier(data)"
+                    nz-button
+                    nzType="primary"
+                    nzSearch
+                  >
+                    <i nz-icon nzType="check"></i>
+                  </button>
+                </ng-template>
+              </td>
+
+              <td>{{ data.templatename }}</td>
+              <td>
+                <ng-template [ngxPermissionsOnly]="['remove_question_tags']">
+                  <nz-tag
+                    [nzColor]="'cyan'"
+                    *ngFor="let questiontag of data.questiontags; let i = index"
+                    nzMode="closeable"
+                    (nzOnClose)="removeTag(data.questionid, questiontag)"
+                    >{{ questiontag }}</nz-tag
+                  >
+                </ng-template>
+              </td>
+
+              <td>
+                <a
+                  nz-button
+                  nzDanger
+                  nzSize="small"
+                  style="margin-right: 20px"
+                  nz-popconfirm
+                  nzPopconfirmTitle="Sure to delete?"
+                  (nzOnConfirm)="delete(data.questionid)"
+                  *ngxPermissionsOnly="['delete_question']"
+                  >Delete</a
+                >
+                <!-- <a
+                *ngIf="!data.questionstatus"
+                nz-button
+                nzSize="small"
+                style="margin-right: 20px; border-color: green; color: green"
+                nz-popconfirm
+                nzPopconfirmTitle="Sure to activate?"
+                (nzOnConfirm)="activatequestion(data.questionid)"
+                >Activate</a
+              >
+              <a
+                *ngIf="data.questionstatus"
+                nz-button
+                nzSize="small"
+                nzDanger
+                style="margin-right: 20px"
+                nz-popconfirm
+                nzPopconfirmTitle="Sure to deactivate?"
+                (nzOnConfirm)="deactivatequestion(data.questionid)"
+                >Deactivate</a
+              > -->
+              <ng-template [ngxPermissionsOnly]="['add_question_tag']">
+                <nz-select
+                  *ngIf="questiontags?.length !== data?.questiontags?.length"
+                  nzPlaceHolder="Add Tag"
+                  [(ngModel)]="selectedTag"
+                  (ngModelChange)="addTag($event, data.questionid)"
+                  nzShowSearch
+                  nzSize="small"
+                  style="width: 100px; margin-right: 20px"
+                >
+                  <nz-option
+                    *ngFor="let questiontag of data.addTagList; let i = index"
+                    [nzLabel]="questiontag"
+                    [nzValue]="questiontag"
+                  ></nz-option>
+                </nz-select>
+
+              </ng-template>
+              <a
+                nz-button
+                [routerLink]="['/question', 'update', data.questionid]"
+                nzType="primary"
+                nzSize="small"
+                (click)="storeData()"
+                *ngxPermissionsOnly="['update_question']"
+                >Edit</a
+              >
+              </td>
+            </tr>
+            <tr [nzExpand]="expandSet.has(data.questionid)">
+              <span>{{ data | json }}</span>
+            </tr>
+          </ng-container>
+        </tbody>
+      </nz-table>
+    </nz-card>
+    <ng-template #extraTemplate>
+      <a nz-button class="button" (click)="storeData()" routerLink="/question/create" nzType="primary" *ngxPermissionsOnly="['create_question']">Create</a>
+      <a nz-button nzType="primary" (click)="clearData()" routerLink="/question/index">Reset Filter</a>
+    </ng-template>
+    <nz-dropdown-menu #questionidentifierMenu="nzDropdownMenu">
+      <div class="ant-table-filter-dropdown">
+        <div class="search-box">
+          <input
+            type="text"
+            nz-input
+            placeholder="Search question"
+            [(ngModel)]="searchquestionIdentifierValue"
+          />
+          <button
+            nz-button
+            nzSize="small"
+            nzType="primary"
+            (click)="searchquestionIdentifier()"
+            class="search-button"
+          >
+            Search
+          </button>
+          <button
+            nz-button
+            nzSize="small"
+            (click)="resetsearchquestionIdentifierValue()"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+    </nz-dropdown-menu>
+    <nz-dropdown-menu #questionTypeMenu="nzDropdownMenu">
+      <div class="ant-table-filter-dropdown">
+        <div class="search-box">
+          <input
+            type="text"
+            nz-input
+            placeholder="Search question type"
+            [(ngModel)]="searchquestionTypeValue"
+          />
+          <button
+            nz-button
+            nzSize="small"
+            nzType="primary"
+            (click)="searchquestionType()"
+            class="search-button"
+          >
+            Search
+          </button>
+          <button
+            nz-button
+            nzSize="small"
+            (click)="resetsearchquestionTypeValue()"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+    </nz-dropdown-menu>
+    <nz-dropdown-menu #questionTagMenu="nzDropdownMenu">
+      <div class="ant-table-filter-dropdown">
+        <div class="search-box">
+          <input
+            type="text"
+            nz-input
+            placeholder="Search question tag"
+            [(ngModel)]="searchquestionTagValue"
+          />
+          <button
+            nz-button
+            nzSize="small"
+            nzType="primary"
+            (click)="searchquestionTag()"
+            class="search-button"
+          >
+            Search
+          </button>
+          <button
+            nz-button
+            nzSize="small"
+            (click)="resetsearchquestionTagValue()"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+    </nz-dropdown-menu>
+    <nz-dropdown-menu #questionStatusMenu="nzDropdownMenu">
+      <div class="ant-table-filter-dropdown">
+        <div class="search-box">
+          <input
+            type="text"
+            nz-input
+            placeholder="Search question status (yes/no)"
+            [(ngModel)]="searchquestionStatusValue"
+          />
+          <button
+            nz-button
+            nzSize="small"
+            nzType="primary"
+            (click)="searchquestionStatus()"
+            class="search-button"
+          >
+            Search
+          </button>
+          <button
+            nz-button
+            nzSize="small"
+            (click)="resetsearchquestionStatusValue()"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+    </nz-dropdown-menu>
+  </div>
+</div>
+<ng-template #totalTemplate> Total : {{ total }} </ng-template>
+

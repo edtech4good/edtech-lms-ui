@@ -1,0 +1,190 @@
+<div nz-row>
+    <div nz-col nzSpan="24">
+      <nz-card [nzBordered]="true" nzTitle="Baseline Curriculum" [nzExtra]="extraTemplate">
+        <nz-table
+          nzShowSizeChanger
+          [nzLoading]="dataloading"
+          [nzData]="data"
+          nzSize="small"
+          [nzFrontPagination]="false"
+          [nzTotal]="total"
+          [nzPageSize]="pageSize"
+          [nzPageIndex]="pageIndex"
+          [nzHideOnSinglePage]="true"
+          [nzBordered]="true"
+          [nzHideOnSinglePage]="false"
+          [nzPageSizeOptions]="[10, 20, 50, 100, 200]"
+          [nzScroll]="{ y: '640px' }"
+          (nzQueryParams)="onQueryParamsChange($event)"
+          [nzShowTotal]="totalTemplate"
+        >
+          <thead>
+            <tr>
+              <th nzColumnKey="curriculumname" nzCustomFilter>
+                Curriculum Name
+                <!-- <nz-filter-trigger
+                  [(nzVisible)]="visible"
+                  [nzActive]="searchValue.length > 0"
+                  [nzDropdownMenu]="menu"
+                >
+                  <i nz-icon nzType="search"></i>
+                </nz-filter-trigger> -->
+              </th>
+              <th nzColumnKey="curriculumname" nzCustomFilter>
+                Baseline Name
+                <!-- <nz-filter-trigger
+                  [(nzVisible)]="visible"
+                  [nzActive]="searchValue.length > 0"
+                  [nzDropdownMenu]="menu"
+                >
+                  <i nz-icon nzType="search"></i>
+                </nz-filter-trigger> -->
+              </th>
+              <th nzColumnKey="Baseline type">Baseline Type</th>
+              <th nzColumnKey="curriculumname">
+                Start Date
+              </th>
+              <th nzColumnKey="curriculumname">
+                End Date
+              </th>
+              <th nzColumnKey="">Create At</th>
+              <th nzColumnKey="Tool">Tools</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            <tr *ngFor="let data of data; index as i">
+              <td>{{ data.curriculumname }}</td>
+              <td>{{ data.baselinename ?? 'N/A' }}</td>
+              <td *ngIf="data.baselinetype === baselinetype[0].value">{{ baselinetype[0].name }}</td>
+              <td *ngIf="data.baselinetype === baselinetype[1].value">{{ baselinetype[1].name }}</td>
+              <td *ngIf="data.baselinetype === baselinetype[2].value">{{ baselinetype[2].name }}</td>
+              <td *ngIf="data.baselinetype === 0 || data.baselinetype === null">N/A</td>
+              <td>{{ (data.startdate | date:'mediumDate') ?? 'N/A' }}</td>
+              <td>{{ (data.enddate | date:'mediumDate') ?? 'N/A' }}</td>
+              <td>{{ (data.created_at | date:'medium') ?? 'N/A' }}</td>
+              <td style="display: flex-swap;" >
+                <a
+                  [disabled]="Disable(data.startdate, data.enddate, data.baselinestatus)"
+                  nz-button
+                  nzDanger
+                  nzSize="small"
+                  style="margin: 5px 5px 5px 0px"
+                  nz-popconfirm
+                  nzPopconfirmTitle="Sure to delete?"
+                  (nzOnConfirm)="deletetag(data.curriculumbaselineid)"
+                  *ngxPermissionsOnly="['delete_baseline-endline']"
+                  >Delete</a
+                >
+
+                <!-- [disabled]="DisableActivate(data.startdate, data.enddate)" -->
+                <a
+                  *ngIf="!data.baselinestatus; else deactivate"
+                  nz-button
+                  nzSize="small"
+                  style="margin: 5px 5px 5px 0px; border-color: green; color: green"
+                  nz-popconfirm
+                  nzPopconfirmTitle="Sure to Activate?"
+                  (nzOnConfirm)="Activate(data.curriculumbaselineid, data.curriculumid)"
+                  >Activate</a
+                >
+                <ng-template #deactivate>
+                  <!-- [disabled]="DisableActivate(data.startdate, data.enddate)" -->
+                  <a
+                  nz-button
+                  nzSize="small"
+                  style="margin: 5px 5px 5px 0px; border-color: red; color: red"
+                  nz-popconfirm
+                  nzPopconfirmTitle="Sure to Deactivate?"
+                  (nzOnConfirm)="Deactivate(data.curriculumbaselineid)"
+                  >Deactivate</a
+                  >
+                </ng-template>
+
+
+                <a
+                  [disabled]="Disable(data.startdate, data.enddate, data.baselinestatus)"
+                  [routerLink]="!disable ? ['/baseline-curriculum', 'update', data.curriculumbaselineid] : null"
+                  nz-button
+                  nzSize="small"
+                  style="margin: 5px 5px 5px 0px"
+                  nzType="primary"
+                  nzSize="small"
+                >Edit</a>
+                <!-- <a
+                  [routerLink]="['/baseline-curriculum', 'update', data.curriculumbaselineid]"
+                  nz-button
+                  nzSize="small"
+                  style="margin: 5px 5px 5px 0px"
+                  nzType="primary"
+                  nzSize="small"
+                  >Edit</a
+                  > -->
+
+              <!-- <a
+                style="margin: 5px 5px 5px 0px"
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                [disabled]="Disable(data.startdate, data.enddate, data.baselinestatus)"
+                [routerLink]="!disable ? ['/baseline-curriculum', 'baselinequestion-index', data.curriculumbaselineid] : null"
+                >Question</a> -->
+                <a
+                style="margin: 5px 5px 5px 0px"
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                [routerLink]="['/baseline-curriculum', 'baselinequestion-index', data.curriculumbaselineid]"
+                >Question</a
+              >
+
+              <!-- [disabled]="Disable(data.startdate, data.enddate, data.baselinestatus)" -->
+              <a
+                style="margin: 5px 5px 5px 0px"
+                nz-button
+                [routerLink]="['/baseline-curriculum', 'baselineschool', data.curriculumbaselineid]"
+                nzType="primary"
+                nzSize="small"
+                >School</a
+              >
+              <button nz-button nzType="primary" (click)="downloadStudentResults(data.curriculumbaselineid)" [nzLoading]="downloading">Download</button>
+              </td>
+            </tr>
+          </tbody>
+        </nz-table>
+      </nz-card>
+      <ng-template #extraTemplate>
+        <a
+          style="margin-right: 20px"
+          nz-button
+          routerLink="/baseline-curriculum/create"
+          nzType="primary"
+          *ngxPermissionsOnly="['create_baseline-endline']"
+          >Create</a
+        >
+      </ng-template>
+      <nz-dropdown-menu #menu="nzDropdownMenu">
+        <div class="ant-table-filter-dropdown">
+          <div class="search-box">
+            <input
+              type="text"
+              nz-input
+              placeholder="Search curriculum"
+              [(ngModel)]="searchValue"
+            />
+            <button
+              nz-button
+              nzSize="small"
+              nzType="primary"
+              (click)="search()"
+              class="search-button"
+            >
+              Search
+            </button>
+            <button nz-button nzSize="small" (click)="reset()">Reset</button>
+          </div>
+        </div>
+      </nz-dropdown-menu>
+    </div>
+  </div>
+  <ng-template #totalTemplate> Total : {{ total }} </ng-template>

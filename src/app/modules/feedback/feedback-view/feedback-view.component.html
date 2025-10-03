@@ -1,0 +1,186 @@
+<div nz-row>
+  <div nz-col nzSpan="24">
+    <nz-card [nzBordered]="true" nzTitle="Feedback Details" [nzLoading]="dataloading">
+      <div>
+        <!-- raspberry -->
+        <div nz-row>
+          <div nz-col [nzSpan]="4">
+            <h5 nz-typography>Raspberry :</h5>
+          </div>
+          <div nz-col [nzSpan]="20">
+            <div *ngFor="let  raspberry of Raspberry">
+              <label nz-checkbox nzDisabled [(ngModel)]="raspberry.checked" ></label>
+              <span style="font-size: normal; font-weight: 400; margin-left: 5px;"
+                [style]="errorFeedback(raspberry.checked)"
+                >
+                {{ raspberry.label }}
+              </span>
+            </div>
+            <div style="margin-top: 10px; width: 40%; word-spacing: 2px;">
+              <div *ngIf="feedbackValidation(feedback.rpi.feedback)">
+                <h4 style="margin: 0px; font-weight: 500;">Other:</h4>
+                <p>{{ feedback.rpi.feedback }}</p>
+              </div>
+            </div>
+            <nz-image-group >
+              <button nz-button nzType="primary"
+              [disabled]="!feedback.rpi.images.length"
+              (click)="onClick(errorType[0])"
+              >
+              Image
+            </button>
+            </nz-image-group>
+          </div>
+        </div>
+
+        <!-- router -->
+        <div nz-row style="margin-top: 50px;">
+          <div nz-col [nzSpan]="4">
+            <h5 nz-typography>Router :</h5>
+          </div>
+          <div nz-col [nzSpan]="20">
+            <div *ngFor="let router of Router">
+              <label nz-checkbox nzDisabled [(ngModel)]="router.checked"></label>
+              <span style="font-size: normal; font-weight: 400; margin-left: 5px;"
+                [style]="errorFeedback(router.checked)"
+                >
+                {{ router.label }}
+              </span>
+            </div>
+            <div style="margin-top: 10px; width: 40%; word-spacing: 2px;">
+              <div *ngIf="feedbackValidation(feedback.router.feedback)">
+                <h4 style="margin: 0px; font-weight: 500;">Other:</h4>
+                <p>{{ feedback.router.feedback }}</p>
+              </div>
+            </div>
+            <nz-image-group >
+              <button nz-button nzType="primary"
+                [disabled]="!feedback.router.images.length"
+                (click)="onClick(errorType[1])"
+                >
+                Image
+              </button>
+            </nz-image-group>
+          </div>
+        </div>
+
+        <!-- tablet -->
+        <div nz-row style="margin-top: 50px;">
+          <div nz-col [nzSpan]="4">
+            <h5 nz-typography>Tablet :</h5>
+          </div>
+          <div nz-col [nzSpan]="20">
+            <div *ngFor="let tablet of Tablet">
+              <label nz-checkbox nzDisabled="" [(ngModel)]="tablet.checked" ></label>
+              <span style="font-size: normal; font-weight: 400; margin-left: 5px;"
+                [style]="errorFeedback(tablet.checked)"
+                >
+                {{ tablet.label }}
+              </span>
+            </div>
+            <div style="margin-top: 10px; width: 40%; word-spacing: 2px;">
+              <div *ngIf="feedbackValidation(feedback.tablet.feedback)">
+                <h4 style="margin: 0px; font-weight: 500;">Other:</h4>
+                <p>{{ feedback.tablet.feedback }}</p>
+              </div>
+            </div>
+            <nz-image-group >
+              <button nz-button nzType="primary"
+              [disabled]="!feedback.tablet.images.length"
+              (click)="onClick(errorType[2])"
+              >
+              Image
+            </button>
+            </nz-image-group>
+          </div>
+        </div>
+
+        <!-- content -->
+        <div nz-row style="margin-top: 50px;">
+          <div nz-col [nzSpan]="4">
+            <h5 nz-typography>Content :</h5>
+          </div>
+          <div nz-col [nzSpan]="20">
+            <div *ngFor="let content of Content">
+              <label nz-checkbox disabled [(ngModel)]="content.checked"></label>
+              <span style="font-size: normal; font-weight: 400; margin-left: 5px;"
+                [style]="errorFeedback(content.checked)"
+                >
+                {{ content.label }}
+              </span>
+            </div>
+            <div style="margin-top: 10px; width: 40%; word-spacing: 2px;">
+              <div *ngIf="feedbackValidation(feedback.content.feedback)">
+                <h4 style="margin: 0px; font-weight: 500;">Other:</h4>
+                <p>{{ feedback.content.feedback }}</p>
+              </div>
+            </div>
+            <nz-image-group >
+              <button nz-button nzType="primary"
+                [disabled]="!feedback.content.images.length"
+                (click)="onClick(errorType[3])"
+                >
+                Image
+              </button>
+            </nz-image-group>
+          </div>
+        </div>
+
+        <!-- app -->
+        <div nz-row style="margin-top: 50px;">
+          <div nz-col [nzSpan]="4">
+            <h5 nz-typography>App :</h5>
+          </div>
+          <div nz-col [nzSpan]="20" >
+            <div *ngFor="let app of App">
+              <label nz-checkbox nzDisabled [(ngModel)]="app.checked"></label>
+              <span style="font-size: normal; font-weight: 400; margin-left: 5px;"
+                [style]="errorFeedback(app.checked)"
+                >
+                {{ app.label }}
+              </span>
+            </div>
+            <div style="margin-top: 10px; width: 40%; word-spacing: 2px;">
+              <div *ngIf="feedbackValidation(feedback.app.feedback)">
+                <h4 style="margin: 0px; font-weight: 500;">Other:</h4>
+                <p>{{ feedback.app.feedback }}</p>
+              </div>
+            </div>
+            <nz-image-group >
+              <button nz-button nzType="primary"
+                [disabled]="!feedback.app.images.length"
+                (click)="onClick(errorType[4])"
+                >
+                Image
+              </button>
+            </nz-image-group>
+          </div>
+        </div>
+
+        <!-- general -->
+        <div nz-row style="margin-top: 50px;">
+          <div nz-col [nzSpan]="4">
+            <h5 nz-typography>General :</h5>
+          </div>
+          <div nz-col [nzSpan]="20" >
+            <div style="margin-top: 10px; width: 40%; word-spacing: 2px;">
+              <div>
+                <h4 style="margin: 0px; font-weight: 500;">Other:</h4>
+                <p>{{ feedback.general.feedback }}</p>
+              </div>
+            </div>
+            <nz-image-group >
+              <button nz-button nzType="primary"
+                [disabled]="!feedback.general.images.length"
+                (click)="onClick(errorType[5])"
+                >
+                Image
+              </button>
+            </nz-image-group>
+          </div>
+        </div>
+
+      </div>
+    </nz-card>
+  </div>
+</div>

@@ -1,0 +1,71 @@
+<div style="display: flex; justify-content: center;">
+  <h1>Plus Snapshot</h1>
+</div>
+<nz-select
+  nzPlaceHolder="Select countries"
+  nzAllowClear
+  nzShowSearch
+  nzServerSearch
+  [(ngModel)]="searchFields.countryid"
+  (ngModelChange)="loadDataFromServer()"
+  (nzOnSearch)="onSearchCountry($event)"
+  style="width: 200px"
+>
+  <ng-container *ngFor="let o of countryList">
+    <nz-option
+      *ngIf="!isCountryLoading"
+      [nzValue]="o.countryid"
+      [nzLabel]="o.countryname"
+    ></nz-option>
+  </ng-container>
+  <nz-option *ngIf="isCountryLoading" nzDisabled nzCustomContent>
+    <span nz-icon nzType="loading" class="loading-icon"></span>
+    Loading Data...
+  </nz-option>
+</nz-select>
+<nz-select [(ngModel)]="selectedYear" (ngModelChange)="onSelected($event)">
+  <nz-option *ngFor="let option of listOfYears" [nzLabel]="option" [nzValue]="option"></nz-option>
+</nz-select>
+<ngx-charts-line-chart
+  [view]="view"
+  [scheme]="colorScheme"
+  [legend]="legend"
+  [legendTitle]="lineLegendTitle"
+  [showXAxisLabel]="showXAxisLabel"
+  [showYAxisLabel]="showYAxisLabel"
+  [xAxis]="xAxis"
+  [yAxis]="yAxis"
+  [yAxisLabel]="yAxisLabel"
+  [timeline]="timeline"
+  [results]="multi"
+  [xAxisTickFormatting]="dateTickFormatting"
+  [yAxisTickFormatting]="numberFormatting"
+>
+</ngx-charts-line-chart>
+
+<div style="display: flex; flex-direction: row">
+  <ngx-charts-pie-chart
+    [view]="viewPie"
+    [scheme]="colorScheme"
+    [results]="single"
+    [gradient]="gradient"
+    [legend]="showLegend"
+    [legendPosition]="legendPosition"
+    [legendTitle]="pieLegendTitle"
+    [labels]="showLabels"
+    [doughnut]="isDoughnut"
+  >
+  </ngx-charts-pie-chart>
+  <ngx-charts-pie-chart
+    [view]="offlineOnlineView"
+    [scheme]="colorScheme"
+    [results]="offlineOnlineData"
+    [gradient]="gradient"
+    [legend]="showLegend"
+    [legendPosition]="legendPosition"
+    [legendTitle]="offlineOnlinePieLegendTitle"
+    [labels]="showLabels"
+    [doughnut]="isDoughnut"
+  >
+  </ngx-charts-pie-chart>
+</div>

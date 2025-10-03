@@ -1,0 +1,93 @@
+<nz-table [nzLoading]="isloading">
+<nz-layout>
+  <nz-content>
+    <div style="width: calc(100vw); height: calc(100vh)">
+      <div nz-row>
+        <div nz-col nzSpan="8"></div>
+        <div nz-col nzSpan="8" style="margin-top: 200px">
+          <nz-card nzTitle="FortyK">
+            <form
+              nz-form
+              [formGroup]="loginForm"
+              class="login-form"
+              (keydown.enter)="submitLoginForm()"
+            >
+              <nz-form-item>
+                <nz-form-control nzErrorTip="Please input your email!">
+                  <nz-input-group nzPrefixIcon="user">
+                    <input
+                      type="text"
+                      nz-input
+                      formControlName="lmsusername"
+                      placeholder="Email"
+                    />
+                  </nz-input-group>
+                </nz-form-control>
+              </nz-form-item>
+              <nz-form-item>
+                <nz-form-control nzErrorTip="Please input your Password!">
+                  <nz-input-group nzPrefixIcon="lock">
+                    <input
+                      type="password"
+                      nz-input
+                      formControlName="lmsuserpassword"
+                      placeholder="Password"
+                    />
+                  </nz-input-group>
+                </nz-form-control>
+              </nz-form-item>
+
+              <button
+                nz-button
+                type="button"
+                (click)="submitLoginForm()"
+                class="login-form-button login-form-margin"
+                [nzType]="'primary'"
+              >
+                Log in
+              </button>
+              <div nz-row class="login-form-margin">
+                <div nz-col [nzSpan]="24">
+                  <a class="login-form-forgot" (click)="showChangePassword()"
+                    >Forgot password</a
+                  >
+                </div>
+              </div>
+            </form>
+          </nz-card>
+        </div>
+        <div nz-col nzSpan="8"></div>
+      </div>
+    </div>
+  </nz-content>
+</nz-layout>
+</nz-table>
+
+<nz-modal
+  [nzBodyStyle]="{ height: '80px' }"
+  [(nzVisible)]="changePasswordisVisible"
+  nzTitle="Change Password"
+  nzOkText="Submit"
+  nzCancelText="Cancel"
+  (nzOnOk)="submitchangePasswordForm()"
+  (nzOnCancel)="hideChangePassword()"
+>
+  <ng-container *nzModalContent>
+    <nz-input-group>
+      <form nz-form [formGroup]="changePasswordForm">
+        <nz-form-item>
+          <nz-form-control nzErrorTip="Please input your email!">
+            <nz-input-group nzPrefixIcon="user">
+              <input
+                type="text"
+                nz-input
+                formControlName="lmsusername"
+                placeholder="Email"
+              />
+            </nz-input-group>
+          </nz-form-control>
+        </nz-form-item>
+      </form>
+    </nz-input-group>
+  </ng-container>
+</nz-modal>

@@ -1,0 +1,117 @@
+<div nz-row>
+  <div nz-col nzSpan="24">
+    <nz-card [nzBordered]="true" nzTitle="Curriculum" [nzExtra]="extraTemplate">
+      <nz-table
+        nzShowSizeChanger
+        [nzLoading]="dataloading"
+        [nzData]="data"
+        nzSize="small"
+        [nzFrontPagination]="false"
+        [nzTotal]="total"
+        [nzPageSize]="pageSize"
+        [nzPageIndex]="pageIndex"
+        [nzHideOnSinglePage]="true"
+        [nzBordered]="true"
+        [nzHideOnSinglePage]="false"
+        [nzPageSizeOptions]="[10, 20, 50, 100, 200]"
+        [nzScroll]="{ y: '640px' }"
+        (nzQueryParams)="onQueryParamsChange($event)"
+        [nzShowTotal]="totalTemplate"
+      >
+        <thead>
+          <tr>
+            <th nzColumnKey="curriculumname" nzCustomFilter>
+              Curriculum Name
+              <nz-filter-trigger
+                [(nzVisible)]="visible"
+                [nzActive]="searchValue.length > 0"
+                [nzDropdownMenu]="menu"
+              >
+                <i nz-icon nzType="search"></i>
+              </nz-filter-trigger>
+            </th>
+            <th nzColumnKey="">Country</th>
+            <th nzColumnKey="">Subject</th>
+            <th nzColumnKey="">Tools</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let data of data">
+            <td>{{ data.curriculumname }}</td>
+            <td>
+              <div nzSize="small" *ngFor="let country of data.countryid">
+                {{ country }}
+              </div>
+            </td>
+            <td>{{ data.subjectid }}</td>
+            <td>
+              <a
+                nz-button
+                nzDanger
+                nzSize="small"
+                style="margin-right: 20px"
+                nz-popconfirm
+                nzPopconfirmTitle="Sure to delete?"
+                (nzOnConfirm)="deletetag(data.curriculumid)"
+                *ngxPermissionsOnly="['delete_curriculum']"
+                >Delete</a
+              >
+
+              <a
+                nz-button
+                [routerLink]="['/curriculum', 'update', data.curriculumid]"
+                nzType="primary"
+                nzSize="small"
+                *ngxPermissionsOnly="['update_curriculum']"
+                >Edit</a
+              >
+            </td>
+          </tr>
+        </tbody>
+      </nz-table>
+    </nz-card>
+    <ng-template #extraTemplate>
+      <a
+        style="margin-right: 20px"
+        nz-button
+        routerLink="/curriculum/create"
+        nzType="primary"
+        *ngxPermissionsOnly="['create_curriculum']"
+        >Create</a
+      >
+      <a
+        *ngxPermissionsOnly="['zr5ER4QD', 'Mapyr2Pw', 'superadmin', 'sync_content']"
+        nz-button
+        nzType="primary"
+        style="margin-right: 20px"
+        nz-popconfirm
+        nzPopconfirmTitle="Sure to sync?"
+        (nzOnConfirm)="cloudsync()"
+        >Sync Content</a
+      >
+    </ng-template>
+    <nz-dropdown-menu #menu="nzDropdownMenu">
+      <div class="ant-table-filter-dropdown">
+        <div class="search-box">
+          <input
+            type="text"
+            nz-input
+            placeholder="Search curriculum"
+            [(ngModel)]="searchValue"
+          />
+          <button
+            nz-button
+            nzSize="small"
+            nzType="primary"
+            (click)="search()"
+            class="search-button"
+          >
+            Search
+          </button>
+          <button nz-button nzSize="small" (click)="reset()">Reset</button>
+        </div>
+      </div>
+    </nz-dropdown-menu>
+  </div>
+</div>
+<ng-template #totalTemplate> Total : {{ total }} </ng-template>

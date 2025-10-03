@@ -1,0 +1,48 @@
+<div nz-row>
+  <div nz-col nzSpan="12">
+    <nz-card [nzBordered]="true" nzTitle="Class" [nzLoading]="dataloading">
+      <form nz-form [formGroup]="editForm">
+        <nz-form-item>
+          <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="standardname"
+            >Class Name</nz-form-label
+          >
+          <nz-form-control nzErrorTip="Please enter class name!">
+            <grammarly-editor-plugin>
+              <input
+                type="text"
+                nz-input
+                formControlName="standardname"
+                placeholder="Enter class name"
+                (input)="restrictSpecialCharecter()"
+              />
+            </grammarly-editor-plugin>
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item>
+          <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="schoolid">School Name</nz-form-label>
+          <nz-form-control nzErrorTip="Please select school">
+            <nz-select
+              formControlName="schoolid"
+              nzPlaceHolder="Select school"
+              >
+              <nz-option
+                *ngFor="let option of school$ | async"
+                [nzLabel]="option.schoolname"
+                [nzValue]="option.schoolid"
+              ></nz-option>
+            </nz-select>
+          </nz-form-control>
+        </nz-form-item>
+
+        <button
+          nz-button style="float: right;"
+          type="button"
+          [nzType]="'primary'"
+          (click)="submiteditForm()"
+          >
+          Submit
+        </button>
+      </form>
+    </nz-card>
+  </div>
+</div>

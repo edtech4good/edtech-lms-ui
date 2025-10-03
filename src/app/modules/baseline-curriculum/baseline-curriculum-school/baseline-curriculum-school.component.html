@@ -1,0 +1,41 @@
+
+<div nz-row>
+  <div nz-col nzSpan="24">
+    <nz-card [nzBordered]="true" nzTitle="Schools">
+      <nz-table
+        nzShowSizeChanger
+        [nzLoading]="dataloading"
+        nzSize="small"
+        [nzData]="baselineSchoolid"
+        [nzFrontPagination]="false"
+        [nzHideOnSinglePage]="true"
+        [nzBordered]="true"
+        [nzHideOnSinglePage]="false"
+        [nzPageSizeOptions]="[10, 20, 50, 100, 200]"
+        [nzScroll]="{ y: '640px' }"
+      >
+        <thead>
+          <tr>
+            <th nzColumnKey="curriculumname" nzCustomFilter>
+              Baseline Name
+            </th>
+            <th nzColumnKey="curriculumname" nzCustomFilter>
+              Baseline Type
+            </th>
+            <th nzColumnKey="curriculumname" nzCustomFilter>
+              School Name
+            </th>
+          </tr>
+        <tbody>
+          <tr *ngFor="let o of baselineSchoolid">
+            <td> {{ o.baselinename}} </td>
+            <td *ngIf="o.baselinetype === baselinetype[0].value">{{ baselinetype[0].name }}</td>
+            <td *ngIf="o.baselinetype === baselinetype[1].value">{{ baselinetype[1].name }}</td>
+            <td *ngIf="o.baselinetype === baselinetype[2].value">{{ baselinetype[2].name }}</td>
+            <td> {{ o.schoolname }} </td>
+          </tr>
+        </tbody>
+      </nz-table>
+    </nz-card>
+  </div>
+</div>

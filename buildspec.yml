@@ -1,0 +1,24 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - n 14.21.3
+      - npm install -g typescript
+      - npm i -g @angular/cli
+  pre_build:
+    commands:
+      - echo Installing source NPM dependencies...
+      - npm install
+  build:
+    commands:
+      - ng build --configuration=$FORTYKUIENV
+  post_build:
+    commands:
+      - cd dist/fortyk-lms-ui
+      - ls -la
+      - aws s3 sync . s3://$FORTYKS3URL --delete
+      - aws cloudfront create-invalidation --distribution-id $FORTYKDISTRIBUTIONID --paths "/*"
+artifacts:
+  files:
+    - dist/fortyk-lms-ui/**/*

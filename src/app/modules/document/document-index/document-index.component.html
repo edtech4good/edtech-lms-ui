@@ -1,0 +1,293 @@
+<div nz-row>
+  <div nz-col nzSpan="24">
+    <nz-card [nzBordered]="true" nzTitle="Documents" [nzExtra]="extraTemplate">
+      <nz-table
+        nzShowSizeChanger
+        [nzLoading]="dataloading"
+        [nzData]="data"
+        [nzFrontPagination]="false"
+        nzSize="small"
+        [nzTotal]="total"
+        [nzPageSize]="pageSize"
+        [nzPageIndex]="pageIndex"
+        [nzHideOnSinglePage]="true"
+        [nzBordered]="true"
+        [nzPageSizeOptions]="[10, 20, 50, 100, 200]"
+        (nzQueryParams)="onQueryParamsChange($event)"
+        [nzShowTotal]="totalTemplate"
+      >
+        <thead>
+          <tr>
+            <th nzColumnKey="documentname" nzCustomFilter>
+              Document Name
+              <nz-filter-trigger
+                [(nzVisible)]="showdocumentNameFilter"
+                [nzActive]="searchdocumentNameValue.length > 0"
+                [nzDropdownMenu]="documentnameMenu"
+              >
+                <i nz-icon nzType="search"></i>
+              </nz-filter-trigger>
+            </th>
+
+            <th nzColumnKey="documenttypename" nzCustomFilter>
+              Document Type
+              <nz-filter-trigger
+                [(nzVisible)]="showdocumentTypeFilter"
+                [nzActive]="searchdocumentTypeValue.length > 0"
+                [nzDropdownMenu]="documentTypeMenu"
+              >
+                <i nz-icon nzType="search"></i>
+              </nz-filter-trigger>
+            </th>
+            <th nzColumnKey="documenttags" nzCustomFilter>
+              Tags
+              <nz-filter-trigger
+                [(nzVisible)]="showdocumentTagFilter"
+                [nzActive]="searchdocumentTagValue.length > 0"
+                [nzDropdownMenu]="documentTagMenu"
+              >
+                <i nz-icon nzType="search"></i>
+              </nz-filter-trigger>
+            </th>
+            <th nzColumnKey="">Tools</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let data of data; let i = index">
+            <td>
+              <button
+                *ngIf="
+                  ['IMAGE', 'AUDIO', 'VIDEO'].includes(data.documenttypename)
+                "
+                nz-button
+                nzType="link"
+                (click)="openGallery(data)"
+              >
+                {{ data.documentname }}
+              </button>
+
+              <a
+                nz-button
+                nzType="link"
+                *ngIf="
+                  !['IMAGE', 'AUDIO', 'VIDEO'].includes(data.documenttypename)
+                "
+                [attr.href]="
+                  sanitizer.bypassSecurityTrustResourceUrl(data.filepath)
+                "
+                target="blank"
+              >
+                {{ data.documentname }}
+              </a>
+            </td>
+            <td>{{ data.documenttypename }}</td>
+            <td>
+              <span
+              *ngxPermissionsOnly="['edit_document_tag']"
+              >
+                <nz-tag
+                  [nzColor]="'cyan'"
+                  *ngFor="let documenttag of data.documenttags; let i = index"
+                  nzMode="closeable"
+                  (nzOnClose)="removeTag(data.documentid, documenttag)"
+                  >{{ documenttag }}</nz-tag
+                >
+              </span>
+            </td>
+            <td>
+              <a
+                nz-button
+                nzDanger
+                nzSize="small"
+                style="margin-right: 20px"
+                nz-popconfirm
+                nzPopconfirmTitle="Sure to delete?"
+                (nzOnConfirm)="delete(data.documentid)"
+                *ngxPermissionsOnly="['delete_document']"
+                >Delete</a
+              >
+              <span
+              *ngxPermissionsOnly="['add_document_tag']"
+              >
+                <nz-select
+                  *ngIf="documenttags?.length !== data?.documenttags?.length"
+                  nzPlaceHolder="Add Tag"
+                  [(ngModel)]="selectedTag"
+                  (ngModelChange)="addTag($event, data.documentid)"
+                  nzShowSearch
+                  nzSize="small"
+                  style="width: 100px; margin-right: 20px"
+                >
+                  <nz-option
+                    *ngFor="let documenttag of data.addTagList; let i = index"
+                    [nzLabel]="documenttag"
+                    [nzValue]="documenttag"
+                  ></nz-option>
+                </nz-select>
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </nz-table>
+    </nz-card>
+    <ng-template #extraTemplate>
+      <button nz-button (click)="showuploadDocument()" *ngxPermissionsOnly="['create_document']">
+        <i nz-icon nzType="upload"></i>
+        Upload
+      </button>
+    </ng-template>
+    <nz-dropdown-menu #documentnameMenu="nzDropdownMenu">
+      <div class="ant-table-filter-dropdown">
+        <div class="search-box">
+          <input
+            type="text"
+            nz-input
+            placeholder="Search document"
+            [(ngModel)]="searchdocumentNameValue"
+          />
+          <button
+            nz-button
+            nzSize="small"
+            nzType="primary"
+            (click)="searchdocumentName()"
+            class="search-button"
+          >
+            Search
+          </button>
+          <button
+            nz-button
+            nzSize="small"
+            (click)="resetsearchdocumentNameValue()"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+    </nz-dropdown-menu>
+    <nz-dropdown-menu #documentTypeMenu="nzDropdownMenu">
+      <div class="ant-table-filter-dropdown">
+        <div class="search-box">
+          <input
+            type="text"
+            nz-input
+            placeholder="Search document type"
+            [(ngModel)]="searchdocumentTypeValue"
+          />
+          <button
+            nz-button
+            nzSize="small"
+            nzType="primary"
+            (click)="searchdocumentType()"
+            class="search-button"
+          >
+            Search
+          </button>
+          <button
+            nz-button
+            nzSize="small"
+            (click)="resetsearchdocumentTypeValue()"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+    </nz-dropdown-menu>
+    <nz-dropdown-menu #documentTagMenu="nzDropdownMenu">
+      <div class="ant-table-filter-dropdown">
+        <div class="search-box">
+          <input
+            type="text"
+            nz-input
+            placeholder="Search document tag"
+            [(ngModel)]="searchdocumentTagValue"
+          />
+          <button
+            nz-button
+            nzSize="small"
+            nzType="primary"
+            (click)="searchdocumentTag()"
+            class="search-button"
+          >
+            Search
+          </button>
+          <button
+            nz-button
+            nzSize="small"
+            (click)="resetsearchdocumentTagValue()"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+    </nz-dropdown-menu>
+  </div>
+</div>
+
+<nz-modal
+  [nzWidth]="'calc(73vw)'"
+  [nzBodyStyle]="{ minheight: '300px' }"
+  [(nzVisible)]="showUpload"
+  nzTitle="Upload Document"
+  nzOkText="Submit"
+  nzCancelText="Cancel"
+  (nzOnOk)="handleUpload()"
+  (nzOnCancel)="hideuploadDocument()"
+  [nzOkLoading]="uploading"
+>
+  <ng-container *nzModalContent>
+    <nz-spin [nzSpinning]="uploading">
+      <nz-upload
+        [(nzFileList)]="fileList"
+        [nzBeforeUpload]="beforeUpload"
+        nzType="drag"
+        [nzMultiple]="false"
+      >
+        <p class="ant-upload-drag-icon">
+          <i nz-icon nzType="inbox"></i>
+        </p>
+        <p class="ant-upload-text">Click or drag file to this area to upload</p>
+        <p class="ant-upload-hint">
+          Support for a single or bulk upload. Strictly prohibit from uploading
+          company data or other band files
+        </p>
+      </nz-upload>
+    </nz-spin>
+  </ng-container>
+</nz-modal>
+
+<nz-modal
+  [(nzVisible)]="showGallery"
+  [nzClosable]="true"
+  (nzOnCancel)="closeGallery()"
+  [nzFooter]="galleryFooter"
+>
+  <ng-container *nzModalContent>
+    <img
+      *ngIf="currectdocument.documenttypename === 'IMAGE'"
+      [src]="currectdocument.filepath"
+    />
+
+    <audio controls *ngIf="currectdocument.documenttypename === 'AUDIO'">
+      <source [src]="currectdocument.filepath" />
+      Your browser does not support the audio element.
+    </audio>
+    <video controls *ngIf="currectdocument.documenttypename === 'VIDEO'">
+      <source [src]="currectdocument.filepath" />
+      Your browser does not support the video tag.
+    </video>
+  </ng-container>
+</nz-modal>
+<ng-template #totalTemplate> Total : {{ total }} </ng-template>
+
+<ng-template [nzModalFooter] #galleryFooter>
+  <a
+    nz-button
+    nzType="primary"
+    [attr.href]="
+      sanitizer.bypassSecurityTrustResourceUrl(currectdocument.filepath)
+    "
+    target="blank"
+  >
+    Download
+  </a>
+</ng-template>

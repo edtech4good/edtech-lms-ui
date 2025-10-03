@@ -1,0 +1,32 @@
+<div nz-row>
+  <div nz-col nzSpan="12" style="overflow: auto">
+    <nz-card [nzBordered]="true" nzTitle="Curriculum Map" [nzLoading]="dataloading">
+      <nz-tree
+        [nzMultiple]="false"
+        [nzData]="nodes"
+        (nzClick)="reroute($event)"
+        nzShowLine
+        [nzTreeTemplate]="nzTreeTemplate"
+        (nzSearchValueChange)="nzEvent($event)"
+      ></nz-tree>
+    </nz-card>
+  </div>
+</div>
+<ng-template #nzTreeTemplate let-node let-origin="origin">
+  <span class="custom-node">
+    <span *ngIf="!node.isLeaf" (click)="openFolder(node)">
+      <span
+        [style.text-decoration]="origin.data.status ? 'none' : 'line-through'"
+        class="folder-name"
+        >{{ node.title }}</span
+      >
+    </span>
+    <span *ngIf="node.isLeaf" (click)="openFolder(node)">
+      <span
+        [style.text-decoration]="origin.data.status ? 'none' : 'line-through'"
+        class="folder-name"
+        >{{ node.title }}</span
+      >
+    </span>
+  </span>
+</ng-template>

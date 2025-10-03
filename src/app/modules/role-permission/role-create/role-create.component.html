@@ -1,0 +1,38 @@
+<div nz-row>
+  <div nz-col nzSpan="18">
+      <nz-card [nzBordered]="true" nzTitle="Add New Role" [nzLoading]="dataLoading">
+          <h3>Basic Info</h3>
+          <nz-divider nzOrientation="left"></nz-divider>
+          <form nz-form [formGroup]="createForm" (ngSubmit)="submitForm()">
+              <nz-form-label>
+                  <span>Name</span>
+              </nz-form-label>
+              <nz-form-item>
+                  <nz-form-control nzErrorTip="Please input your role name">
+                      <input nz-input id="nickname" formControlName="rolename" placeholder="Enter Role Name"/>
+                  </nz-form-control>
+              </nz-form-item>
+              <h3>Permissions</h3>
+              <nz-divider nzOrientation="left"></nz-divider>
+              <div nz-row [nzGutter]="{ xs: 8, sm: 16, md: 24, lg: 32 }">
+                  <div nz-col class="gutter-row" [nzSpan]="6">
+                      <div class="inner-box">
+                          <nz-tree
+                              [nzData]="nodes"
+                              nzCheckable
+                              nzMultiple
+                              (nzExpandChange)="nzEvent($event)"
+                              (nzCheckBoxChange)="nzEvent($event)"
+                          ></nz-tree>
+                      </div>
+                  </div>
+              </div>
+              <nz-form-item nz-row class="" style="margin-top: 14px;">
+                  <nz-form-control>
+                      <button nz-button nzType="primary">Submit</button>
+                  </nz-form-control>
+              </nz-form-item>
+          </form>
+      </nz-card>
+  </div>
+</div>

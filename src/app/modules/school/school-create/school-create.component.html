@@ -1,0 +1,64 @@
+<div nz-row>
+  <div nz-col nzSpan="12">
+    <nz-card [nzBordered]="true" nzTitle="School" [nzLoading]="dataloading">
+      <form nz-form [formGroup]="createForm">
+        <nz-form-item>
+          <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="schoolname"
+            >School Name</nz-form-label
+          >
+          <nz-form-control nzErrorTip="Please enter school name!">
+            <grammarly-editor-plugin>
+              <input
+                type="text"
+                nz-input
+                formControlName="schoolname"
+                placeholder="Enter school name"
+                (input)="restrictSpecialCharecter()"
+              />
+            </grammarly-editor-plugin>
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item>
+          <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="countryid">Country</nz-form-label>
+          <nz-form-control nzErrorTip="Please select country">
+            <nz-select
+              formControlName="countryid"
+              nzPlaceHolder="Select country"
+              (ngModelChange)="onSelected($event)"
+            >
+              <nz-option
+                *ngFor="let option of country$ | async"
+                [nzLabel]="option.countryname"
+                [nzValue]="option.countryid"
+              ></nz-option>
+            </nz-select>
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item>
+          <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="countryid">Curriculums</nz-form-label>
+          <nz-form-control nzErrorTip="Please select curriculums">
+            <nz-select
+              [nzDisabled]="selectedSchool"
+              formControlName="curriculums"
+              [nzMaxTagPlaceholder]="tagPlaceHolder"
+              nzMode="multiple"
+              nzPlaceHolder="Please select"
+            >
+              <nz-option *ngFor="let item of curriculums$ | async" [nzLabel]="item.curriculumname" [nzValue]="item.curriculumid"></nz-option>
+            </nz-select>
+            <ng-template #tagPlaceHolder let-selectedList>and {{ selectedList.length }} more selected</ng-template>
+          </nz-form-control>
+        </nz-form-item>
+
+        <button
+          nz-button style="float: right;"
+          type="button"
+          [nzType]="'primary'"
+          (click)="submitcreateForm()"
+        >
+          Submit
+        </button>
+      </form>
+    </nz-card>
+  </div>
+</div>

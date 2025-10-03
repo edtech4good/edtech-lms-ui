@@ -1,0 +1,107 @@
+<div nz-row>
+  <div nz-col nzSpan="18">
+    <nz-card [nzBordered]="true" nzTitle="feedback">
+      <form nz-form [formGroup]="createForm" >
+        <div >
+          <nz-form-item >
+            <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="Raspberry Pi">
+              Photo
+            </nz-form-label>
+
+
+            <!-- <div nz-col nzSpan="16" *ngFor="let data of RaspberryPi">
+              <input type="checkbox" (change)="onChange(data.label, $event)">
+              <label>{{ data.label }}</label>
+            </div> -->
+
+            <!-- <div nz-col nzSpan="16">
+              <nz-checkbox-group
+              formControlName="raspberrypiii"
+              ></nz-checkbox-group>
+            </div> -->
+  <!--
+            <nz-checkbox-wrapper
+              *ngFor="let check of RaspberryPi"
+              style="width: 100%; margin-left: 150px;"
+              formGroupName="raspberrypi"
+              >
+              formControlName="raspberrypi"
+              <div nz-col nzSpan="16">
+                <label nz-checkbox [nzValue]="check.label" [formControlName]="check.name" >{{ check.label }}</label>
+              </div>
+            </nz-checkbox-wrapper> -->
+
+            <div nz-col >
+              <nz-upload
+              [(nzFileList)]="fileList"
+              [nzBeforeUpload]=""
+              [nzMultiple]="false"
+            >
+              <button nz-button>
+                <span nz-icon nzType="upload">
+                  Click to upload
+                </span>
+              </button>
+            </nz-upload>
+            </div>
+
+          </nz-form-item>
+          <nz-form-item>
+            <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="Feedback">
+              Feedback
+            </nz-form-label>
+            <nz-form-control nzErrorTip="Please enter feedback!">
+              <input
+                type="text"
+                nz-input
+                formControlName="feedback"
+                placeholder="Enter Feedback"
+              />
+            </nz-form-control>
+          </nz-form-item>
+        </div>
+        <button
+          nz-button
+          style="float: right;"
+          type="button"
+          [nzType]="'primary'"
+          (click)="submitcreateForm()"
+        >
+          Submit
+        </button>
+      </form>
+      <div>{{ createForm.value | json }}</div>
+    </nz-card>
+  </div>
+</div>
+
+
+ <!-- <div nz-row>
+  <div nz-col nzSpan="12">
+    <nz-card [nzBordered]="true" nzTitle="Document Tag">
+      <form nz-form [formGroup]="createForm">
+        <nz-form-item>
+          <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="documenttagname"
+            >Document Tag Name</nz-form-label
+          >
+          <nz-form-control nzErrorTip="Please enter document tag name!">
+            <input
+              type="text"
+              nz-input
+              formControlName="document"
+              placeholder="Enter document tag name"
+            />
+          </nz-form-control>
+        </nz-form-item>
+
+        <button
+          nz-button style="float: right;"
+          type="button"
+          [nzType]="'primary'"
+        >
+          Submit
+        </button>
+      </form>
+    </nz-card>
+  </div>
+</div> -->

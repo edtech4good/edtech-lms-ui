@@ -1,0 +1,118 @@
+<div nz-row>
+  <div nz-col nzSpan="12">
+    <nz-card [nzBordered]="true" nzTitle="Level" [nzLoading]="dataloading">
+      <form nz-form [formGroup]="createForm">
+        <nz-form-item>
+          <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="gradeid"
+            >Gradeid</nz-form-label
+          >
+          <nz-form-control nzErrorTip="Please select grade!">
+            <nz-select formControlName="gradeid" nzPlaceHolder="Select grade">
+              <nz-option
+                *ngFor="let option of grades"
+                [nzLabel]="
+                  option.gradename + ' (' + option.curriculumname + ')'
+                "
+                [nzValue]="option.gradeid"
+              ></nz-option>
+            </nz-select>
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item>
+          <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="levelname"
+            >Level Name</nz-form-label
+          >
+          <nz-form-control nzErrorTip="Please enter level name!">
+            <grammarly-editor-plugin>
+              <input
+                type="text"
+                nz-input
+                formControlName="levelname"
+                placeholder="Enter level name"
+                (input)="restrictSpecialCharecter()"
+  
+              />
+            </grammarly-editor-plugin>
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item>
+          <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="levelorder"
+            >Level Order</nz-form-label
+          >
+          <nz-form-control nzErrorTip="Please enter level order!">
+            <input
+              min="1"
+              max="100"
+              step="1"
+              type="number"
+              nz-input
+              formControlName="levelorder"
+              placeholder="Enter level order"
+            />
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item>
+          <nz-form-label
+            [nzSm]="6"
+            [nzXs]="24"
+            nzFor="leveldescription"
+            >Level Description</nz-form-label
+          >
+          <nz-form-control nzErrorTip="Please enter level description!">
+            <grammarly-editor-plugin>
+              <textarea
+                maxlength="200"
+                type="text"
+                nz-input
+                formControlName="leveldescription"
+                placeholder="Enter level description"
+                style="resize: none"
+                rows="5"
+              >
+              </textarea>
+            </grammarly-editor-plugin>
+          </nz-form-control>
+        </nz-form-item>
+        <!-- <nz-form-item>
+          <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="quiz_points"
+            >Level-Quiz Points</nz-form-label
+          >
+          <nz-form-control nzErrorTip="Please enter level-quiz points!">
+            <input
+              min="0"
+              step="1"
+              type="number"
+              nz-input
+              formControlName="quiz_points"
+              placeholder="Enter level-quiz points"
+            />
+          </nz-form-control>
+        </nz-form-item> -->
+        <!-- <nz-form-item>
+          <nz-form-label [nzSm]="12" [nzXs]="24" nzRequired nzFor="passing_points"
+            >Unlocking Next Level Points</nz-form-label
+          >
+          <nz-form-control nzErrorTip="Please enter unlocking points!">
+            <input
+              min="1"
+              step="1"
+              type="number"
+              nz-input
+              formControlName="passing_points"
+              placeholder="Enter level unlocking points"
+            />
+          </nz-form-control>
+        </nz-form-item> -->
+        <button
+          nz-button
+          style="float: right"
+          type="button"
+          [nzType]="'primary'"
+          (click)="submitcreateForm()"
+        >
+          Submit
+        </button>
+      </form>
+    </nz-card>
+  </div>
+</div>

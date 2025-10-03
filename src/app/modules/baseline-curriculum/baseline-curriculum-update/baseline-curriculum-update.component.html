@@ -1,0 +1,118 @@
+<div nz-row>
+    <div nz-col nzSpan="14">
+      <nz-card [nzBordered]="true" nzTitle="Baseline Curriculum Update" [nzLoading]="dataloading">
+        <form nz-form [formGroup]="editForm">
+            <nz-form-item>
+                <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="curriculumid"
+                  >Curriculumid</nz-form-label
+                >
+                <nz-form-control nzErrorTip="Please select curriculum!">
+                  <nz-select
+                    formControlName="curriculumid"
+                    nzPlaceHolder="Select curriculum"
+                    (ngModelChange)="SearchSchool($event)"
+                  >
+                    <nz-option
+                      *ngFor="let option of curriculums"
+                      [nzLabel]="option.curriculumname"
+                      [nzValue]="option.curriculumid"
+                    ></nz-option>
+                  </nz-select>
+                </nz-form-control>
+              </nz-form-item>
+
+              <nz-form-item>
+                <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="baselineid"
+                  >Baselinename</nz-form-label
+                >
+                <nz-form-control nzErrorTip="Please enter baseline name!">
+                  <grammarly-editor-plugin>
+                    <input
+                      type="text"
+                      formControlName="baselinename"
+                      nz-input
+                      placeholder="Enter baseline name"
+                      minlength="1"
+                      maxlength="30"
+                    >
+                  </grammarly-editor-plugin>
+                </nz-form-control>
+              </nz-form-item>
+
+              <nz-form-item>
+                <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="baselinetype"
+                  >Baseline Type</nz-form-label
+                >
+                <nz-form-control nzErrorTip="Please select baseline type!">
+                  <nz-select
+                    formControlName="baselinetype"
+                    nzPlaceHolder="Select baseline type"
+                  >
+                    <nz-option
+                      *ngFor="let option of baselinetype"
+                      [nzLabel]="option.name"
+                      [nzValue]="option.value"
+                    ></nz-option>
+                  </nz-select>
+                </nz-form-control>
+              </nz-form-item>
+
+              <nz-form-item>
+                <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="baselinedate"
+                  >Start Date</nz-form-label
+                >
+                <nz-form-control nzErrorTip="Please select baseline Date!">
+                  <nz-date-picker formControlName="startdate" ></nz-date-picker>
+                </nz-form-control>
+              </nz-form-item>
+
+              <nz-form-item>
+                <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="baselinedate"
+                  >End Date</nz-form-label
+                >
+                <nz-form-control nzErrorTip="Please select baseline Date!">
+                  <nz-date-picker formControlName="enddate" ></nz-date-picker>
+                </nz-form-control>
+              </nz-form-item>
+
+              <nz-form-item>
+                <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="schoolid"
+                  >School</nz-form-label
+                >
+                <nz-form-control nzErrorTip="Please select schoolid!">
+                  <nz-select
+                    nzMode="multiple"
+                    formControlName="schoolid"
+                    nzPlaceHolder="Select School"
+                    [(ngModel)]="listOfSchoolidValue"
+                    [nzDisabled]="disable"
+                  >
+                    <ng-cntainer>
+                      <nz-option
+                        *ngFor="let option of school"
+                        [nzLabel]="option.schoolname"
+                        [nzValue]="option.schoolid"
+                        [nzHide]="!isNotSelected(option.schoolid)"
+                      ></nz-option>
+                    </ng-cntainer>
+                      <nz-option *ngIf="isSchoolLoading" nzDisabled nzCustomContent>
+                        <i nz-icon nzType="loading" class="loading-icon"></i>
+                        Loading Data...
+                      </nz-option>
+                  </nz-select>
+                </nz-form-control>
+              </nz-form-item>
+
+          <button
+            nz-button
+            style="float: right"
+            type="button"
+            [nzType]="'primary'"
+            (click)="submitUpdateForm()"
+          >
+            Submit
+          </button>
+        </form>
+      </nz-card>
+    </div>
+  </div>

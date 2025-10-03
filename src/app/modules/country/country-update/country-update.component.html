@@ -1,0 +1,46 @@
+<div nz-row>
+    <div nz-col nzSpan="12">
+      <nz-card [nzBordered]="true" nzTitle="country" [nzLoading]="dataloading">
+        <form nz-form [formGroup]="editForm">
+          <nz-form-item>
+            <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="countryname"
+              >Country Name</nz-form-label
+            >
+            <nz-form-control nzErrorTip="Please enter country name!">
+              <grammarly-editor-plugin>
+                <input
+                  type="text"
+                  nz-input
+                  formControlName="countryname"
+                  placeholder="Enter country name"
+                  (input)="restrictSpecialCharecter()"
+                />
+              </grammarly-editor-plugin>
+            </nz-form-control>
+          </nz-form-item>
+          <nz-form-item>
+            <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="expectedusage"
+              >Expected Usage</nz-form-label
+            >
+            <nz-form-control nzErrorTip="Please enter expected usage!">
+              <input
+                type="number"
+                nz-input
+                formControlName="expectedusage"
+                placeholder="Enter expected usage"
+              />
+            </nz-form-control>
+          </nz-form-item>
+
+          <button
+            nz-button style="float: right;"
+            type="button"
+            [nzType]="'primary'"
+            (click)="submiteditForm()"
+          >
+            Submit
+          </button>
+        </form>
+      </nz-card>
+    </div>
+  </div>

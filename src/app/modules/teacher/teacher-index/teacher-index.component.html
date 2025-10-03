@@ -1,0 +1,174 @@
+<div nz-row>
+  <div nz-col nzSpan="24">
+    <nz-card [nzBordered]="true" nzTitle="Teachers" [nzExtra]="extraTemplate">
+      <nz-table
+        nzShowSizeChanger
+        [nzData]="data"
+        nzSize="small"
+        [nzFrontPagination]="false"
+        [nzTotal]="total"
+        [nzPageSize]="pageSize"
+        [nzPageIndex]="pageIndex"
+        [nzLoading]="dataLoading"
+        [nzHideOnSinglePage]="true"
+        [nzBordered]="true"
+        [nzHideOnSinglePage]="false"
+        [nzPageSizeOptions]="[100, 200]"
+        [nzScroll]="{ y: '640px' }"
+        (nzQueryParams)="onQueryParamsChange($event)"
+        [nzShowTotal]="totalTemplate"
+      >
+        <thead>
+          <tr>
+            <th nzColumnKey="schoolusername" nzCustomFilter>
+              Teacher User Name
+              <nz-filter-trigger
+                [(nzVisible)]="searchData['schoolusername'].visible"
+                [nzActive]="
+                  (searchData['schoolusername']?.value?.length || 0) > 0
+                "
+                [nzDropdownMenu]="menu"
+                (nzVisibleChange)="searchVisiblity($event, 'schoolusername')"
+              >
+                <i nz-icon nzType="search"></i>
+              </nz-filter-trigger>
+            </th>
+            <th nzColumnKey="schoolname" nzCustomFilter>
+              School
+              <nz-filter-trigger
+                [(nzVisible)]="searchData.schoolname.visible"
+                [nzActive]="(searchData?.schoolname?.value?.length || 0) > 0"
+                [nzDropdownMenu]="menu"
+                (nzVisibleChange)="searchVisiblity($event, 'schoolname')"
+              >
+                <i nz-icon nzType="search"></i>
+              </nz-filter-trigger>
+            </th>
+
+            <th nzColumnKey="">Tools</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let data of data">
+            <td>{{ data["schoolusername"] }}</td>
+            <td>{{ data.schoolname }}</td>
+            <td>
+              <a
+                *ngxPermissionsOnly="['zr5ER4QD', 'Mapyr2Pw', 'delete_teacher', 'superadmin']"
+                nz-button
+                nzDanger
+                nzSize="small"
+                style="margin-right: 20px"
+                nz-popconfirm
+                nzPopconfirmTitle="Sure to delete?"
+                (nzOnConfirm)="deleteTeacher(data.schooluserid)"
+                >Delete</a
+              >
+            </td>
+          </tr>
+        </tbody>
+      </nz-table>
+    </nz-card>
+    <ng-template #extraTemplate>
+      <ng-template [ngxPermissionsOnly]="['create_teacher']">
+        <a
+          target="_blank"
+          style="margin-right: 32px"
+          href="{{ sampleFile() }}"
+          type="button"
+          nzType="primary"
+          nz-button
+        >
+          Sample File
+          <i
+            nz-icon
+            nzType="question-circle"
+            nzTheme="outline"
+            nz-popover
+            [nzPopoverContent]="contentTemplate"
+            nzPopoverPlacement="left"
+          ></i>
+        </a>
+  
+        <button
+          (click)="showuploadTeachers()"
+          type="button"
+          nzType="primary"
+          nz-button
+        >
+          Upload Teachers
+        </button>
+      </ng-template>
+    </ng-template>
+    <nz-dropdown-menu #menu="nzDropdownMenu">
+      <div class="ant-table-filter-dropdown">
+        <div class="search-box">
+          <input
+            type="text"
+            nz-input
+            [(ngModel)]="searchData[currentSearch].value"
+          />
+          <button
+            nz-button
+            nzSize="small"
+            nzType="primary"
+            (click)="search()"
+            class="search-button"
+          >
+            Search
+          </button>
+          <button nz-button nzSize="small" (click)="reset()">Reset</button>
+        </div>
+      </div>
+    </nz-dropdown-menu>
+  </div>
+</div>
+<ng-template #totalTemplate> Total : {{ total }} </ng-template>
+<nz-modal
+  [(nzVisible)]="showUpload"
+  [nzClosable]="true"
+  (nzOnCancel)="closeUpload()"
+  nzTitle="Upload Teachers"
+  [nzFooter]="uploadFooter"
+>
+  <ng-container *nzModalContent>
+    <form [formGroup]="uploadForm" nz-form nzLayout="vertical">
+      <nz-form-item>
+        <nz-form-label>School</nz-form-label>
+        <nz-form-control nzErrorTip="Please select school">
+          <nz-select formControlName="schoolname" nzPlaceHolder="Select school">
+            <nz-option
+              *ngFor="let option of school$ | async"
+              [nzLabel]="option.schoolname"
+              [nzValue]="option.schoolname"
+            ></nz-option>
+          </nz-select>
+        </nz-form-control>
+      </nz-form-item>
+    </form>
+  </ng-container>
+</nz-modal>
+
+<ng-template [nzModalFooter] #uploadFooter>
+  <nz-upload
+    [nzMultiple]="false"
+    [nzShowUploadList]="false"
+    [(nzFileList)]="fileList"
+    (nzChange)="handleChange($event)"
+  >
+    <button type="button" nzType="primary" nz-button>Upload</button>
+  </nz-upload>
+</ng-template>
+<ng-template #titleTemplate>
+  <i nz-icon nzType="close"></i>
+  Title
+</ng-template>
+<ng-template #contentTemplate>
+  <table>
+    <tr>
+      <td><b>Mandatoy Fields</b></td>
+      <td>:</td>
+      <td>schoolusername, schooluserpasswordhash</td>
+    </tr>
+  </table>
+</ng-template>

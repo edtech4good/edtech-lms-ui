@@ -1,0 +1,61 @@
+<form nzLayout="vertical" nz-form [formGroup]="questionAssociateForm">
+  <nz-form-item>
+    <nz-form-control [nzErrorTip]="errorMessages.questionassociatetext">
+      <grammarly-editor-plugin>
+        <input
+          type="text"
+          nz-input
+          maxlength="100"
+          formControlName="questionassociatetext"
+          placeholder="Enter associate text"
+        />
+      </grammarly-editor-plugin>
+    </nz-form-control>
+  </nz-form-item>
+  <nz-form-item>
+    <nz-form-control
+      nzExtra="Minimum 4 characters to search."
+      [nzErrorTip]="errorMessages.questionassociatefile"
+    >
+      <nz-select
+        formControlName="questionassociatefile"
+        nzPlaceHolder="Select associate file"
+        nzAllowClear
+        nzShowSearch
+        nzServerSearch
+        (nzOnSearch)="associateonSearch($event)"
+      >
+        <ng-container *ngFor="let o of associateassociateList">
+          <nz-option
+            nzCustomContent
+            *ngIf="!associateisLoading"
+            [nzLabel]="o.documentname"
+            [nzValue]="o.documentname"
+          >
+            {{ o.documentname }}<br />
+            <ng-container *ngIf="o.documenttags && o.documenttags.length > 0">
+              <nz-tag
+                [nzColor]="'cyan'"
+                *ngFor="let documenttag of o.documenttags; let i = index"
+                >{{ documenttag }}</nz-tag
+              >
+            </ng-container>
+          </nz-option>
+        </ng-container>
+        <nz-option
+          *ngFor="let o of defaultOption"
+          nzCustomContent
+          [nzLabel]="o.documentname"
+          [nzValue]="o.documentname"
+        >
+          {{ o.documentname }}
+        </nz-option>
+        <nz-option *ngIf="associateisLoading" nzDisabled nzCustomContent>
+          <i nz-icon nzType="loading" class="loading-icon"></i>
+          Loading Data...
+        </nz-option>
+      </nz-select>
+    </nz-form-control>
+  </nz-form-item>
+  <input hidden formControlName="questionoptionid" />
+</form>

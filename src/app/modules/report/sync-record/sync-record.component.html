@@ -1,0 +1,60 @@
+<div nz-row>
+  <div nz-col nzSpan="24">
+    <nz-card [nzBordered]="true" nzTitle="Sync Record">
+      <nz-table
+        nzShowSizeChanger
+        [nzLoading]="dataloading"
+        [nzData]="data"
+        [nzFrontPagination]="false"
+        nzSize="small"
+        [nzTotal]="total"
+        [nzPageSize]="pageSize"
+        [nzPageIndex]="pageIndex"
+        [nzHideOnSinglePage]="true"
+        [nzBordered]="true"
+        [nzPageSizeOptions]="[100, 500]"
+        [nzScroll]="{ y: '640px' }"
+        (nzQueryParams)="onQueryParamsChange($event)"
+        [nzShowTotal]="totalTemplate"
+      >
+        <thead>
+          <tr>
+            <th nzColumnKey="Country">Country</th>
+            <th nzColumnKey="">School Name</th>
+            <th nzColumnKey="">Last Sync</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let data of syncrecord$ | async">
+            <td>{{ data.schooluser.school?.countries?.countryname ?? 'N/A' }}</td>
+            <td>{{ data.schooluser.schoolname }}</td>
+            <td>{{ data.created_at | date:'medium' }}</td>
+          </tr>
+        </tbody>
+      </nz-table>
+    </nz-card>
+    <nz-dropdown-menu #menu="nzDropdownMenu">
+      <div class="ant-table-filter-dropdown">
+        <div class="search-box">
+          <input
+            type="text"
+            nz-input
+            placeholder="Search class"
+            [(ngModel)]="searchValue"
+          />
+          <button
+            nz-button
+            nzSize="small"
+            nzType="primary"
+            (click)="search()"
+            class="search-button"
+          >
+            Search
+          </button>
+          <button nz-button nzSize="small" (click)="reset()">Reset</button>
+        </div>
+      </div>
+    </nz-dropdown-menu>
+  </div>
+</div>
+<ng-template #totalTemplate> Total : {{ total }} </ng-template>

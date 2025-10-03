@@ -1,0 +1,64 @@
+<div style="display: flex; justify-content: center;">
+  <h1>Reach-School</h1>
+</div>
+<nz-select
+  nzPlaceHolder="Select schools"
+  nzAllowClear
+  nzShowSearch
+  nzServerSearch
+  [(ngModel)]="searchFields.schoolname"
+  (ngModelChange)="loadDataFromServer()"
+  (nzOnSearch)="onSearchSchool($event)"
+  style="width: 200px;"
+>
+  <ng-container *ngFor="let o of schoolList">
+    <nz-option *ngIf="!isSchoolLoading" [nzValue]="o.schoolname" [nzLabel]="o.schoolname"></nz-option>
+  </ng-container>
+  <nz-option *ngIf="isSchoolLoading" nzDisabled nzCustomContent>
+    <span nz-icon nzType="loading" class="loading-icon"></span>
+    Loading Data...
+  </nz-option>
+</nz-select>
+
+<ngx-charts-bar-vertical
+  [view]="view"
+  [scheme]="colorScheme"
+  [results]="single_bar_chart"
+  [gradient]="gradient"
+  [xAxis]="showXAxis"
+  [yAxis]="showYAxis"
+  [legend]="showLegend"
+  [showXAxisLabel]="showXAxisLabel"
+  [showYAxisLabel]="showYAxisLabel"
+  [xAxisLabel]="xAxisLabel"
+  [yAxisLabel]="yAxisLabel"
+  (select)="onSelect($event)"
+>
+</ngx-charts-bar-vertical>
+
+<div style="display: flex; flex-direction: row">
+  <ngx-charts-pie-chart
+    [view]="viewPie"
+    [scheme]="colorScheme"
+    [results]="single"
+    [gradient]="gradientPie"
+    [legend]="showLegend"
+    [legendPosition]="legendPosition"
+    [legendTitle]="pieLegendTitle"
+    [labels]="showLabels"
+    [doughnut]="isDoughnut"
+  >
+  </ngx-charts-pie-chart>
+  <ngx-charts-pie-chart
+    [view]="offlineOnlineView"
+    [scheme]="colorScheme"
+    [results]="offlineOnlineData"
+    [gradient]="gradientPie"
+    [legend]="showLegend"
+    [legendPosition]="legendPosition"
+    [legendTitle]="offlineOnlinePieLegendTitle"
+    [labels]="showLabels"
+    [doughnut]="isDoughnut"
+  >
+  </ngx-charts-pie-chart>
+</div>

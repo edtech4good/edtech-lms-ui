@@ -1,0 +1,153 @@
+<div nz-row>
+  <div nz-col nzSpan="24">
+    <nz-card [nzBordered]="true" nzTitle="Lesson" [nzExtra]="extraTemplate">
+      <nz-table
+        nzShowSizeChanger
+        [nzLoading]="dataloading"
+        [nzFrontPagination]="false"
+        [nzData]="data"
+        nzSize="small"
+        [nzBordered]="true"
+        [nzHideOnSinglePage]="false"
+        [nzShowTotal]="totalTemplate"
+      >
+        <thead>
+          <tr>
+            <th>Lesson Name</th>
+            <th
+              *ngFor="let column of listOfColumns"
+              [nzShowFilter]="true"
+              [nzFilterFn]="column.filterFn"
+              [nzFilters]="column.listOfFilter"
+              (nzFilterChange)="searchFunction($event, column.columnKey)"
+            >
+              {{ column.name }}
+            </th>
+            <th
+              (nzSortOrderChange)="sortFunction($event)"
+              [nzSortOrder]="'ascend'"
+              [nzSortDirections]="['ascend', 'descend']"
+            >
+              Order
+            </th>
+            <th>Description</th>
+            <!-- <th>Total Points</th> -->
+            <th>Brick Points</th>
+            <th>Tools</th>
+          </tr>
+        </thead>
+        <tbody>
+          <ng-container *ngFor="let rowdata of data">
+            <tr *ngIf="rowdata.visible">
+              <td>
+                <span
+                  [style.text-decoration]="
+                    rowdata.lessonstatus ? 'none' : 'line-through'
+                  "
+                  >{{ rowdata.lessonname }}</span
+                >
+              </td>
+
+              <td>{{ rowdata.curriculumname }}</td>
+              <td>{{ rowdata.gradename }}</td>
+              <td>{{ rowdata.levelname }}</td>
+              <td>{{ rowdata.lessonorder }}</td>
+              <!-- <td style="overflow:hidden; white-space: wrap;"> -->
+              <td style="width: 250px;">
+                <span title="{{ rowdata.lessondescription }}">
+                  {{ rowdata.lessondescription }}</span
+                >
+              </td>
+              <!-- <td>{{ rowdata.total_points }}</td> -->
+              <td>{{ rowdata.brick_points }}</td>
+              <td>
+                <a
+                  nz-button
+                  nzDanger
+                  nzSize="small"
+                  style="margin: 5px 10px 5px 0px;"
+                  nz-popconfirm
+                  nzPopconfirmTitle="Sure to delete?"
+                  (nzOnConfirm)="deletetag(rowdata.lessonid)"
+                  *ngxPermissionsOnly="['delete_lesson']"
+                  >Delete</a
+                >
+                <a
+                  nz-button
+                  [routerLink]="['/lesson', 'update', rowdata.lessonid]"
+                  style="margin: 5px 10px 5px 0px;"
+                  nzType="primary"
+                  nzSize="small"
+                  (click)="storeData()"
+                  *ngxPermissionsOnly="['update_lesson']"
+                  >Edit</a
+                >
+                <a
+                  nz-button
+                  [routerLink]="['/lesson', 'learning', rowdata.lessonid]"
+                  nzType="primary"
+                  style="margin: 5px 10px 5px 0px;"
+                  nzSize="small"
+                  (click)="storeData()"
+                  *ngxPermissionsOnly="['view_lessonlearning']"
+                  >Learn Brick</a
+                >
+                <a
+                  nz-button
+                  [routerLink]="['/lesson', 'practice', rowdata.lessonid]"
+                  nzType="primary"
+                  style="margin: 5px 10px 5px 0px;"
+                  nzSize="small"
+                  (click)="storeData()"
+                  *ngxPermissionsOnly="['view_lessonpractice']"
+                  >Practice</a
+                >
+                <a
+                  nz-button
+                  [routerLink]="['/lesson', 'quiz', rowdata.lessonid]"
+                  style="margin: 5px 20px 5px 0px;"
+                  nzType="primary"
+                  nzSize="small"
+                  (click)="storeData()"
+                  *ngxPermissionsOnly="['view_lessonquiz']"
+                  >Quiz</a
+                >
+                <a
+                  nz-button
+                  [routerLink]="['/lesson', 'teacher-plan', rowdata.lessonid]"
+                  nzType="primary"
+                  style="margin: 5px 10px 5px 0px;"
+                  nzSize="small"
+                  (click)="storeData()"
+                  *ngxPermissionsOnly="['view_lessonlearning']"
+                  >Plan</a
+                >
+              </td>
+            </tr>
+          </ng-container>
+        </tbody>
+      </nz-table>
+    </nz-card>
+    <ng-template #extraTemplate>
+      <a
+        nz-button
+        routerLink="/lesson/create"
+        nzType="primary"
+        style="margin-right: 10px;"
+        (click)="storeData()"
+        *ngxPermissionsOnly="['create_lesson']"
+      >
+        Create
+      </a>
+      <button
+        nz-button
+        nzType="primary"
+        (click)="clearData()"
+      >
+        Reset Filter
+      </button>
+    </ng-template>
+
+  </div>
+</div>
+<ng-template #totalTemplate> Total : {{ data.length }} </ng-template>

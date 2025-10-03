@@ -1,0 +1,77 @@
+<div nz-row>
+  <div nz-col nzSpan="24">
+    <nz-card [nzBordered]="true" nzTitle="Fees Collection" [nzExtra]="extraTemplate">
+      <nz-table
+        nzShowSizeChanger
+        [nzLoading]="dataloading"
+        [nzData]="data"
+        nzSize="small"
+        [nzFrontPagination]="false"
+        [nzTotal]="total"
+        [nzPageSize]="pageSize"
+        [nzPageIndex]="pageIndex"
+        [nzHideOnSinglePage]="true"
+        [nzBordered]="true"
+        [nzHideOnSinglePage]="false"
+        [nzPageSizeOptions]="[100, 200]"
+        [nzScroll]="{ y: '640px' }"
+        (nzQueryParams)="onQueryParamsChange($event)"
+        [nzShowTotal]="totalTemplate"
+      >
+        <thead>
+          <tr>
+            <th nzColumnKey="schoolname" nzCustomFilter>
+              School Name
+            </th>
+            <th nzColumnKey="">Expected</th>
+            <th nzColumnKey="">Actual</th>
+            <th nzColumnKey="">Create At</th>
+            <th nzColumnKey="">Tools</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let data of data">
+            <td>{{ data.schoolname }}</td>
+            <td>{{ data.expected }}</td>
+            <td>{{ data.actual }}</td>
+            <td>{{ data.created_at | date: 'medium' }}</td>
+            <td>
+              <a
+                nz-button
+                nzDanger
+                nzSize="small"
+                style="margin-right: 20px"
+                nz-popconfirm
+                nzPopconfirmTitle="Sure to delete ?"
+                (nzOnConfirm)="delete(data.schoolcontributeid)"
+                *ngxPermissionsOnly="['delete_fees_collection']"
+                >Delete</a
+              >
+              <a
+                nz-button
+                [routerLink]="['/school', 'schoolcontribute-update', data.schoolcontributeid]"
+                nzType="primary"
+                style="margin-right: 20px"
+                nzSize="small"
+                *ngxPermissionsOnly="['update_fees_collection']"
+                >Edit</a
+              >
+              <!-- <a
+                nz-button
+                [routerLink]="['/level', 'quiz', data.levelid]"
+                nzType="primary"
+                nzSize="small"
+                *ngxPermissionsOnly="['view_levelquizquestion']"
+                >Quiz</a
+              > -->
+            </td>
+          </tr>
+        </tbody>
+      </nz-table>
+    </nz-card>
+    <ng-template #extraTemplate>
+      <a nz-button [routerLink]="['/school','schoolcontribute-create', schoolid$]" nzType="primary" *ngxPermissionsOnly="['create_fees_collection']">Create</a>
+    </ng-template>
+  </div>
+</div>
+<ng-template #totalTemplate> Total : {{ total }} </ng-template>

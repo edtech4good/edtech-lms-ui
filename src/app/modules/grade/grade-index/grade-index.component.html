@@ -1,0 +1,106 @@
+<div nz-row>
+  <div nz-col nzSpan="24">
+    <nz-card [nzBordered]="true" nzTitle="Grade" [nzExtra]="extraTemplate">
+      <nz-table
+        nzShowSizeChanger
+        [nzLoading]="dataloading"
+        [nzData]="data"
+        nzSize="small"
+        [nzFrontPagination]="false"
+        [nzTotal]="total"
+        [nzPageSize]="pageSize"
+        [nzPageIndex]="pageIndex"
+        [nzHideOnSinglePage]="true"
+        [nzBordered]="true"
+        [nzHideOnSinglePage]="false"
+        [nzPageSizeOptions]="[100, 200]"
+        [nzScroll]="{ y: '640px' }"
+        (nzQueryParams)="onQueryParamsChange($event)"
+        [nzShowTotal]="totalTemplate"
+      >
+        <thead>
+          <tr>
+            <th nzColumnKey="gradename" nzCustomFilter>
+              Grade Name
+              <nz-filter-trigger
+                [(nzVisible)]="visible"
+                [nzActive]="searchValue.length > 0"
+                [nzDropdownMenu]="menu"
+              >
+                <i nz-icon nzType="search"></i>
+              </nz-filter-trigger>
+            </th>
+            <th nzColumnKey="">Curriculum</th>
+            <th nzColumnKey="">Order</th>
+            <th nzColumnKey="">Description</th>
+            <th nzColumnKey="">Tools</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let data of data">
+            <td>{{ data.gradename }}</td>
+            <td>
+              <a [routerLink]="'/curriculum/update/' + data.curriculumid">{{
+                data.curriculumname
+              }}</a>
+            </td>
+            <td>{{ data.gradeorder }}</td>
+            <td style="overflow: hidden; white-space: nowrap">
+              <span title="{{ data.gradedescription }}">
+                {{ data.gradedescription }}</span
+              >
+            </td>
+            <td>
+              <a
+                nz-button
+                nzDanger
+                nzSize="small"
+                style="margin-right: 20px"
+                nz-popconfirm
+                nzPopconfirmTitle="Sure to delete?"
+                (nzOnConfirm)="deletetag(data.gradeid)"
+                *ngxPermissionsOnly="['delete_grade']"
+                >Delete</a
+              >
+
+              <a
+                nz-button
+                [routerLink]="['/grade', 'update', data.gradeid]"
+                nzType="primary"
+                nzSize="small"
+                *ngxPermissionsOnly="['update_grade']"
+                >Edit</a
+              >
+            </td>
+          </tr>
+        </tbody>
+      </nz-table>
+    </nz-card>
+    <ng-template #extraTemplate>
+      <a nz-button routerLink="/grade/create" nzType="primary" *ngxPermissionsOnly="['create_grade']">Create</a>
+    </ng-template>
+    <nz-dropdown-menu #menu="nzDropdownMenu">
+      <div class="ant-table-filter-dropdown">
+        <div class="search-box">
+          <input
+            type="text"
+            nz-input
+            placeholder="Search grade"
+            [(ngModel)]="searchValue"
+          />
+          <button
+            nz-button
+            nzSize="small"
+            nzType="primary"
+            (click)="search()"
+            class="search-button"
+          >
+            Search
+          </button>
+          <button nz-button nzSize="small" (click)="reset()">Reset</button>
+        </div>
+      </div>
+    </nz-dropdown-menu>
+  </div>
+</div>
+<ng-template #totalTemplate> Total : {{ total }} </ng-template>

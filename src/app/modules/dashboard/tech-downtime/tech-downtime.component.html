@@ -1,0 +1,25 @@
+<div class="downtime-of-month">
+  <div>
+    <nz-range-picker nzMode="month" [(ngModel)]="date" (ngModelChange)="onChange($event)"></nz-range-picker>
+  </div>
+  <div class="title">
+    <h1>Non-routine tech downtime</h1>
+  </div>
+  <div #containerRef >
+    <ngx-charts-bar-vertical
+      [view]="[containerRef.offsetWidth, 300]"
+      [scheme]="colorScheme"
+      [results]="single_bar_chart"
+      [gradient]="gradient"
+      [xAxis]="showXAxis"
+      [yAxis]="showYAxis"
+      [legend]="showLegend"
+      [showXAxisLabel]="showXAxisLabel"
+      [showYAxisLabel]="showYAxisLabel"
+      [xAxisLabel]="xAxisLabel"
+      [yAxisLabel]="yAxisLabel"
+      (select)="onSelect($event)"
+    >
+    </ngx-charts-bar-vertical>
+  </div>
+</div>

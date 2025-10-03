@@ -1,0 +1,62 @@
+<div nz-row>
+  <div nz-col nzSpan="12">
+    <nz-card [nzBordered]="true" nzTitle="Create School Contribute" [nzLoading]="dataloading">
+      <form nz-form [formGroup]="createForm">
+        <nz-form-item>
+          <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="schoolname"
+            >School Name</nz-form-label
+          >
+          <nz-form-control nzErrorTip="Please select SchoolName">
+            <nz-select
+              formControlName="schoolname"
+              nzPlaceHolder="Select Schoolname"
+            >
+              <nz-option
+                [nzLabel]="school?.schoolname"
+                [nzValue]="school?.schoolname"
+              ></nz-option>
+            </nz-select>
+          </nz-form-control>
+        </nz-form-item>
+
+      <nz-form-item>
+        <nz-form-label style="margin-top: 10px;" [nzSm]="6" [nzXs]="24" nzRequired nzFor="expected"
+        >Expected
+      </nz-form-label
+      >
+      <nz-form-control style="margin-top: 10px;" nzErrorTip="Please enter school expected!">
+        <input
+          type="number"
+          nz-input
+          formControlName="expected"
+          placeholder="Enter school expected"
+          />
+      </nz-form-control>
+    </nz-form-item>
+
+    <nz-form-item>
+      <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="actual"
+        >Actual
+      </nz-form-label
+      >
+      <nz-form-control nzErrorTip="Please enter school actual!">
+        <input
+          type="number"
+          nz-input
+          formControlName="actual"
+          placeholder="Enter school actual"
+          />
+      </nz-form-control>
+    </nz-form-item>
+        <button
+          nz-button style="float: right;"
+          type="button"
+          [nzType]="'primary'"
+          (click)="createSchoolContribute()"
+        >
+          Submit
+        </button>
+      </form>
+    </nz-card>
+  </div>
+</div>

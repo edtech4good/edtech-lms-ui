@@ -1,0 +1,60 @@
+<div nz-row>
+  <div nz-col nzSpan="14">
+    <nz-card [nzBordered]="true" nzTitle="Subject" [nzLoading]="dataloading">
+      <form nz-form [formGroup]="createForm">
+        <nz-form-item>
+          <nz-form-label
+            [nzSm]="6"
+            [nzXs]="24"
+            nzRequired
+            nzFor="subjectname"
+            >Subject Name</nz-form-label
+          >
+          <nz-form-control nzErrorTip="Please enter subject name!">
+            <grammarly-editor-plugin>
+              <input
+                type="text"
+                nz-input
+                formControlName="subjectname"
+                placeholder="Enter subject name"
+                (input)="restrictSpecialCharecter()"
+              />
+            </grammarly-editor-plugin>
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item>
+          <nz-form-label
+            [nzSm]="6"
+            [nzXs]="24"
+            nzFor="subjectdescription"
+            >Subject Description</nz-form-label
+          >
+          <nz-form-control nzErrorTip="Please enter subject description!">
+            <grammarly-editor-plugin>
+              <textarea
+                maxlength="200"
+                type="text"
+                nz-input
+                formControlName="subjectdescription"
+                placeholder="Enter subject description"
+                style="resize: none"
+                rows="5"
+              >
+              </textarea>
+            </grammarly-editor-plugin>
+          </nz-form-control>
+        </nz-form-item>
+
+        <button
+          nz-button
+          style="float: right"
+          type="button"
+          [nzType]="'primary'"
+          (click)="submitcreateForm()"
+        >
+          Submit
+        </button>
+      </form>
+    </nz-card>
+  </div>
+</div>

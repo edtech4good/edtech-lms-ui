@@ -1,0 +1,139 @@
+<div>
+  <nz-select
+    nzPlaceHolder="Select countries"
+    nzAllowClear
+    nzShowSearch
+    nzServerSearch
+    [(ngModel)]="searchFields.countryid"
+    (ngModelChange)="resetValue0()"
+    (nzFocus)="onSearchCountry('')"
+    (nzOnSearch)="onSearchCountry($event)"
+    style="width: 200px;"
+  >
+    <ng-container *ngFor="let o of countryList">
+      <nz-option *ngIf="!isCountryLoading" [nzValue]="o.countryid" [nzLabel]="o.countryname"></nz-option>
+    </ng-container>
+    <nz-option *ngIf="isCountryLoading" nzDisabled nzCustomContent>
+      <span nz-icon nzType="loading" class="loading-icon"></span>
+      Loading Data...
+    </nz-option>
+  </nz-select>
+  <nz-select
+    nzPlaceHolder="Select schools"
+    nzAllowClear
+    nzShowSearch
+    nzServerSearch
+    [(ngModel)]="searchFields.schoolname"
+    (nzFocus)="onSearchSchool('')"
+    (nzOnSearch)="onSearchSchool($event)"
+    style="width: 200px;"
+  >
+    <ng-container *ngFor="let o of schoolList">
+      <nz-option *ngIf="!isSchoolLoading" [nzValue]="o.schoolname" [nzLabel]="o.schoolname"></nz-option>
+    </ng-container>
+    <nz-option *ngIf="isSchoolLoading" nzDisabled nzCustomContent>
+      <span nz-icon nzType="loading" class="loading-icon"></span>
+      Loading Data...
+    </nz-option>
+  </nz-select>
+  <nz-date-picker
+    [nzDisabledDate]="disabledStartDate"
+    nzFormat="yyyy-MM-dd HH:mm:ss"
+    [(ngModel)]="searchFields.startDate"
+    nzPlaceHolder="Start"
+  ></nz-date-picker>
+  <nz-date-picker
+    #endDatePicker
+    [nzDisabledDate]="disabledEndDate"
+    nzFormat="yyyy-MM-dd HH:mm:ss"
+    [(ngModel)]="searchFields.endDate"
+    nzPlaceHolder="End"
+  ></nz-date-picker>
+  <button nz-button nzType="primary" (click)="search()" [nzLoading]="isLoadingOne">Search</button>
+</div>
+<div nz-row>
+  <div nz-col nzSpan="24">
+    <nz-card [nzBordered]="true" nzTitle="Teacher Feedbacks">
+      <nz-table
+        nzShowSizeChanger
+        [nzLoading]="dataloading"
+        [nzData]="data"
+        [nzFrontPagination]="false"
+        nzSize="small"
+        [nzTotal]="total"
+        [nzPageSize]="pageSize"
+        [nzPageIndex]="pageIndex"
+        [nzHideOnSinglePage]="true"
+        [nzBordered]="true"
+        [nzHideOnSinglePage]="false"
+        [nzPageSizeOptions]="[10, 20, 50, 100, 200]"
+        [nzScroll]="{ y: '640px' }"
+        (nzQueryParams)="onQueryParamsChange($event)"
+        [nzShowTotal]="totalTemplate"
+      >
+        <thead>
+          <tr>
+            <th nzColumnKey="feedback" nzCustomFilter style="text-align: start;">
+              Curriculum
+              <!-- <nz-filter-trigger
+                [(nzVisible)]="visible"
+                [nzActive]="searchValue.length > 0"
+                [nzDropdownMenu]="menu"
+              >
+                <i nz-icon nzType="search"></i>
+              </nz-filter-trigger> -->
+            </th>
+            <th nzColumnKey="">School Name</th>
+            <th nzColumnKey="">Teacher Name</th>
+            <th nzColumnKey="">Created At</th>
+            <th nzColumnKey="">Tool</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let data of data">
+            <td >{{ data.curriculum.curriculumname }}</td>
+            <td >{{ data.schooluser.schoolname }}</td>
+            <td >{{ data.teachername }}</td>
+            <td >{{ data.created_at | date:'medium' }}</td>
+            <td>
+              <a
+                nz-button
+                [routerLink]="['/feedback','view', data.feedbackid]"
+                nzType="primary"
+                nzSize="small"
+                *ngxPermissionsOnly="['view_feedback_detail']"
+                >Details</a
+              >
+            </td>
+          </tr>
+        </tbody>
+      </nz-table>
+    </nz-card>
+    <!-- <ng-template #extraTemplate>
+      <a nz-button routerLink="/feedback/create" nzType="primary">Create</a>
+    </ng-template> -->
+    <!-- <nz-dropdown-menu #menu="nzDropdownMenu">
+      <div class="ant-table-filter-dropdown" style="width: 80%;">
+        <div class="search-box">
+          <input
+            type="text"
+            nz-input
+            placeholder="Search feedback"
+            [(ngModel)]="searchValue"
+          />
+          <button
+            nz-button
+            nzSize="small"
+            nzType="primary"
+            (click)="search()"
+            class="search-button"
+          >
+            Search
+          </button>
+          <button nz-button nzSize="small" (click)="reset()">Reset</button>
+        </div>
+      </div>
+    </nz-dropdown-menu> -->
+  </div>
+</div>
+<ng-template #totalTemplate> Total : {{ total }} </ng-template>

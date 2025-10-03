@@ -1,0 +1,9 @@
+export interface ChartItemFormatContribute {
+    name: Date | string;
+    value: number;
+}
+
+export interface LineChartFormatContribute {
+    name: string;
+    series: Array<ChartItemFormatContribute>;
+}

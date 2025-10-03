@@ -1,0 +1,380 @@
+<nz-tabset nzType="card" [nzSelectedIndex]="selectTab">
+  <nz-tab [nzTitle]="'List Students Tab'">
+    <div nz-row>
+      <div nz-col nzSpan="24">
+        <ng-template [ngxPermissionsOnly]="['create_student']"></ng-template>
+        <nz-card [nzBordered]="true" nzTitle="Students" [nzExtra]="extraTemplate">
+          <nz-table
+            nzShowSizeChanger
+            [nzData]="data"
+            nzSize="small"
+            [nzFrontPagination]="false"
+            [nzTotal]="total"
+            [nzPageSize]="pageSize"
+            [nzPageIndex]="pageIndex"
+            [nzLoading]="dataLoading"
+            [nzHideOnSinglePage]="true"
+            [nzBordered]="true"
+            [nzHideOnSinglePage]="false"
+            [nzPageSizeOptions]="[100, 200]"
+            [nzScroll]="{ y: '640px' }"
+            (nzQueryParams)="onQueryParamsChange($event)"
+            [nzShowTotal]="totalTemplate"
+          >
+            <thead>
+              <tr>
+                <th nzColumnKey="studentfirstname" nzCustomFilter>
+                  Student Name
+                  <nz-filter-trigger
+                    [(nzVisible)]="searchData.studentfirstname.visible"
+                    [nzActive]="
+                      (searchData?.studentfirstname?.value?.length || 0) > 0
+                    "
+                    [nzDropdownMenu]="menu"
+                    (nzVisibleChange)="searchVisiblity($event, 'studentfirstname')"
+                  >
+                    <i nz-icon nzType="search"></i>
+                  </nz-filter-trigger>
+                </th>
+                <th nzColumnKey="schooluser.schoolusername" nzCustomFilter>
+                  User Name
+                  <nz-filter-trigger
+                    [(nzVisible)]="searchData['schooluser.schoolusername'].visible"
+                    [nzActive]="
+                      (searchData['schooluser.schoolusername']?.value?.length ||
+                        0) > 0
+                    "
+                    [nzDropdownMenu]="menu"
+                    (nzVisibleChange)="
+                      searchVisiblity($event, 'schooluser.schoolusername')
+                    "
+                  >
+                    <i nz-icon nzType="search"></i>
+                  </nz-filter-trigger>
+                </th>
+                <th nzColumnKey="curriculum.curriculumname" nzCustomFilter>
+                  Curriculum
+                  <nz-filter-trigger
+                    [(nzVisible)]="searchData['curriculum.curriculumname'].visible"
+                    [nzActive]="
+                      (searchData['curriculum.curriculumname']?.value?.length ||
+                        0) > 0
+                    "
+                    [nzDropdownMenu]="menu"
+                    (nzVisibleChange)="
+                      searchVisiblity($event, 'curriculum.curriculumname')
+                    "
+                  >
+                    <i nz-icon nzType="search"></i>
+                  </nz-filter-trigger>
+                </th>
+                <th nzColumnKey="schoolname" nzCustomFilter>
+                  School
+                  <nz-filter-trigger
+                    [(nzVisible)]="searchData.schoolname.visible"
+                    [nzActive]="(searchData?.schoolname?.value?.length || 0) > 0"
+                    [nzDropdownMenu]="menu"
+                    (nzVisibleChange)="searchVisiblity($event, 'schoolname')"
+                  >
+                    <i nz-icon nzType="search"></i>
+                  </nz-filter-trigger>
+                </th>
+                <th nzColumnKey="standard" nzCustomFilter>
+                  Class
+                  <nz-filter-trigger
+                    [(nzVisible)]="searchData.standard.visible"
+                    [nzActive]="(searchData?.standard?.value?.length || 0) > 0"
+                    [nzDropdownMenu]="menu"
+                    (nzVisibleChange)="searchVisiblity($event, 'standard')"
+                  >
+                    <!-- <i nz-icon nzType="search"></i> -->
+                  </nz-filter-trigger>
+                </th>
+                <th nzColumnKey="country" nzCustomFilter>
+                  Country
+                  <nz-filter-trigger
+                    [(nzVisible)]="searchData.country.visible"
+                    [nzActive]="(searchData?.country?.value?.length || 0) > 0"
+                    [nzDropdownMenu]="menu"
+                    (nzVisibleChange)="searchVisiblity($event, 'country')"
+                  >
+                    <i nz-icon nzType="search"></i>
+                  </nz-filter-trigger>
+                </th>
+                <th nzColumnKey="">Type</th>
+                <th nzColumnKey="">Is Teacher</th>
+                <th nzColumnKey="">Last Login</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let data of data">
+                <td>
+                  <a [routerLink]="['/student/stats', data.studentid]"
+                    >{{ data.studentfirstname }} {{ data.studentlastname }}</a
+                  >
+                </td>
+                <td>{{ data["schooluser.schoolusername"] }}</td>
+                <td>{{ data["curriculum.curriculumname"] }}</td>
+                <td>{{ data.schoolname }}</td>
+                <td>{{ data.class?.standardname }}</td>
+                <td>{{ data.country }}</td>
+                <td>
+                  {{ data.type }}
+                </td>
+                <td>{{ data.is_teacher_acc ? 'True' : '' }}</td>
+                <td>{{ data.lastlogin | date: "MMM d, y, h:mm:ss a" }}</td>
+              </tr>
+            </tbody>
+          </nz-table>
+        </nz-card>
+        <ng-template #extraTemplate>
+          <ng-template [ngxPermissionsOnly]="['create_student']">
+            <a
+              target="_blank"
+              style="margin-right: 32px"
+              href="{{ sampleFile() }}"
+              type="button"
+              nzType="primary"
+              nz-button
+            >
+              Sample File
+              <i
+                nz-icon
+                nzType="question-circle"
+                nzTheme="outline"
+                nz-popover
+                [nzPopoverContent]="contentTemplate"
+                nzPopoverPlacement="left"
+              ></i>
+            </a>
+    
+            <button
+              (click)="showuploadStudents()"
+              type="button"
+              nzType="primary"
+              nz-button
+            >
+              Upload Users
+            </button>
+          </ng-template>
+        </ng-template>
+        <nz-dropdown-menu #menu="nzDropdownMenu">
+          <div class="ant-table-filter-dropdown">
+            <div class="search-box">
+              <input
+                type="text"
+                nz-input
+                [ngModel]="currentSearch ? searchData[currentSearch].value : ''"
+                (ngModelChange)="currentSearch && searchData[currentSearch].value=$event"
+              />
+              <button
+                nz-button
+                nzSize="small"
+                nzType="primary"
+                (click)="search()"
+                class="search-button"
+              >
+                Search
+              </button>
+              <button nz-button nzSize="small" (click)="reset()">Reset</button>
+            </div>
+          </div>
+        </nz-dropdown-menu>
+      </div>
+    </div>
+  </nz-tab>
+  <ng-template [ngxPermissionsOnly]="['update_student']">
+    <nz-tab [nzTitle]="'Edit Student Tab'">
+      <div style="display: flex;justify-content: space-between;margin: 1rem auto">
+        <nz-select
+          nzPlaceHolder="Select countries"
+          nzAllowClear
+          nzShowSearch
+          nzServerSearch
+          [(ngModel)]="searchFields.countryid"
+          (nzOnSearch)="onSearchCountry($event)"
+          style="width: 200px;"
+        >
+          <ng-container *ngFor="let o of countryList">
+            <nz-option *ngIf="!isCountryLoading" [nzValue]="o.countryid" [nzLabel]="o.countryname"></nz-option>
+          </ng-container>
+          <nz-option *ngIf="isCountryLoading" nzDisabled nzCustomContent>
+            <span nz-icon nzType="loading" class="loading-icon"></span>
+            Loading Data...
+          </nz-option>
+        </nz-select>
+        <nz-select
+          nzPlaceHolder="Select schools"
+          nzAllowClear
+          nzShowSearch
+          nzServerSearch
+          [(ngModel)]="searchFields.schoolname"
+          (nzOnSearch)="onSearchSchool($event)"
+          style="width: 200px;"
+        >
+          <ng-container *ngFor="let o of schoolList">
+            <nz-option *ngIf="!isSchoolLoading" [nzValue]="o.schoolname" [nzLabel]="o.schoolname"></nz-option>
+          </ng-container>
+          <nz-option *ngIf="isSchoolLoading" nzDisabled nzCustomContent>
+            <span nz-icon nzType="loading" class="loading-icon"></span>
+            Loading Data...
+          </nz-option>
+        </nz-select>
+        <nz-select
+          nzPlaceHolder="Select students"
+          nzAllowClear
+          nzShowSearch
+          nzServerSearch
+          [(ngModel)]="searchFields.studentid"
+          (nzOnSearch)="onSearchUser($event)"
+          style="width: 200px;"
+        >
+          <ng-container *ngFor="let o of userList">
+            <nz-option *ngIf="!isUserLoading" [nzValue]="o.studentid" [nzLabel]="o.schooluser.schoolusername"></nz-option>
+          </ng-container>
+          <nz-option *ngIf="isUserLoading" nzDisabled nzCustomContent>
+            <span nz-icon nzType="loading" class="loading-icon"></span>
+            Loading Data...
+          </nz-option>
+        </nz-select>
+        <button nz-button nzType="primary" (click)="downloadStudent()" [nzLoading]="downloading">Download Students For Edit</button>
+        <nz-upload
+          [nzMultiple]="false"
+          [nzShowUploadList]="false"
+          [(nzFileList)]="fileList"
+          (nzChange)="handleUpdateStudents($event)"
+        >
+          <button style="background: darkorange;border-color: darkorange;" type="button" nzType="primary" nz-button>Upload Edited Students</button>
+        </nz-upload>
+      </div>
+      <hr>
+      <div style="display: flex;justify-content: space-between;">
+        <nz-select
+          nzPlaceHolder="Select schools"
+          nzAllowClear
+          nzShowSearch
+          nzServerSearch
+          [(ngModel)]="searchFields.schoolExportname"
+          (nzOnSearch)="onSearchExportSchool($event)"
+          style="width: 200px;"
+        >
+          <ng-container *ngFor="let o of schoolExportList">
+            <nz-option *ngIf="!isSchoolExportLoading" [nzValue]="o.schoolname" [nzLabel]="o.schoolname"></nz-option>
+          </ng-container>
+          <nz-option *ngIf="isSchoolExportLoading" nzDisabled nzCustomContent>
+            <span nz-icon nzType="loading" class="loading-icon"></span>
+            Loading Data...
+          </nz-option>
+        </nz-select>
+        <button nz-button nzType="primary" (click)="exportStudents()" [nzLoading]="downloadingExport">Export Students By School</button>
+        <div style="width: 200px;"></div>
+        <div style="width: 200px;"></div>
+        <div style="width: 200px;"></div>
+      </div>
+    </nz-tab>
+  </ng-template>
+</nz-tabset>
+<ng-template #totalTemplate> Total : {{ total }} </ng-template>
+<nz-modal
+  [(nzVisible)]="showUpload"
+  [nzClosable]="true"
+  (nzOnCancel)="closeUpload()"
+  nzTitle="Upload Users"
+  [nzFooter]="uploadFooter"
+>
+  <ng-container *nzModalContent>
+    <form [formGroup]="uploadForm" nz-form nzLayout="vertical">
+      <nz-form-item>
+        <nz-form-label>School</nz-form-label>
+        <nz-form-control nzErrorTip="Please select school">
+          <nz-select
+            formControlName="schoolid"
+            nzPlaceHolder="Select school"
+            (ngModelChange)="onSelected($event)"
+          >
+            <nz-option
+            *ngFor="let option of school$ | async"
+            [nzLabel]="option.schoolname"
+            [nzValue]="option.schoolid"
+            ></nz-option>
+          </nz-select>
+        </nz-form-control>
+      </nz-form-item>
+      <nz-form-item>
+        <nz-form-label>Curriculum</nz-form-label>
+        <nz-form-control nzErrorTip="Please select curriculum">
+          <nz-select
+            [nzDisabled]="selectedSchool"
+            formControlName="curriculumid"
+            nzPlaceHolder="Select curriculum"
+            nzMode="multiple"
+            (click)="onSelectcurriculum()"
+          >
+            <nz-option
+              *ngFor="let option of curriculum$ | async"
+              [nzLabel]="option.curriculumname"
+              [nzValue]="option.curriculumid"
+            ></nz-option>
+          </nz-select>
+        </nz-form-control>
+      </nz-form-item>
+      <nz-form-item>
+        <nz-form-label>Class</nz-form-label>
+        <nz-form-control nzErrorTip="Please select class">
+          <nz-select
+            [nzDisabled]="selectStandard"
+            formControlName="standard"
+            nzPlaceHolder="Select standardname"
+          >
+            <nz-option
+              *ngFor="let option of standard$ | async"
+              [nzLabel]="option.standardname"
+              [nzValue]="option.standardid"
+            ></nz-option>
+          </nz-select>
+        </nz-form-control>
+      </nz-form-item>
+    </form>
+  </ng-container>
+</nz-modal>
+
+<ng-template [nzModalFooter] #uploadFooter>
+  <nz-upload
+    [nzMultiple]="false"
+    [nzShowUploadList]="false"
+    [(nzFileList)]="fileList"
+    (nzChange)="handleChange($event)"
+  >
+    <button type="button" nzType="primary" nz-button>Upload</button>
+  </nz-upload>
+</ng-template>
+<ng-template #titleTemplate>
+  <i nz-icon nzType="close"></i>
+  Title
+</ng-template>
+<ng-template #contentTemplate>
+  <table>
+    <tr>
+      <td><b>Mandatoy Fields</b></td>
+      <td>:</td>
+      <td>
+        city, country, dateofjoin<br />
+        studentfirstname, genderid, state, schoolusername,<br />
+        schooluserpasswordhash
+      </td>
+    </tr>
+    <tr>
+      <td><b>genderid</b></td>
+      <td>:</td>
+      <td>1 => Male, 2 => Female</td>
+    </tr>
+    <tr>
+      <td><b>dateofjoin/dateofbirth</b></td>
+      <td>:</td>
+      <td>
+        Format => dd-mm-yyyy,<br />
+        10 charters must be present
+      </td>
+    </tr>
+  </table>
+</ng-template>
