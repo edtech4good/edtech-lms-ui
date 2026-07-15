@@ -2,6 +2,10 @@
 
 A comprehensive user interface for the Educational Technology Learning Management System, built with Angular 12. This is the main frontend application that provides a complete learning management experience for students, teachers, and administrators.
 
+## In the full system
+
+This is the **central admin / teacher / student web UI** for [**edtech-lms-api**](../edtech-lms-api). Classroom tablets may use [**edtech-expo**](../edtech-expo) or [**edtech-android**](../edtech-android) against [**edtech-lms-rpi-api**](../edtech-lms-rpi-api). Overview: [**ARCHITECTURE.md**](../ARCHITECTURE.md); legacy PDF-style guides: [**docs/**](../docs/README.md).
+
 ## 🚀 Features
 
 - **Student Dashboard**: Interactive learning interface with progress tracking
@@ -34,12 +38,9 @@ A comprehensive user interface for the Educational Technology Learning Managemen
 
 ## 🚀 Quick Start
 
-### 1. Clone the Repository
+### 1. Get the code
 
-```bash
-git clone https://github.com/your-username/edtech-lms-ui.git
-cd edtech-lms-ui
-```
+Clone or copy this repository into your workspace.
 
 ### 2. Install Dependencies
 
@@ -49,29 +50,15 @@ npm install
 
 ### 3. Environment Configuration
 
-Copy the example environment file and configure your settings:
+For **local multi-repo setup**, [`src/environments/environment.ts`](src/environments/environment.ts) is already wired to **`http://localhost:3000`** (central `edtech-lms-api`). See [**LOCAL_DEVELOPMENT.md** §2a](../LOCAL_DEVELOPMENT.md) in the workspace root.
+
+For staging/production or custom hosts, copy the example and edit:
 
 ```bash
 cp src/environments/environment.example.ts src/environments/environment.ts
 ```
 
-Edit `src/environments/environment.ts` with your configuration:
-
-```typescript
-export const environment = {
-  production: false,
-  API_URL: 'localhost:3000', // Your API server URL
-  SCHEMA: 'http', // http or https
-  s3Link: 'https://your-s3-bucket.s3.amazonaws.com',
-  PAYLOAD_KEY: 'your-payload-key-here',
-  ALG_KEY: 'your-alg-key-here',
-  HASH_KEY: 'your-hash-key-here',
-  REFRESH_PAYLOAD_KEY: 'your-refresh-payload-key-here',
-  REFRESH_ALG_KEY: 'your-refresh-alg-key-here',
-  REFRESH_HASH_KEY: 'your-refresh-hash-key-here',
-  GRAMMARLY_CLIENT_ID: 'your-grammarly-client-id-here',
-};
-```
+Important: `PAYLOAD_KEY`, `ALG_KEY`, `HASH_KEY`, and the `REFRESH_*` keys are **sessionStorage key names** for JWT segments (not the API signing secret). Use the values in `environment.example.ts` unless you have a reason to change them.
 
 ### 4. Start the Development Server
 
@@ -185,11 +172,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🆘 Support
 
-If you encounter any issues or have questions:
-
-1. Check the [Issues](https://github.com/your-username/edtech-lms-ui/issues) page
-2. Create a new issue if your problem isn't already reported
-3. Join our community discussions
+If you encounter any issues or have questions, use your team’s issue tracker or internal docs.
 
 ## 🙏 Acknowledgments
 

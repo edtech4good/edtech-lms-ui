@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
-    "build": "ng build",
-    "watch": "ng serve --watch --configuration local",
-    "test": "ng test",
+    "start": "NODE_OPTIONS=--openssl-legacy-provider ng serve",
+    "build": "NODE_OPTIONS=--openssl-legacy-provider ng build",
+    "watch": "NODE_OPTIONS=--openssl-legacy-provider ng serve --watch --configuration local",
+    "test": "NODE_OPTIONS=--openssl-legacy-provider ng test",
     "lint": "ng lint"
   },
   "private": false,
