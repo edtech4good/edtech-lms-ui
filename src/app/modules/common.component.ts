@@ -16,6 +16,17 @@ import { getappLoading } from '../store/appstate/appstate.selector';
 export class CommonComponent implements OnInit {
   isCollapsed = false;
   user: lmsuser | null = null;
+
+  /**
+   * ngx-permissions treats arrays as OR. The LMS JWT includes the synthetic permission
+   * `superadmin` for superadmin@superadmin.com (see central API). Only User / Role menu
+   * entries listed `superadmin` explicitly, so the rest of the sidebar stayed hidden when
+   * the token did not yet carry every `view_*` name (e.g. report/dashboard-only keys).
+   */
+  sidebarPerm(...keys: string[]): string[] {
+    return [...keys, 'superadmin'];
+  }
+
   constructor(
     private readonly router: Router,
     private spinner: NgxSpinnerService,

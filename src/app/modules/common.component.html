@@ -2,45 +2,45 @@
 <nz-layout class="layout">
   <nz-sider nzCollapsible [nzTrigger]="null" style="max-width: 400px;width: auto;">
     <ul nz-menu nzTheme="dark" nzMode="inline">
-      <li nz-submenu nzTitle="Settings" nzIcon="setting" *ngxPermissionsOnly="[
+      <li nz-submenu nzTitle="Settings" nzIcon="setting" *ngxPermissionsOnly="sidebarPerm(
         'view_documenttag',
         'view_questiontag',
         'view_country',
         'view_school',
-        'view_standard',
-      ]">
+        'view_standard'
+      )">
         <ul>
-          <li nz-menu-item routerLink="/documenttag/index" *ngxPermissionsOnly="['view_documenttag']">Document Tags</li>
-          <li nz-menu-item routerLink="/questiontag/index" *ngxPermissionsOnly="['view_questiontag']">Question Tags</li>
-          <li routerLink="/country/index" nz-menu-item *ngxPermissionsOnly="['view_country']">
+          <li nz-menu-item routerLink="/documenttag/index" *ngxPermissionsOnly="sidebarPerm('view_documenttag')">Document Tags</li>
+          <li nz-menu-item routerLink="/questiontag/index" *ngxPermissionsOnly="sidebarPerm('view_questiontag')">Question Tags</li>
+          <li routerLink="/country/index" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_country')">
             <span>Countries</span>
           </li>
-          <li routerLink="/school/index" nz-menu-item *ngxPermissionsOnly="['view_school']">
+          <li routerLink="/school/index" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_school')">
             <span>Schools</span>
           </li>
-          <li routerLink="/standard/index" nz-menu-item *ngxPermissionsOnly="['view_standard']">
+          <li routerLink="/standard/index" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_standard')">
             <span>Class</span>
           </li>
         </ul>
       </li>
       <li nz-submenu nzTitle="Dashboard" nzIcon="setting"
-      *ngxPermissionsOnly="[
+      *ngxPermissionsOnly="sidebarPerm(
       'view_plus_reach', 'view_reach_school', 'view_impact', 'view_fees_collection', 'view_tech_downtime'
-      ]">
+      )">
         <ul>
-          <li routerLink="/dashboard/index" nz-menu-item *ngxPermissionsOnly="['view_plus_reach']">
+          <li routerLink="/dashboard/index" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_plus_reach')">
             <span>Reach</span>
           </li>
-          <li routerLink="/dashboard/school" nz-menu-item *ngxPermissionsOnly="['view_reach_school']">
+          <li routerLink="/dashboard/school" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_reach_school')">
             <span>Reach-School</span>
           </li>
-          <li routerLink="/dashboard/app-usage" nz-menu-item *ngxPermissionsOnly="['view_impact']">
+          <li routerLink="/dashboard/app-usage" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_impact')">
             <span>Impact</span>
           </li>
-          <li [routerLink]="['dashboard/school-contribute']" nz-menu-item *ngxPermissionsOnly="['view_fees_collection']">
+          <li [routerLink]="['dashboard/school-contribute']" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_fees_collection')">
             <span>Fees Collection</span>
           </li>
-          <li routerLink="/dashboard/tech-downtime" nz-menu-item *ngxPermissionsOnly="['view_tech_downtime']">
+          <li routerLink="/dashboard/tech-downtime" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_tech_downtime')">
             <span>Tech Downtime</span>
           </li>
         </ul>
@@ -76,7 +76,7 @@
         </ul>
       </li> -->
       <li nz-submenu nzTitle="Student Dashboard" nzIcon="setting" 
-      *ngxPermissionsOnly="[
+      *ngxPermissionsOnly="sidebarPerm(
           'view_offline_quiz_score',
           'view_class_quiz_score',
           'view_current_level',
@@ -88,28 +88,28 @@
           'view_online_current_level',
           'view_online_active_status',
           'view_online_student_level_quiz',
-          'view_online_class_level_quiz',
-      ]">
+          'view_online_class_level_quiz'
+      )">
         <ul>
-          <li nz-submenu nzTitle="Offline" nzIcon="setting" *ngxPermissionsOnly="[
+          <li nz-submenu nzTitle="Offline" nzIcon="setting" *ngxPermissionsOnly="sidebarPerm(
           'view_offline_quiz_score',
           'view_class_quiz_score',
           'view_current_level',
           'view_active_status',
           'view_student_level_quiz',
-          'view_class_level_quiz',
-          ]">
+          'view_class_level_quiz'
+          )">
             <ul>
-              <li routerLink="/report/student-completed-quiz" nz-menu-item *ngxPermissionsOnly="['view_offline_quiz_score', 'view_class_quiz_score']">
+              <li routerLink="/report/student-completed-quiz" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_offline_quiz_score', 'view_class_quiz_score')">
                 <span>Quiz Scores</span>
               </li>
-              <li routerLink="/report/student-last-completed-quiz" nz-menu-item *ngxPermissionsOnly="['view_current_level']">
+              <li routerLink="/report/student-last-completed-quiz" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_current_level')">
                 <span>Current Level</span>
               </li>
-              <li routerLink="/report/student-activity" nz-menu-item *ngxPermissionsOnly="['view_active_status']">
+              <li routerLink="/report/student-activity" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_active_status')">
                 <span>Active Status</span>
               </li>
-              <li routerLink="/report/student-level-quiz" nz-menu-item *ngxPermissionsOnly="['view_student_level_quiz', 'view_class_level_quiz']">
+              <li routerLink="/report/student-level-quiz" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_student_level_quiz', 'view_class_level_quiz')">
                 <span>Level Quiz</span>
               </li>
               <!-- <li routerLink="/report/student-grade-progress" nz-menu-item *ngxPermissionsOnly="['view_student']">
@@ -117,25 +117,25 @@
               </li> -->
             </ul>
           </li>
-          <li nz-submenu nzTitle="Online" nzIcon="setting" *ngxPermissionsOnly="[
+          <li nz-submenu nzTitle="Online" nzIcon="setting" *ngxPermissionsOnly="sidebarPerm(
           'view_online_quiz_score',
           'view_online_class_quiz_score',
           'view_online_current_level',
           'view_online_active_status',
           'view_online_student_level_quiz',
-          'view_online_class_level_quiz',
-          ]">
+          'view_online_class_level_quiz'
+          )">
             <ul>
-              <li routerLink="/report/student-completed-quiz/online" [queryParams]="{online: 'true'}" nz-menu-item *ngxPermissionsOnly="['view_online_quiz_score', 'view_online_class_quiz_score']">
+              <li routerLink="/report/student-completed-quiz/online" [queryParams]="{online: 'true'}" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_online_quiz_score', 'view_online_class_quiz_score')">
                 <span>Quiz Scores</span>
               </li>
-              <li routerLink="/report/student-last-completed-quiz/online" [queryParams]="{online: 'true'}" nz-menu-item *ngxPermissionsOnly="['view_online_current_level']">
+              <li routerLink="/report/student-last-completed-quiz/online" [queryParams]="{online: 'true'}" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_online_current_level')">
                 <span>Current Level</span>
               </li>
-              <li routerLink="/report/student-activity/online" [queryParams]="{online: 'true'}" nz-menu-item *ngxPermissionsOnly="['view_online_active_status']">
+              <li routerLink="/report/student-activity/online" [queryParams]="{online: 'true'}" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_online_active_status')">
                 <span>Active Status</span>
               </li>
-              <li routerLink="/report/student-level-quiz/online" [queryParams]="{online: 'true'}" nz-menu-item *ngxPermissionsOnly="['view_online_student_level_quiz', 'view_online_class_level_quiz']">
+              <li routerLink="/report/student-level-quiz/online" [queryParams]="{online: 'true'}" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_online_student_level_quiz', 'view_online_class_level_quiz')">
                 <span>Level Quiz</span>
               </li>
               <!-- <li routerLink="/report/student-grade-progress/online" [queryParams]="{online: 'true'}" nz-menu-item *ngxPermissionsOnly="['view_student']">
@@ -143,65 +143,65 @@
               </li> -->
             </ul>
           </li>
-          <li routerLink="/report/sync-record" nz-menu-item *ngxPermissionsOnly="['view_sync_record']">
+          <li routerLink="/report/sync-record" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_sync_record')">
             <i nz-icon nzType="user-add"></i>
             <span>Sync Record</span>
           </li>
         </ul>
       </li>
-      <li routerLink="/document/index" nz-menu-item *ngxPermissionsOnly="['view_document']">
+      <li routerLink="/document/index" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_document')">
         <i nz-icon nzType="file-sync"></i>
         <span>Documents</span>
       </li>
-      <li nz-menu-item *ngxPermissionsOnly="['view_subject']">
+      <li nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_subject')">
         <i nz-icon nzType="book"></i>
         <span routerLink="/subject/index">Subject</span>
       </li>
-      <li nz-menu-item *ngxPermissionsOnly="['view_curriculum']">
+      <li nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_curriculum')">
         <i nz-icon nzType="book"></i>
         <span routerLink="/curriculum/index">Curriculum</span>
       </li>
-      <li routerLink="/baseline-curriculum/index" nz-menu-item *ngxPermissionsOnly="['view_baseline-endline']">
+      <li routerLink="/baseline-curriculum/index" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_baseline-endline')">
         <i nz-icon nzType="book"></i>
         <span>Baseline Curriculum</span>
       </li>
-      <li routerLink="/grade/index" nz-menu-item *ngxPermissionsOnly="['view_grade']">
+      <li routerLink="/grade/index" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_grade')">
         <i nz-icon nzType="book"></i>
         <span>Grade</span>
       </li>
-      <li routerLink="/level/index" nz-menu-item *ngxPermissionsOnly="['view_level']">
+      <li routerLink="/level/index" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_level')">
         <i nz-icon nzType="book"></i>
         <span>Level</span>
       </li>
-      <li routerLink="/lesson/index" nz-menu-item *ngxPermissionsOnly="['view_lesson']">
+      <li routerLink="/lesson/index" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_lesson')">
         <i nz-icon nzType="book"></i>
         <span>Lesson</span>
       </li>
-      <li routerLink="/question/index" nz-menu-item *ngxPermissionsOnly="['view_question']">
+      <li routerLink="/question/index" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_question')">
         <i nz-icon nzType="question-circle"></i>
         <span>Questions</span>
       </li>
-      <li routerLink="/map/index" nz-menu-item *ngxPermissionsOnly="['view_map']">
+      <li routerLink="/map/index" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_map')">
         <i nz-icon nzType="apartment"></i>
         <span>Map</span>
       </li>
-      <li routerLink="/user/index" nz-menu-item *ngxPermissionsOnly="['view_user', 'superadmin']">
+      <li routerLink="/user/index" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_user')">
         <i nz-icon nzType="apartment"></i>
         <span>User</span>
       </li>
-      <li routerLink="/student/index" nz-menu-item *ngxPermissionsOnly="['view_student']">
+      <li routerLink="/student/index" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_student')">
         <i nz-icon nzType="team"></i>
         <span>Students</span>
       </li>
-      <li routerLink="/teacher/index" nz-menu-item *ngxPermissionsOnly="['view_teacher']">
+      <li routerLink="/teacher/index" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_teacher')">
         <i nz-icon nzType="user-add"></i>
         <span>Teachers</span>
       </li>
-      <li routerLink="/feedback/index" nz-menu-item *ngxPermissionsOnly="['view_feedback']">
+      <li routerLink="/feedback/index" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_feedback')">
         <i nz-icon nzType="user-add"></i>
         <span>Feedbacks</span>
       </li>
-      <li routerLink="/role-perm/index" nz-menu-item *ngxPermissionsOnly="['view_role', 'superadmin']">
+      <li routerLink="/role-perm/index" nz-menu-item *ngxPermissionsOnly="sidebarPerm('view_role')">
         <i nz-icon nzType="user-add"></i>
         <span>Role Permission</span>
       </li>
