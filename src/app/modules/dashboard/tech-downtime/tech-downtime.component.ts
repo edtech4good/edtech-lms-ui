@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { Color, LegendPosition, ScaleType } from '@swimlane/ngx-charts';
-import { Observable } from 'rxjs';
+import { lastValueFrom, Observable } from 'rxjs';
 import { catchError, first, map } from 'rxjs/operators';
 import { ResponseBody } from 'src/app/models/response.model';
 import { CountryService } from 'src/app/services/country.service';
@@ -51,10 +51,9 @@ export class TechDowntimeComponent implements OnInit {
   }
 
   async loadDataFromServer(body?: {startDate: Date, endDate: Date}) {
-    const dashboardcharts: ResponseBody<Array<LineChartFormat>> = await this.reportService
+    const dashboardcharts: ResponseBody<Array<LineChartFormat>> = await lastValueFrom(this.reportService
       .getTechDowntime(body)
-      .pipe(first())
-      .toPromise();
+      .pipe(first()));
     Object.assign(this, { single_bar_chart: dashboardcharts.data });
   }
 

@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { Color, LegendPosition, ScaleType } from '@swimlane/ngx-charts';
-import { BehaviorSubject, Observable, of } from 'rxjs';
+import { BehaviorSubject, lastValueFrom, Observable, of } from 'rxjs';
 import { catchError, debounceTime, first, map, switchMap } from 'rxjs/operators';
 import { ResponseBody } from 'src/app/models/response.model';
 import { CountryService } from 'src/app/services/country.service';
@@ -100,25 +100,21 @@ export class IndexComponent implements OnInit {
 
   async loadDataFromServer() {
     const country = this.searchFields.countryid;
-    const dashboradcharts: ResponseBody<Array<LineChartFormat>> = await this.reportService
+    const dashboradcharts: ResponseBody<Array<LineChartFormat>> = await lastValueFrom(this.reportService
       .getDashboard(country, this.selectedYear)
-      .pipe(first())
-      .toPromise();
+      .pipe(first()));
     Object.assign(this, { multi: dashboradcharts.data });
-    const studentsGender: ResponseBody<Array<ChartItemFormat>> = await this.reportService
+    const studentsGender: ResponseBody<Array<ChartItemFormat>> = await lastValueFrom(this.reportService
       .getStudentsGender(country)
-      .pipe(first())
-      .toPromise();
+      .pipe(first()));
     Object.assign(this, { single: studentsGender.data });
-    const studentsOfflineOnline: ResponseBody<Array<ChartItemFormat>> = await this.reportService
+    const studentsOfflineOnline: ResponseBody<Array<ChartItemFormat>> = await lastValueFrom(this.reportService
       .getStudentsOfflineOnline('', country)
-      .pipe(first())
-      .toPromise();
+      .pipe(first()));
     Object.assign(this, { offlineOnlineData: studentsOfflineOnline.data });
-    const studentsDisability: ResponseBody<Array<ChartItemFormat>> = await this.reportService
+    const studentsDisability: ResponseBody<Array<ChartItemFormat>> = await lastValueFrom(this.reportService
       .getStudentsDisability(country)
-      .pipe(first())
-      .toPromise();
+      .pipe(first()));
     Object.assign(this, { disabilityData: studentsDisability.data });
   }
 
