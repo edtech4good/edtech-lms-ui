@@ -9,7 +9,8 @@ import { apiContext, apiLogin, jwtClaims } from '../fixtures/auth';
  *
  * The RBAC seed gave Super Admin everything and every other role nothing, so
  * once AccessGuard started reading real roles an Admin account could do nothing
- * at all. Migration 20260716160000 grants Admin 159 and Teacher 62 (read-only).
+ * at all. Migration 20260716160000 grants Admin 159 and Teacher 60 (read-only,
+ * minus the two learner-identity reads — see the identity test below).
  *
  * These assert shapes, not counts. `expect(perms.length).toBe(159)` would go red
  * on any honest addition to the Permission enum and teach everyone to re-baseline
@@ -240,7 +241,7 @@ test('a Super Admin holding other roles keeps the superadmin wildcard', async ()
   // The wildcard — a full bypass in CheckPermissionsGuard — is awarded when a
   // bearer's permission count equals COUNT(*) of permissions. That count pushed
   // one entry per grant per role and never deduplicated, so granting Admin and
-  // Teacher anything at all broke this account: 190 + 159 + 62 = 411 != 190,
+  // Teacher anything at all broke this account: 190 + 159 + 60 = 409 != 190,
   // and a Super Admin silently lost the wildcard.
   //
   // It cannot be caught with superadmin@superadmin.com: SUPERADMIN_USERNAME
@@ -259,7 +260,7 @@ test('holding several roles does not by itself confer the wildcard', async () =>
   // entirely, so the bearer held far fewer distinct permissions than the total
   // and was handed a full bypass anyway.
   //
-  // Admin + Teacher is 159 + 62 = 221 today, so this cannot fire by arithmetic
+  // Admin + Teacher is 159 + 60 = 219 today, so this cannot fire by arithmetic
   // accident right now. That is luck, not design: it depends on counts nobody
   // is watching, and a future role holding exactly (190 - 159) = 31 grants
   // alongside Admin would reach 190 and trip it. The dedup is what makes it
