@@ -171,7 +171,7 @@ export class UserUpdateComponent implements OnInit {
     this.isSchoolLoading = true;
     this.searchSchoolChange$.next({
       schoolname: value,
-      countryid: this.updateForm.getRawValue()['countryids'][0] ?? '',
+      countryid: this.updateForm.getRawValue()['countryids']?.[0] ?? '',
     });
   }
 
