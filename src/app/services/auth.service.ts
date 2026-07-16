@@ -40,13 +40,14 @@ export class AuthService {
   }
 
   private setAuthTimer() {
+    const token = this.tokenService.gettoken();
     if (
-      this.jwtHelper.getTokenExpirationDate() !== null &&
-      this.jwtHelper.getTokenExpirationDate() !== undefined
+      this.jwtHelper.getTokenExpirationDate(token) !== null &&
+      this.jwtHelper.getTokenExpirationDate(token) !== undefined
     ) {
       clearTimeout(this.tokenTimer);
       const tokendifference = differenceInMilliseconds(
-        this.jwtHelper.getTokenExpirationDate() || new Date(),
+        this.jwtHelper.getTokenExpirationDate(token) || new Date(),
         new Date()
       );
       if (tokendifference > 10000) {
@@ -94,7 +95,9 @@ export class AuthService {
   };
 
   getuser(): lmsuser {
-    const usertemp: lmsuser = this.jwtHelper.isTokenExpired()
+    const usertemp: lmsuser = this.jwtHelper.isTokenExpired(
+      this.tokenService.gettoken()
+    )
       ? <lmsuser>{
           firstname: '',
           lmsuserid: '',
@@ -102,7 +105,8 @@ export class AuthService {
           lmsuserrole: '',
           lastname: '',
         }
-      : this.jwtHelper.decodeToken<lmsuser>(this.tokenService.gettoken());
+      : this.jwtHelper.decodeToken<lmsuser>(this.tokenService.gettoken()) ??
+        <lmsuser>{};
     this.isLoggedIn = true;
     return usertemp;
   }
