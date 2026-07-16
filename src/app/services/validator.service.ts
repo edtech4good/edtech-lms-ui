@@ -61,7 +61,11 @@ export const uploadStudentsValidationSchema = joi
         .custom(dateString(false))
         .max(10)
         .required(),
-      studentfirstname: joi.string().min(2).alphanum().max(100).required(),
+      // No .alphanum(): it is /^[a-zA-Z0-9]+$/ and rejects every Khmer
+      // character, so a roster of Khmer names failed here in the browser before
+      // it ever reached the API. Mirrors the server's create validator, which
+      // now matches its own edit validator. See docs/khmer-text.md.
+      studentfirstname: joi.string().min(2).max(100).required(),
       studentlastname: joi
         .string()
         .optional()
