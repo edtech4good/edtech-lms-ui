@@ -161,6 +161,37 @@ test('the Teacher role is read-only', async () => {
   expect(perms, 'Teacher must not carry the superadmin wildcard').not.toContain('superadmin');
 });
 
+test('the Teacher role cannot see learner identities', async () => {
+  // The decision of 16 Jul (PILOT.md), enforced rather than merely written down.
+  //
+  // GET /student/all returns a child's studentfirstname, studentlastname,
+  // mothername, fathername, dateofbirth, contact and all six wg_* Washington
+  // Group disability answers. That is categorically more than the reports show:
+  // POST /report/studentstatus, which Teacher may call, returns a learner's
+  // username and progress, and GET /report/disability is aggregated to counts.
+  //
+  // view_download_student is the one that would bite hardest — it gates the
+  // "download students" button, which is exactly that CSV.
+  const perms = jwtClaims(teacherToken).permissions as string[];
+  expect(perms, 'Teacher holds view_student — see PILOT.md, this was decided').not.toContain(
+    'view_student',
+  );
+  expect(
+    perms,
+    'Teacher holds view_download_student — that is the learner PII CSV button',
+  ).not.toContain('view_download_student');
+
+  // The exclusion is anchored, not a prefix. These are quiz-score reads and
+  // Teacher keeps them; an unanchored /^view_student/ would strip them silently
+  // and nobody would notice until a report went blank.
+  expect(perms, 'Teacher lost view_student_level_quiz — the exclusion is matching as a prefix')
+    .toContain('view_student_level_quiz');
+  expect(
+    perms,
+    'Teacher lost view_download_student_quiz_score — the exclusion is matching as a prefix',
+  ).toContain('view_download_student_quiz_score');
+});
+
 test('a Teacher can reach the feeds behind the report filters', async () => {
   // Role.teacher was in no role list, so these returned 401 and every report
   // screen's filters came up empty — silently, because the components pipe
