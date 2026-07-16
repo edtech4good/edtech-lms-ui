@@ -147,7 +147,11 @@
                 nzSize="small"
                 >School</a
               >
-              <button nz-button nzType="primary" (click)="downloadStudentResults(data.curriculumbaselineid)" [nzLoading]="downloading">Download</button>
+              <!-- Downloads a CSV of learner first names, usernames and results.
+                   Gated to match the API, which requires view_download_student:
+                   Teacher is deliberately denied learner identity (PILOT.md), so
+                   without this it would see a button that 403s. -->
+              <button *ngxPermissionsOnly="['view_download_student']" nz-button nzType="primary" (click)="downloadStudentResults(data.curriculumbaselineid)" [nzLoading]="downloading">Download</button>
               </td>
             </tr>
           </tbody>
