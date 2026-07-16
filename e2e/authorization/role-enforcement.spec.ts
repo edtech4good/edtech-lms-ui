@@ -3,21 +3,22 @@ import { ROLE } from '../fixtures/accounts';
 import { apiContext, apiLogin, jwtClaims } from '../fixtures/auth';
 
 /**
- * The net under the lmsuserrole fix — see docs/authorization-model.md.
+ * Authorization enforcement — see docs/authorization-model.md.
  *
- * `UserBusiness.createUser` stamps `lmsuserrole = superadmin` on every account,
- * and `AccessGuard` authorizes off that field, so its role check passes for
- * anyone who can log in. Endpoints guarded by AccessGuard roles *alone* are
- * open regardless of the role a user was actually given.
+ * `AccessGuard` used to authorize off `lmsusers.lmsuserrole`, a column
+ * `UserBusiness.createUser` stamps `superadmin` on for every account. Its role
+ * check therefore passed for anyone who could log in: it read like enforcement
+ * and enforced nothing, leaving every endpoint guarded by roles alone open to
+ * any account. It now checks the roles the bearer actually holds, carried in
+ * the token as `lmsuserroles`.
  *
- * These specs describe what the system is supposed to do. The ones marked
- * `test.fail()` are the bug: Playwright asserts they fail today and will fail
- * the suite the moment they start passing, which is how we find out the fix
- * landed. Do not "fix" a failing expectation here by weakening it — remove the
- * `test.fail()` marker instead, once the behaviour is actually correct.
+ * This file existed before the fix, with the escalation marked `test.fail()`,
+ * which is how we knew the fix had landed: Playwright fails a `test.fail()`
+ * that starts passing. The marker is gone; these are now plain assertions and
+ * a regression turns them red.
  *
- * Fixing lmsuserrole is authorization logic across ~9 endpoints with no other
- * tests under it. This file is the reason that work can start.
+ * If one of these fails, do not weaken the expectation — something is letting
+ * a bearer through that should not be.
  */
 
 const LOW_PRIV = {
@@ -76,33 +77,36 @@ test('the fixture user really was given the lowest-privilege role', async () => 
   expect(claims.permissions, 'fixture user should hold no permissions').toEqual([]);
 });
 
-test.fail(
-  'a user with no permissions is refused by /student/create',
-  async () => {
-    // KNOWN BUG. /student/create is guarded by AccessGuard roles alone, with no
-    // @RequirePermissions, and this account carries lmsuserrole = superadmin
-    // like every other account — so the role check waves it through.
-    //
-    // The body is deliberately invalid, which is what makes this test safe to
-    // run. Nest runs guards before interceptors, so the status says exactly
-    // which layer answered:
-    //   403 — the guard refused. Correct, and what we want.
-    //   400 — the guard let it through and the schema validator caught it.
-    //         That is today, and that is the bug.
-    // Sending a *valid* body would prove the same thing by creating a real
-    // student on every run, which pollutes the disability report's
-    // "not collected" bucket. Asking for the refusal is enough.
-    const ctx = await apiContext(lowPrivToken);
-    const res = await ctx.post('/student/create?online=true', {
-      data: { students: [] },
-    });
-    await ctx.dispose();
-    expect(
-      res.status(),
-      'a zero-permission account reached /student/create — see docs/authorization-model.md',
-    ).toBe(403);
-  },
-);
+test('a user without the role is refused by /student/create', async () => {
+  // /student/create is guarded by AccessGuard roles alone
+  // (apikey/superadmin/admin) with no @RequirePermissions. This account holds
+  // only the "User" role, so the guard must refuse it.
+  //
+  // The body is deliberately invalid, which is what makes this test safe to
+  // run. Nest runs guards before interceptors, so the status says exactly which
+  // layer answered:
+  //   401/403 — the guard refused. Correct.
+  //   400     — the guard let it through and the schema validator caught it.
+  //             That was the bug: lmsuserrole was stamped superadmin for every
+  //             account, so the role check passed for anyone.
+  // Sending a *valid* body would prove the same thing by creating a real
+  // student on every run, polluting the disability report's "not collected"
+  // bucket. Asking for the refusal is enough.
+  //
+  // Accept either refusal status rather than pinning one: AccessGuard throws
+  // 401 and CheckPermissionsGuard throws 403, and this spec is about the
+  // bearer being denied, not about which layer does it. Pinning 403 would have
+  // let a correct fix look like a still-failing test.
+  const ctx = await apiContext(lowPrivToken);
+  const res = await ctx.post('/student/create?online=true', {
+    data: { students: [] },
+  });
+  await ctx.dispose();
+  expect(
+    [401, 403],
+    `a "User"-role account reached /student/create (${res.status()}) — see docs/authorization-model.md`,
+  ).toContain(res.status());
+});
 
 test('a user with no permissions cannot list users', async () => {
   // The control. /user is permission-gated (@RequirePermissions +
