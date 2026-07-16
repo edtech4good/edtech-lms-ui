@@ -53,6 +53,27 @@ export class IndexComponent implements OnInit {
   // options
   offlineOnlinePieLegendTitle = 'Access';
 
+  //pie chart disability (Washington Group)
+  disabilityData: any;
+  // Wider than the sibling pies: ngx-charts sizes the legend at ~1/6 of the view
+  // width, and "with disability" needs more room than "girls" does. The pie
+  // itself is unchanged — height, not width, sets its diameter.
+  disabilityView: [number, number] = [780, 300];
+  disabilityPieLegendTitle = 'Disability';
+  /**
+   * Brand green and orange for the two real categories, recessive gray for "not
+   * collected" — that bucket is missing data, not a kind of learner, and giving
+   * it a categorical hue would read as a third group of people. Gray is dark
+   * enough to hold 3:1 against the surface; slice labels and the legend carry
+   * identity so nothing depends on colour alone.
+   */
+  disabilityColorScheme: Color = {
+    name: 'disabilityScheme',
+    selectable: true,
+    group: ScaleType.Ordinal,
+    domain: ['#005d43', '#d86d28', '#8a8a8a']
+  };
+
   searchFields = {
     countryid: '',
   }
@@ -94,6 +115,11 @@ export class IndexComponent implements OnInit {
       .pipe(first())
       .toPromise();
     Object.assign(this, { offlineOnlineData: studentsOfflineOnline.data });
+    const studentsDisability: ResponseBody<Array<ChartItemFormat>> = await this.reportService
+      .getStudentsDisability(country)
+      .pipe(first())
+      .toPromise();
+    Object.assign(this, { disabilityData: studentsDisability.data });
   }
 
   dateTickFormatting(val: string): string {

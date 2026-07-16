@@ -69,3 +69,18 @@
   >
   </ngx-charts-pie-chart>
 </div>
+
+<div style="display: flex; flex-direction: row">
+  <ngx-charts-pie-chart
+    [view]="disabilityView"
+    [scheme]="disabilityColorScheme"
+    [results]="disabilityData"
+    [gradient]="gradient"
+    [legend]="showLegend"
+    [legendPosition]="legendPosition"
+    [legendTitle]="disabilityPieLegendTitle"
+    [labels]="showLabels"
+    [doughnut]="isDoughnut"
+  >
+  </ngx-charts-pie-chart>
+</div>
