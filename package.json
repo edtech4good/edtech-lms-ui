@@ -7,6 +7,9 @@
     "build": "NODE_OPTIONS=--openssl-legacy-provider ng build",
     "watch": "NODE_OPTIONS=--openssl-legacy-provider ng serve --watch --configuration local",
     "test": "NODE_OPTIONS=--openssl-legacy-provider ng test",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "e2e:report": "playwright show-report",
     "lint": "ng lint"
   },
   "private": false,
@@ -61,6 +64,7 @@
     "@angular-eslint/template-parser": "12.3.1",
     "@angular/cli": "~12.0.2",
     "@angular/compiler-cli": "~12.0.2",
+    "@playwright/test": "^1.61.1",
     "@types/d3": "^7.4.0",
     "@types/file-saver": "^2.0.5",
     "@types/jasmine": "~3.6.0",

@@ -1,0 +1,22 @@
+/* The Playwright suite runs in Node, not the browser: it needs node types and
+   CommonJS, which the Angular tsconfig deliberately does not provide.
+   Playwright transpiles specs itself (esbuild, no type checking), so this file
+   is for editor support and module resolution. Do not expect
+   `tsc -p e2e/tsconfig.json` to pass: this repo is pinned to the TypeScript
+   that Angular 12 requires, which is too old to parse Playwright's own type
+   definitions. That resolves itself on the Track A ladder. */
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../out-tsc/e2e",
+    "module": "commonjs",
+    "target": "es2020",
+    "lib": ["es2020", "dom"],
+    "types": ["node"],
+    "esModuleInterop": true,
+    "sourceMap": false,
+    "strict": true
+  },
+  "include": ["**/*.ts", "../playwright.config.ts"],
+  "exclude": []
+}
