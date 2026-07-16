@@ -148,7 +148,7 @@ export class UserCreateComponent implements OnInit {
     this.isSchoolLoading = true;
     this.searchSchoolChange$.next({
       schoolname: value,
-      countryid: this.createForm.getRawValue()['countryids'][0] ?? '',
+      countryid: this.createForm.getRawValue()['countryids']?.[0] ?? '',
     });
   }
 
