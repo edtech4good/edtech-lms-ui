@@ -1,6 +1,9 @@
 {
   "name": "edtech-lms-ui",
   "version": "1.0.0",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "ng": "ng",
     "start": "NODE_OPTIONS=--openssl-legacy-provider ng serve",
