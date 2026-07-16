@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NgxPermissionsService } from 'ngx-permissions';
@@ -16,8 +16,8 @@ import { uploadStudentsValidationSchema } from 'src/app/services/validator.servi
 })
 export class LoginComponent implements OnInit {
   changePasswordisVisible = false;
-  loginForm!: FormGroup;
-  changePasswordForm!: FormGroup;
+  loginForm!: UntypedFormGroup;
+  changePasswordForm!: UntypedFormGroup;
   isloading = false;
 
   async submitLoginForm() {
@@ -56,7 +56,7 @@ export class LoginComponent implements OnInit {
   }
 
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private router: Router,
     private readonly notification: NzNotificationService,
     private utilservice: UtilService,

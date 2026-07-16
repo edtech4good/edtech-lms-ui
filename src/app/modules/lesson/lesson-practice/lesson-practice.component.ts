@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
@@ -17,7 +17,7 @@ export class LessonPracticeComponent implements OnInit {
   isUpdateLessonPractice = false;
   invalidOrder = true;
   data: Array<any> = [];
-  createForm!: FormGroup;
+  createForm!: UntypedFormGroup;
   showModalAddPractice = false;
   lesson_id = this.route.snapshot.paramMap.get('lessonid') ?? '';
 
@@ -95,7 +95,7 @@ export class LessonPracticeComponent implements OnInit {
   }
 
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private route: ActivatedRoute,
     private utilservice: UtilService,
     private lessonpracticeService: LessonPracticeService,

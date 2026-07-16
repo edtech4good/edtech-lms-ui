@@ -2,7 +2,7 @@ import {
   Component,
   OnInit,
 } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { first } from 'rxjs/operators';
@@ -19,7 +19,7 @@ import { UtilService } from 'src/app/services/util.service';
 export class SubjectUpdateComponent implements OnInit {
   dataloading = false;
   valid = false;
-  editForm!: FormGroup;
+  editForm!: UntypedFormGroup;
   subject: any;
   async submiteditForm() {
     this.restrictSpecialCharecter();
@@ -56,7 +56,7 @@ export class SubjectUpdateComponent implements OnInit {
     }
   }
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private dts: SubjectService,
     private route: ActivatedRoute,
     private router: Router,

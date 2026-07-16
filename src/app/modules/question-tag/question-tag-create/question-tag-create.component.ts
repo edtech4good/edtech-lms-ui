@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { first } from 'rxjs/operators';
@@ -13,7 +13,7 @@ import { UtilService } from 'src/app/services/util.service';
 })
 export class QuestionTagCreateComponent implements OnInit {
   dataloading = false;
-  createForm!: FormGroup;
+  createForm!: UntypedFormGroup;
   async submitcreateForm() {
     this.utilservice.checkFormDirty(this.createForm);
     if (this.createForm.valid) {
@@ -28,7 +28,7 @@ export class QuestionTagCreateComponent implements OnInit {
       this.router.navigate(['questiontag/index']);
     }
   }
-  constructor(private fb: FormBuilder,
+  constructor(private fb: UntypedFormBuilder,
     private dts: QuestionTagService,
     private router: Router, private readonly notification: NzNotificationService,
     private utilservice: UtilService) { }

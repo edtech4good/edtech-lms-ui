@@ -4,7 +4,7 @@ import {
   Component,
   OnInit,
 } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { Observable } from 'rxjs';
@@ -24,7 +24,7 @@ export class CurriculumUpdateComponent implements OnInit {
   country$?: Observable<any>;
   subject$?: Observable<any>;
   valid = false;
-  editForm!: FormGroup;
+  editForm!: UntypedFormGroup;
   curriculum: any;
   async submiteditForm() {
     this.restrictSpecialCharecter();
@@ -63,7 +63,7 @@ export class CurriculumUpdateComponent implements OnInit {
     }
   }
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private dts: CurriculumService,
     private route: ActivatedRoute,
     private router: Router,

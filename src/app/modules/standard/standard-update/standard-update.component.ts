@@ -3,7 +3,7 @@ import { StandardService } from '../../../services/standard.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { catchError, first, map } from 'rxjs/operators';
-import { FormGroup, FormBuilder, Validators, FormControl } from '@angular/forms';
+import { UntypedFormGroup, UntypedFormBuilder, Validators, FormControl } from '@angular/forms';
 import { Observable } from 'rxjs';
 import { SchoolService } from '../../../services/school.service';
 import { IMultiFilter } from 'src/app/models/IPaging';
@@ -19,7 +19,7 @@ export class StandardUpdateComponent implements OnInit {
   dataloading = false;
   school$?: Observable<any>;
   standard: any;
-  editForm!: FormGroup;
+  editForm!: UntypedFormGroup;
   filter: Array<IMultiFilter> = [
     { key: 'standardname', value: ""},
     { key: 'schoolid', value: ""},
@@ -60,7 +60,7 @@ export class StandardUpdateComponent implements OnInit {
     private router: Router,
     private readonly notification: NzNotificationService,
     private route: ActivatedRoute,
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private schoolService: SchoolService,
     private utilservice: UtilService
     ) { }

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { FormGroup } from '@angular/forms';
+import { UntypedFormGroup } from '@angular/forms';
 // @ts-ignore
 import fileExtension from 'file-extension';
 import { compile, Schema, ValidationOptions } from 'joi';
@@ -12,7 +12,7 @@ import { FileMeta } from '../models/filemeta.model';
 })
 export class UtilService {
   constructor() {}
-  checkFormDirty = (form: FormGroup) => {
+  checkFormDirty = (form: UntypedFormGroup) => {
     for (const i in form.controls) {
       if (form.controls.hasOwnProperty(i)) {
         form.controls[i].markAsDirty();

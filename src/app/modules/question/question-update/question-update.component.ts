@@ -1,5 +1,5 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { BehaviorSubject, Observable, of } from 'rxjs';
@@ -45,7 +45,7 @@ export class QuestionUpdateComponent implements OnInit {
   practice: any;
   public defaultOption: Array<any> = [];
   question?: Question;
-  questionForm: FormGroup = this.fb.group({});
+  questionForm: UntypedFormGroup = this.fb.group({});
   templatetypes: Array<any> = [];
   private questionupdatesearchChange$ = new BehaviorSubject('');
   questionupdateoptionList: string[] = [];
@@ -60,7 +60,7 @@ export class QuestionUpdateComponent implements OnInit {
   }
 
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private dropdownService: DropDownService,
     private ut: UtilService,
     private documentService: DocumentService,

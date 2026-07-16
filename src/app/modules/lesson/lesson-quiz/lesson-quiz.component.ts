@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
@@ -17,7 +17,7 @@ export class LessonQuizComponent implements OnInit {
   isUpdateLessonQuiz = false;
   invalidOrder = false;
   data: Array<any> = [];
-  createForm!: FormGroup;
+  createForm!: UntypedFormGroup;
   showModalAddQuiz = false;
   async loadDataFromServer() {
     const lessonid = this.route.snapshot.paramMap.get('lessonid') ?? '';
@@ -88,7 +88,7 @@ export class LessonQuizComponent implements OnInit {
   }
 
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private route: ActivatedRoute,
     private utilservice: UtilService,
     private lessonquizService: LessonQuizService,

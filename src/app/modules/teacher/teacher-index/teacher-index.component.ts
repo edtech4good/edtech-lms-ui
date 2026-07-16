@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import * as csv from 'csvtojson';
 import { uniq } from 'lodash';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
@@ -21,7 +21,7 @@ import { uploadTeachersValidationSchema } from 'src/app/services/validator.servi
 })
 export class TeacherIndexComponent implements OnInit {
   school$?: Observable<any>;
-  uploadForm!: FormGroup;
+  uploadForm!: UntypedFormGroup;
 
   showUpload: boolean = false;
   data: Array<any> = [];
@@ -49,7 +49,7 @@ export class TeacherIndexComponent implements OnInit {
   pageIndex = 1;
   filter: Array<IFilter> = [];
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private teacherService: TeacherService,
     private utilService: UtilService,
     private readonly notification: NzNotificationService,

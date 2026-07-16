@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { first } from 'rxjs/operators';
@@ -18,7 +18,7 @@ import { Location } from '@angular/common';
 export class LessonUpdateComponent implements OnInit {
   dataloading = false;
   valid =false;
-  editForm!: FormGroup;
+  editForm!: UntypedFormGroup;
   levels: Array<any> = [];
   lesson: any;
   length:number = 10;
@@ -51,7 +51,7 @@ export class LessonUpdateComponent implements OnInit {
     }
   }
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private dts: LessonService,
     private route: ActivatedRoute,
     private cts: LevelService,

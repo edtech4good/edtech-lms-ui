@@ -1,5 +1,5 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { BehaviorSubject, Observable, of } from 'rxjs';
@@ -43,7 +43,7 @@ export class QuestionCreateComponent implements OnInit {
     questiontext: 'Please enter question text!',
     questionfile: 'Please select question file!',
   };
-  questionForm: FormGroup = this.fb.group({});
+  questionForm: UntypedFormGroup = this.fb.group({});
   onlyMP3 = false;
   templatetypes: Array<any> = [];
   private questioncreatesearchChange$ = new BehaviorSubject('');
@@ -61,7 +61,7 @@ export class QuestionCreateComponent implements OnInit {
   }
 
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private dropdownService: DropDownService,
     private ut: UtilService,
     private documentService: DocumentService,

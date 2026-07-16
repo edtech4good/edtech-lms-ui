@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormGroup, FormBuilder, Validators } from '@angular/forms';
+import { UntypedFormGroup, UntypedFormBuilder, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { BehaviorSubject, of, Observable } from 'rxjs';
@@ -25,7 +25,7 @@ export class LessonQuizQuestionsComponent implements OnInit {
   invalidOrder = true;
   quizId: any;
   data: Array<any> = [];
-  createForm!: FormGroup;
+  createForm!: UntypedFormGroup;
   questionoptionList: any[] = [];
   showModalAddQuestion = false;
   private questionsearchChange$ = new BehaviorSubject('');
@@ -81,7 +81,7 @@ export class LessonQuizQuestionsComponent implements OnInit {
 
   constructor(
     private router: Router,
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private route: ActivatedRoute,
     private utilservice: UtilService,
     private lessonQuizQuestionService: LessonQuizQuestionService,

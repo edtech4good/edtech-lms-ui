@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { Observable } from 'rxjs';
@@ -16,7 +16,7 @@ import { SchoolService } from '../../../services/school.service';
 })
 export class StandardCreateComponent implements OnInit {
   dataloading = false;
-  createForm!: FormGroup;
+  createForm!: UntypedFormGroup;
   school$?: Observable<any>;
   standard: any;
   filter: Array<IMultiFilter> = [
@@ -45,7 +45,7 @@ export class StandardCreateComponent implements OnInit {
     }
   }
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private dts: StandardService,
     private router: Router,
     private readonly notification: NzNotificationService,

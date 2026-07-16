@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzFormatEmitEvent, NzTreeNode, NzTreeNodeOptions } from 'ng-zorro-antd/tree';
@@ -16,11 +16,11 @@ import { UtilService } from 'src/app/services/util.service';
 export class RoleCreateComponent implements OnInit {
   dataLoading = false;
   permissions: any = [];
-  createForm!: FormGroup;
+  createForm!: UntypedFormGroup;
   nodes$?: Observable<NzTreeNodeOptions[] | NzTreeNode[]>;
   nodes: NzTreeNodeOptions[] | NzTreeNode[] = [];
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private readonly rolepermService: RolePermService,
     private readonly notification: NzNotificationService,
     private utilservice: UtilService,

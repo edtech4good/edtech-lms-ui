@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { first } from 'rxjs/operators';
@@ -17,7 +17,7 @@ import { UtilService } from 'src/app/services/util.service';
 export class GradeUpdateComponent implements OnInit {
   dataloading = false;
   valid = false;
-  editForm!: FormGroup;
+  editForm!: UntypedFormGroup;
   curriculums: Array<any> = [];
   grade: any;
   async submiteditForm() {
@@ -47,7 +47,7 @@ export class GradeUpdateComponent implements OnInit {
       }
     }
   }
-  constructor(private fb: FormBuilder,
+  constructor(private fb: UntypedFormBuilder,
     private dts: GradeService, private route: ActivatedRoute,
     private cts: CurriculumService,
     private router: Router, private readonly notification: NzNotificationService,
