@@ -24,5 +24,7 @@
     "strictInjectionParameters": true,
     "strictInputAccessModifiers": true,
     "strictTemplates": true
-  }
+  },
+  /* The Playwright suite is Node, not Angular — it has its own tsconfig. */
+  "exclude": ["e2e", "playwright.config.ts"]
 }

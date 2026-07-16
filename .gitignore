@@ -130,3 +130,9 @@ jspm_packages/
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Playwright (e2e smoke suite — see e2e/, ROADMAP Track A Phase 0)
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
