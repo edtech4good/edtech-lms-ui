@@ -214,9 +214,11 @@ test('a Teacher still cannot reach learner records', async () => {
   // StudentController carries a CLASS-level AccessGuard listing
   // apikey/superadmin/admin, so it applies to every route in it and Teacher's
   // view_student grant is inert. Deliberate: widening it would also expose
-  // GET /student/download-students (a bulk PII CSV) and
-  // POST /student/migrate-standardid/:key, both of which have their
-  // method-level guards commented out and rely on the class guard alone.
+  // GET /student/download-students (a bulk PII CSV), whose method-level guard is
+  // commented out so it relies on the class guard alone. (POST
+  // /student/migrate-standardid was in the same position until it was given its
+  // own Super Admin method guard on 16 Jul — edtech-lms-api#17 — so it no longer
+  // depends on the class guard; see the migration-endpoint test below.)
   // See PILOT.md. If this ever goes green, that decision was made — check it
   // was made deliberately.
   const ctx = await apiContext(teacherToken);
@@ -233,6 +235,41 @@ test('a Teacher cannot write', async () => {
     [401, 403],
     `a Teacher created a subject (${res.status()}) — read-only means read-only`,
   ).toContain(res.status());
+});
+
+test('the data-migration endpoints are Super Admin only', async () => {
+  // These four ran one-off data migrations behind a `:key` that was
+  // ADD_PERMISSIONS_KEY — a constant committed to the public edtech-lms-api
+  // repo, so any authenticated staff account (Teacher included) could trigger
+  // them; the two standard/* ones had no role at all, and remove-standardid
+  // hard-deletes rows. edtech-lms-api#17 replaced the key with
+  // AccessGuard(TokenType.ACCESS, Role.superadmin).
+  //
+  // This asserts refusal only. A Super Admin token is deliberately NOT exercised
+  // here: a successful call would run a destructive migration against the DB.
+  // The guard rejects before the handler, so 401/403 is the whole signal. A 404
+  // would also fail this (route gone), and a 200/400 means the guard was dropped
+  // and the handler ran — either way it goes red, which is the point.
+  const routes = [
+    '/standard/migrate-standardid',
+    '/standard/remove-standardid',
+    '/student/migrate-standardid',
+    '/student/migrate-subject-curriculum',
+  ];
+  for (const [label, token] of [
+    ['an Admin', adminToken],
+    ['a Teacher', teacherToken],
+  ] as const) {
+    const ctx = await apiContext(token);
+    for (const route of routes) {
+      const res = await ctx.post(route);
+      expect(
+        [401, 403],
+        `${label} reached POST ${route} (${res.status()}) — migration endpoints must be Super Admin only`,
+      ).toContain(res.status());
+    }
+    await ctx.dispose();
+  }
 });
 
 test('a Super Admin holding other roles keeps the superadmin wildcard', async () => {
