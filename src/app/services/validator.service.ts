@@ -16,6 +16,25 @@ export const dateString =
         });
   };
 
+/**
+ * Washington Group Short Set domains, mirroring the API's student validators.
+ * Optional everywhere: a blank column means "not collected" and must never
+ * block an enrolment. These keys have to be listed even though they are
+ * optional — joi rejects unknown keys, so a roster carrying them would fail
+ * here in the browser and never reach the API.
+ */
+const wgDomain = () =>
+  joi.string().valid('1', '2', '3', '4').optional().allow('', null).default('');
+
+const washingtonGroupKeys = {
+  wg_seeing: wgDomain(),
+  wg_hearing: wgDomain(),
+  wg_walking: wgDomain(),
+  wg_remembering: wgDomain(),
+  wg_selfcare: wgDomain(),
+  wg_communicating: wgDomain(),
+};
+
 export const uploadStudentsValidationSchema = joi
   .array()
   .items(
@@ -72,6 +91,7 @@ export const uploadStudentsValidationSchema = joi
         .allow('', null)
         .default(''),
       genderid: joi.string().valid('1', '2').required(),
+      ...washingtonGroupKeys,
       state: joi.string().max(100).required(),
       schoolusername: joi.string().min(2).max(16).alphanum().required(),
       schooluserpasswordhash: joi.string().min(1).max(16).alphanum().required(),
@@ -132,6 +152,7 @@ export const uploadEditedStudentsValidationSchema = joi
         .allow('', null)
         .default(''),
       genderid: joi.string().valid('1', '2').required(),
+      ...washingtonGroupKeys,
       contact: joi
         .string()
         .optional()

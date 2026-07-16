@@ -6,6 +6,13 @@ export interface StudentImport {
   contact: string;
   dateofbirth: null;
   genderid: string;
+  // Washington Group Short Set; blank = not collected.
+  wg_seeing?: string;
+  wg_hearing?: string;
+  wg_walking?: string;
+  wg_remembering?: string;
+  wg_selfcare?: string;
+  wg_communicating?: string;
   standard: string;
   schooltype: string;
   city: string;
@@ -40,6 +47,12 @@ export interface StudentImportForEdit {
   contact: string;
   dateofbirth: string;
   genderid: string;
+  wg_seeing?: string;
+  wg_hearing?: string;
+  wg_walking?: string;
+  wg_remembering?: string;
+  wg_selfcare?: string;
+  wg_communicating?: string;
   standard: string;
   schoolname: string;
   schooltype: string;

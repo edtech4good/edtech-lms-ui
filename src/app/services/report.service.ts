@@ -27,6 +27,18 @@ export class ReportService {
     );
   }
 
+  /**
+   * Washington Group disaggregation. Three buckets: with disability, no
+   * disability, and not collected — the last is learners nobody asked, which the
+   * API deliberately keeps separate from "no disability".
+   */
+  getStudentsDisability(countryid: string = '', schoolname: string = '') {
+    return this.http.get<ResponseBody<Array<ChartItemFormat>>>(
+      `${this.coreService.CORE_API()}report/disability?countryid=${countryid}&schoolname=${schoolname}`,
+      this.coreService.jsonhttpOptions
+    );
+  }
+
   getStudentsOfflineOnline(schoolname: string = '', countryid: string = '') {
     return this.http.get<ResponseBody<Array<ChartItemFormat>>>(
       `${this.coreService.CORE_API()}report/offlineonline?schoolname=${schoolname}&countryid=${countryid}`,
