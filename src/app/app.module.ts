@@ -70,7 +70,7 @@ export const jwtoptionsfactory = (
           name: 'FortyK LMS App',
           maxAge: 25,
           logOnly: environment.production,
-        })
+        connectInZone: true})
       : [],
     FontAwesomeModule,
     NgxPermissionsModule.forRoot(),

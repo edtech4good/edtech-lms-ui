@@ -137,16 +137,16 @@
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
             "production": {
-              "browserTarget": "edtech-lms-ui:build:production"
+              "buildTarget": "edtech-lms-ui:build:production"
             },
             "development": {
-              "browserTarget": "edtech-lms-ui:build:development"
+              "buildTarget": "edtech-lms-ui:build:development"
             },
             "staging": {
-              "browserTarget": "edtech-lms-ui:build:staging"
+              "buildTarget": "edtech-lms-ui:build:staging"
             },
             "local": {
-              "browserTarget": "edtech-lms-ui:build:local"
+              "buildTarget": "edtech-lms-ui:build:local"
             }
           },
           "defaultConfiguration": "local"
@@ -154,7 +154,7 @@
         "extract-i18n": {
           "builder": "@angular-devkit/build-angular:extract-i18n",
           "options": {
-            "browserTarget": "fortyk-lms-ui:build"
+            "buildTarget": "fortyk-lms-ui:build"
           }
         },
         "test": {
