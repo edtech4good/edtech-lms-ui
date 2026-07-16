@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { Observable } from 'rxjs';
@@ -16,7 +16,7 @@ import { UtilService } from 'src/app/services/util.service';
 })
 export class SubjectCreateComponent implements OnInit {
   dataloading = false
-  createForm!: FormGroup;
+  createForm!: UntypedFormGroup;
   valid = false;
   async submitcreateForm() {
     this.utilservice.checkFormDirty(this.createForm);
@@ -47,7 +47,7 @@ export class SubjectCreateComponent implements OnInit {
     }
   }
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private dts: SubjectService,
     private router: Router,
     private readonly notification: NzNotificationService,

@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormArray, FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormArray, UntypedFormBuilder, UntypedFormControl, UntypedFormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { BehaviorSubject, Observable, of } from 'rxjs';
@@ -19,7 +19,7 @@ import { UtilService } from 'src/app/services/util.service';
 export class UserUpdateComponent implements OnInit {
   initData = true;
   dataloading = false;
-  updateForm!: FormGroup;
+  updateForm!: UntypedFormGroup;
   allChecked = false;
   indeterminate = true;
   lmsuser: any;
@@ -53,7 +53,7 @@ export class UserUpdateComponent implements OnInit {
     }
   }
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private dts: UserService,
     private roleService: RolePermService,
     private router: Router,
@@ -87,10 +87,10 @@ export class UserUpdateComponent implements OnInit {
         this.roles = tempdata.data.roles;
         this.lmsuser = tempdata.data.user;
         this.updateForm.get('lmsusername')?.setValue(this.lmsuser.lmsusername);
-        const lmsuserroles = < FormArray> this.updateForm.get('lmsuserroles');
+        const lmsuserroles = < UntypedFormArray> this.updateForm.get('lmsuserroles');
         const selectedroles = this.roles.filter(rl => rl.checked === true);
         selectedroles.forEach(role => {
-          lmsuserroles.push(new FormControl(role.id));
+          lmsuserroles.push(new UntypedFormControl(role.id));
         });
 
         // load all country
@@ -118,9 +118,9 @@ export class UserUpdateComponent implements OnInit {
 
   updateChkbxArray(id: any, isChecked: any, key: any) {
     const checked = isChecked.target.checked;
-    const chkArray = < FormArray > this.updateForm.get(key);
+    const chkArray = < UntypedFormArray > this.updateForm.get(key);
     if (checked) {
-      chkArray.push(new FormControl(id));
+      chkArray.push(new UntypedFormControl(id));
     } else {
       let idx = chkArray.controls.findIndex((x: { value: any; }) => x.value == id);
       chkArray.removeAt(idx);

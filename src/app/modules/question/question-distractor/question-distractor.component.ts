@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormControl, UntypedFormGroup, Validators } from '@angular/forms';
 import { QuestionDistractor } from 'src/app/models/questiondistractor.model';
 import { UtilService } from 'src/app/services/util.service';
 import { v4 as uuidv4 } from 'uuid';
@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 })
 export class QuestionDistractorComponent implements OnInit {
 
-  public questionDistractorForm!: FormGroup;
+  public questionDistractorForm!: UntypedFormGroup;
   listOfDistractor: Array<QuestionDistractor> = [];
 
   addField(e?: MouseEvent): void {
@@ -24,7 +24,7 @@ export class QuestionDistractorComponent implements OnInit {
     this.listOfDistractor = [...this.listOfDistractor, Distractorcontrol];
     this.questionDistractorForm.addControl(
       Distractorcontrol.questiondistractorid,
-      new FormControl(null, [Validators.minLength(1)])
+      new UntypedFormControl(null, [Validators.minLength(1)])
     );
   }
 
@@ -35,7 +35,7 @@ export class QuestionDistractorComponent implements OnInit {
     this.questionDistractorForm.removeControl(data.questiondistractorid);
   }
 
-  constructor(private fb: FormBuilder, private utilService: UtilService) { }
+  constructor(private fb: UntypedFormBuilder, private utilService: UtilService) { }
 
   ngOnInit(): void {
     this.questionDistractorForm = this.fb.group({});
@@ -52,7 +52,7 @@ export class QuestionDistractorComponent implements OnInit {
     this.listOfDistractor.forEach(x => {
       this.questionDistractorForm.addControl(
         x.questiondistractorid,
-        new FormControl(null, [Validators.required, Validators.minLength(1)])
+        new UntypedFormControl(null, [Validators.required, Validators.minLength(1)])
       );
       this.questionDistractorForm.get(x.questiondistractorid)?.setValue(x.questiondistractortext);
     })

@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { first } from 'rxjs/operators';
@@ -15,7 +15,7 @@ import { UtilService } from 'src/app/services/util.service';
 })
 export class LessonCreateComponent implements OnInit {
   dataloading = false;
-  createForm!: FormGroup;
+  createForm!: UntypedFormGroup;
   valid = false;
   levels: Array<any> = [];
   async submitcreateForm() {
@@ -58,7 +58,7 @@ export class LessonCreateComponent implements OnInit {
     }
   }
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private dts: LessonService,
     private cts: LevelService,
     private router: Router,

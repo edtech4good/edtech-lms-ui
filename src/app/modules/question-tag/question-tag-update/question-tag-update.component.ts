@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { first } from 'rxjs/operators';
@@ -14,7 +14,7 @@ import { UtilService } from 'src/app/services/util.service';
 })
 export class QuestionTagUpdateComponent implements OnInit {
   dataloading = false;
-  editForm!: FormGroup;
+  editForm!: UntypedFormGroup;
   questiontag: any;
   async submiteditForm() {
     this.utilservice.checkFormDirty(this.editForm);
@@ -31,7 +31,7 @@ export class QuestionTagUpdateComponent implements OnInit {
       this.router.navigate(['questiontag/index']);
     }
   }
-  constructor(private fb: FormBuilder,
+  constructor(private fb: UntypedFormBuilder,
     private dts: QuestionTagService, private route: ActivatedRoute,
     private router: Router, private readonly notification: NzNotificationService,
     private utilservice: UtilService) { }

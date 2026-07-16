@@ -3,7 +3,7 @@ import { SchoolContributeService } from '../../../services/school-contribute.ser
 import { ActivatedRoute, Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { first } from 'rxjs/operators';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { SchoolService } from 'src/app/services/school.service';
 import { UtilService } from 'src/app/services/util.service';
 
@@ -13,7 +13,7 @@ import { UtilService } from 'src/app/services/util.service';
   styleUrls: ['./schoolcontribute-create.component.less']
 })
 export class SchoolCreateContributeComponent implements OnInit {
-  createForm!: FormGroup;
+  createForm!: UntypedFormGroup;
   schoolcontribute: any;
   school: any;
   dataloading = false;
@@ -50,7 +50,7 @@ export class SchoolCreateContributeComponent implements OnInit {
   constructor(
     private schoolContributerService: SchoolContributeService,
     private schoolService: SchoolService,
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private route: ActivatedRoute,
     private notification: NzNotificationService,
     private router: Router,

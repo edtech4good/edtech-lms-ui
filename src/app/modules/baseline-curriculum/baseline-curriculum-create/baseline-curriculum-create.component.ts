@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { startOfDay } from 'date-fns';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
@@ -18,7 +18,7 @@ import { UtilService } from 'src/app/services/util.service';
 })
 export class BaselineCurriculumCreateComponent implements OnInit {
   dataloading = false;
-  createForm!: FormGroup;
+  createForm!: UntypedFormGroup;
   valid = false;
   disable = true;
   curriculums: Array<any> = [];
@@ -69,7 +69,7 @@ export class BaselineCurriculumCreateComponent implements OnInit {
     }
   }
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private cts: CurriculumService,
     private dts: BaseCurriculumService,
     private router: Router,

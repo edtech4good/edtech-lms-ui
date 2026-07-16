@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { BehaviorSubject, Observable, of } from 'rxjs';
@@ -26,8 +26,8 @@ export class LevelQuizComponent implements OnInit {
   invalidOrder = true;
   level: any;
   data: Array<any> = [];
-  createForm!: FormGroup;
-  bindLessonForm!: FormGroup;
+  createForm!: UntypedFormGroup;
+  bindLessonForm!: UntypedFormGroup;
   questionoptionList: any[] = [];
   showModalAddQuestion = false;
   private questionsearchChange$ = new BehaviorSubject('');
@@ -88,7 +88,7 @@ export class LevelQuizComponent implements OnInit {
   }
 
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private route: ActivatedRoute,
     private utilservice: UtilService,
     private readonly notification: NzNotificationService,

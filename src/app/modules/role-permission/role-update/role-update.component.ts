@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTreeNodeOptions, NzTreeNode, NzFormatEmitEvent } from 'ng-zorro-antd/tree';
@@ -18,12 +18,12 @@ export class RoleUpdateComponent implements OnInit {
   dataloading = false;
   role: any;
   permissions: any = [];
-  editForm!: FormGroup;
+  editForm!: UntypedFormGroup;
   nodes$?: Observable<NzTreeNodeOptions[] | NzTreeNode[]>;
   nodes: NzTreeNodeOptions[] | NzTreeNode[] = [];
   defaultCheckedKeys: [] = [];
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private readonly rolepermService: RolePermService,
     private readonly notification: NzNotificationService,
     private utilservice: UtilService,

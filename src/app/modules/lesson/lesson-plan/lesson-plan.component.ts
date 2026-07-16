@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
@@ -29,7 +29,7 @@ export class LessonPlanComponent implements OnInit {
   currectdocument?: any;
   isUpdateLessonPlan = false;
   data: Array<any> = [];
-  createForm!: FormGroup;
+  createForm!: UntypedFormGroup;
   documentoptionList: any[] = [];
   showGallery = false;
   showModalAddPlan = false;
@@ -118,7 +118,7 @@ export class LessonPlanComponent implements OnInit {
   }
 
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private route: ActivatedRoute,
     private utilservice: UtilService,
     private lessonlearningService: LessonPlanService,

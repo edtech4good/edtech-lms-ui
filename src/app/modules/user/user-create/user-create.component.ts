@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormArray, FormBuilder, FormControl, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormArray, UntypedFormBuilder, UntypedFormControl, UntypedFormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { BehaviorSubject, Observable, of } from 'rxjs';
@@ -18,7 +18,7 @@ import { UtilService } from 'src/app/services/util.service';
 })
 export class UserCreateComponent implements OnInit {
   dataloading = false;
-  createForm!: FormGroup;
+  createForm!: UntypedFormGroup;
   allChecked = false;
   indeterminate = true;
   // roles$: Observable<any>;
@@ -49,7 +49,7 @@ export class UserCreateComponent implements OnInit {
     }
   }
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private dts: UserService,
     private roleService: RolePermService,
     private router: Router,
@@ -99,9 +99,9 @@ export class UserCreateComponent implements OnInit {
 
   updateChkbxArray(id: any, isChecked: any, key: any) {
     const checked = isChecked.target.checked;
-    const chkArray = < FormArray > this.createForm.get(key);
+    const chkArray = < UntypedFormArray > this.createForm.get(key);
     if (checked) {
-      chkArray.push(new FormControl(id));
+      chkArray.push(new UntypedFormControl(id));
     } else {
       let idx = chkArray.controls.findIndex((x: { value: any; }) => x.value == id);
       chkArray.removeAt(idx);

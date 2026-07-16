@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { catchError, debounceTime, map, switchMap } from 'rxjs/operators';
 import { IPaging } from 'src/app/models/IPaging';
@@ -14,7 +14,7 @@ import { DocumentService } from '../../document/services/document.service';
   styleUrls: ['./question-associate.component.less'],
 })
 export class QuestionAssociateComponent implements OnInit {
-  public questionAssociateForm!: FormGroup;
+  public questionAssociateForm!: UntypedFormGroup;
   private associatesearchChange$ = new BehaviorSubject('');
   public defaultOption: Array<any> = [];
   associateassociateList: any[] = [];
@@ -104,7 +104,7 @@ export class QuestionAssociateComponent implements OnInit {
     }
   };
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private documentService: DocumentService,
     private utilService: UtilService
   ) {}

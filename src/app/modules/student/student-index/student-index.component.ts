@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import * as csv from 'csvtojson';
 import { uniq } from 'lodash';
 import { NzOptionSelectionChange } from 'ng-zorro-antd/auto-complete';
@@ -29,7 +29,7 @@ export class StudentIndexComponent implements OnInit {
   curriculum$?: Observable<any>;
   school$?: Observable<any>;
   standard$?: Observable<any>;
-  uploadForm!: FormGroup;
+  uploadForm!: UntypedFormGroup;
 
   selectStandard: boolean = true;
   showUpload: boolean = false;
@@ -108,7 +108,7 @@ export class StudentIndexComponent implements OnInit {
   isSchoolExportLoading = false;
 
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private studentService: StudentService,
     private utilService: UtilService,
     private readonly notification: NzNotificationService,

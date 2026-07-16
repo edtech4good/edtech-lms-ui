@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { first } from 'rxjs/operators';
@@ -12,7 +12,7 @@ import { UtilService } from 'src/app/services/util.service';
   styleUrls: ['./schoolcontribute-update.component.less']
 })
 export class SchoolcontributeUpdateComponent implements OnInit {
-  editForm!: FormGroup;
+  editForm!: UntypedFormGroup;
   school: any;
   dataloading = false;
 
@@ -46,7 +46,7 @@ export class SchoolcontributeUpdateComponent implements OnInit {
 
   constructor(
     private schoolContributerService: SchoolContributeService,
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private route: ActivatedRoute,
     private notification: NzNotificationService,
     private router: Router,

@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { BehaviorSubject, Observable, of } from 'rxjs';
@@ -23,8 +23,8 @@ export class BaselinequestionIndexComponent implements OnInit {
   disable = false;
   baseline: any;
   data: Array<any> = [];
-  createForm!: FormGroup;
-  cloneForm!: FormGroup;
+  createForm!: UntypedFormGroup;
+  cloneForm!: UntypedFormGroup;
   questionoptionList: any[] = [];
   showModalAddQuestion = false;
   showModalCloneQuestion = false;
@@ -144,7 +144,7 @@ export class BaselinequestionIndexComponent implements OnInit {
   }
 
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private route: ActivatedRoute,
     private utilservice: UtilService,
     private readonly notification: NzNotificationService,

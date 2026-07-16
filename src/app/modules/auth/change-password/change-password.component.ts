@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { first } from 'rxjs/operators';
@@ -15,8 +15,8 @@ import { UtilService } from 'src/app/services/util.service';
 export class ChangePasswordComponent implements OnInit {
 
   changePasswordisVisible = false;
-  changePassworForm!: FormGroup;
-  changePasswordForm!: FormGroup;
+  changePassworForm!: UntypedFormGroup;
+  changePasswordForm!: UntypedFormGroup;
 
   async submitLoginForm() {
     this.utilservice.checkFormDirty(this.changePassworForm);
@@ -39,7 +39,7 @@ export class ChangePasswordComponent implements OnInit {
     }
   }
 
-  constructor(private fb: FormBuilder,
+  constructor(private fb: UntypedFormBuilder,
     private router: Router, private readonly notification: NzNotificationService,
     private utilservice: UtilService, private authService: AuthService,
     private route: ActivatedRoute) { }

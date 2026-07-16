@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { startOfDay } from 'date-fns';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
@@ -17,7 +17,7 @@ import { UtilService } from 'src/app/services/util.service';
   styleUrls: ['./baseline-curriculum-update.component.less']
 })
 export class BaselineCurriculumUpdateComponent implements OnInit {
-  editForm!: FormGroup;
+  editForm!: UntypedFormGroup;
   baslineData: any;
   curriculums: Array<any> = [];
   listOfSchoolidValue: string[] = [];
@@ -66,7 +66,7 @@ export class BaselineCurriculumUpdateComponent implements OnInit {
   }
 
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private router: Router,
     private readonly notification: NzNotificationService,
     private utilservice: UtilService,

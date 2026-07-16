@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { Observable } from 'rxjs';
@@ -19,7 +19,7 @@ export class SchoolUpdateComponent implements OnInit {
   dataloading = false;
   country$?: Observable<any>;
   curriculums$?: Observable<any>;
-  editForm!: FormGroup;
+  editForm!: UntypedFormGroup;
   valid = true;
   school: any;
   selectedSchool = true;
@@ -64,7 +64,7 @@ export class SchoolUpdateComponent implements OnInit {
     }
   }
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private dts: SchoolService,
     private route: ActivatedRoute,
     private router: Router,

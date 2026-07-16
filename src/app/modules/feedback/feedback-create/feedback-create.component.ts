@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, FormControl, FormArray } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators, FormControl, FormArray } from '@angular/forms';
 import { Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { UtilService } from 'src/app/services/util.service';
@@ -17,7 +17,7 @@ export class FeedbackCreateComponent implements OnInit {
   file: Array<any> = [];
   fileList: NzUploadFile[] = [];
   showUpload = true;
-  createForm!: FormGroup;
+  createForm!: UntypedFormGroup;
   RaspberryPi = [
     { label: 'The red light is not blink.'},
     { label: 'The yellow light is not on.'},
@@ -53,7 +53,7 @@ export class FeedbackCreateComponent implements OnInit {
 
 
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private dts: FeedbackService,
     private router: Router,
     private readonly notification: NzNotificationService,

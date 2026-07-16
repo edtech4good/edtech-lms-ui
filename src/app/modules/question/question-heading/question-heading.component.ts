@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { catchError, debounceTime, map, switchMap } from 'rxjs/operators';
 import { IPaging } from 'src/app/models/IPaging';
@@ -14,7 +14,7 @@ import { DocumentService } from '../../document/services/document.service';
 })
 export class QuestionHeadingComponent implements OnInit {
   public defaultOption: Array<any> = [];
-  public questionHeadingForm!: FormGroup;
+  public questionHeadingForm!: UntypedFormGroup;
   private headingfilesearchChange$ = new BehaviorSubject('');
   headingfileoptionList: any[] = [];
   headingfileisLoading = false;
@@ -34,7 +34,7 @@ export class QuestionHeadingComponent implements OnInit {
   };
 
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private documentService: DocumentService,
     private utilService: UtilService
   ) {}

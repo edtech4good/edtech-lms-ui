@@ -187,9 +187,10 @@
       }
     }
   },
-  "defaultProject": "edtech-lms-ui",
   "cli": {
     "analytics": "dfc92776-052e-4164-b276-08b40445f0e0",
-    "defaultCollection": "@angular-eslint/schematics"
+    "schematicCollections": [
+      "@angular-eslint/schematics"
+    ]
   }
 }

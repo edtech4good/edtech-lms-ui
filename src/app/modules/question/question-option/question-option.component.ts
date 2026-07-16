@@ -1,5 +1,5 @@
 import { Component, Input, OnInit, ViewChild } from '@angular/core';
-import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { catchError, debounceTime, map, switchMap } from 'rxjs/operators';
 import { IPaging } from 'src/app/models/IPaging';
@@ -15,7 +15,7 @@ import { QuestionAssociateComponent } from '../question-associate/question-assoc
 export class QuestionOptionComponent implements OnInit {
   @ViewChild('questionAssociate')
   public questionAssociate?: QuestionAssociateComponent;
-  public questionOptionForm!: FormGroup;
+  public questionOptionForm!: UntypedFormGroup;
   public defaultOption: Array<any> = [];
   @Input()
   optionIndex: number = 0;
@@ -51,7 +51,7 @@ export class QuestionOptionComponent implements OnInit {
   }
 
   constructor(
-    private fb: FormBuilder,
+    private fb: UntypedFormBuilder,
     private documentService: DocumentService,
     private utilService: UtilService
   ) {}

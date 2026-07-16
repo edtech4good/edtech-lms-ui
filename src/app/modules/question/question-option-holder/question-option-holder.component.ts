@@ -5,7 +5,7 @@ import {
   QueryList,
   ViewChildren,
 } from '@angular/core';
-import { FormBuilder } from '@angular/forms';
+import { UntypedFormBuilder } from '@angular/forms';
 import { uniq } from 'lodash';
 import { QuestionOption } from 'src/app/models/questionoption.model';
 import { UtilService } from 'src/app/services/util.service';
@@ -194,7 +194,7 @@ export class QuestionOptionHolderComponent implements OnInit {
       return null;
     }
   };
-  constructor(private fb: FormBuilder, private utilService: UtilService) {}
+  constructor(private fb: UntypedFormBuilder, private utilService: UtilService) {}
   ngOnInit(): void {
     this.addField();
     this.optionsLoading = false;
