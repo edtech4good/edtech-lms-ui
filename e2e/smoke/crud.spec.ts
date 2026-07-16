@@ -37,10 +37,28 @@ const ENTITIES: CrudEntity[] = [
     update: (s) => ({ subjectname: `e2e subjB ${s}` }),
   },
   {
+    // The same round-trip in Khmer, through the real reactive form. The rest of
+    // this suite is ASCII, and ASCII data cannot fail an ASCII-only check —
+    // which is how studentfirstname shipped with a joi.alphanum() that rejected
+    // every Khmer character. subjectname has no such restriction, so this is a
+    // guard against one appearing, and against a charset regression anywhere
+    // between the form and MySQL. See docs/khmer-text.md.
+    title: 'subject (Khmer)',
+    route: 'subject',
+    labelField: 'subjectname',
+    idField: 'subjectid',
+    // 'ខ្មែរ' is 5 codepoints; well inside subjectname's max of 25.
+    create: (s) => ({ subjectname: `e2e ខ្មែរA ${s}`, subjectdescription: 'អក្សរខ្មែរ' }),
+    update: (s) => ({ subjectname: `e2e ខ្មែរB ${s}` }),
+  },
+  {
     title: 'document tag',
     route: 'documenttag',
     labelField: 'documenttagname',
     idField: 'documenttagid',
+    // Stays ASCII deliberately: documenttagname is alphanum-only and max 8 by
+    // design — a short code, not prose. Khmer here would be a test asserting a
+    // rule the product does not have.
     // documenttagname: alphanum only, max 8, min 3 — hence no spaces.
     create: (s) => ({ documenttagname: `e2ea${s}` }),
     update: (s) => ({ documenttagname: `e2eb${s}` }),
