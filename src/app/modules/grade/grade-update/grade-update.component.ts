@@ -9,10 +9,10 @@ import { GradeService } from 'src/app/services/grade.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-grade-update',
-  templateUrl: './grade-update.component.html',
-  styleUrls: ['./grade-update.component.less'],
-
+    selector: 'app-grade-update',
+    templateUrl: './grade-update.component.html',
+    styleUrls: ['./grade-update.component.less'],
+    standalone: false
 })
 export class GradeUpdateComponent implements OnInit {
   dataloading = false;

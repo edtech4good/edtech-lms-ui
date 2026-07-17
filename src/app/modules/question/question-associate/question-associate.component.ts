@@ -9,9 +9,10 @@ import { v4 } from 'uuid';
 import { DocumentService } from '../../document/services/document.service';
 
 @Component({
-  selector: 'app-question-associate',
-  templateUrl: './question-associate.component.html',
-  styleUrls: ['./question-associate.component.less'],
+    selector: 'app-question-associate',
+    templateUrl: './question-associate.component.html',
+    styleUrls: ['./question-associate.component.less'],
+    standalone: false
 })
 export class QuestionAssociateComponent implements OnInit {
   public questionAssociateForm!: UntypedFormGroup;

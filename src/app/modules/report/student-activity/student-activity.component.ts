@@ -19,9 +19,10 @@ import { studentactivitysearch } from '../models/Search.interface';
 import saveAs from 'file-saver';
 
 @Component({
-  selector: 'app-student-activity',
-  templateUrl: './student-activity.component.html',
-  styleUrls: ['./student-activity.component.less'],
+    selector: 'app-student-activity',
+    templateUrl: './student-activity.component.html',
+    styleUrls: ['./student-activity.component.less'],
+    standalone: false
 })
 export class StudentActivityComponent implements OnInit {
   dataloading = false;
@@ -120,7 +121,7 @@ export class StudentActivityComponent implements OnInit {
     this.setupSearchStandard();
     this.setupSearchUser();
     this.route.queryParams.subscribe(p => {
-      this.online = (p.online === 'true') ?? false;
+      this.online = p.online === 'true';
       if(this.online) this.setperms();
     });
   }

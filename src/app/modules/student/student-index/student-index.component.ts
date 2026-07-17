@@ -21,9 +21,10 @@ import saveAs from 'file-saver';
 import { CountryService } from 'src/app/services/country.service';
 
 @Component({
-  selector: 'app-student-index',
-  templateUrl: './student-index.component.html',
-  styleUrls: ['./student-index.component.less'],
+    selector: 'app-student-index',
+    templateUrl: './student-index.component.html',
+    styleUrls: ['./student-index.component.less'],
+    standalone: false
 })
 export class StudentIndexComponent implements OnInit {
   curriculum$?: Observable<any>;

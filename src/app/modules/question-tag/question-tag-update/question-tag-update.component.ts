@@ -7,10 +7,10 @@ import { QuestionTagService } from 'src/app/services/question-tag.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-question-tag-update',
-  templateUrl: './question-tag-update.component.html',
-  styleUrls: ['./question-tag-update.component.less'],
-
+    selector: 'app-question-tag-update',
+    templateUrl: './question-tag-update.component.html',
+    styleUrls: ['./question-tag-update.component.less'],
+    standalone: false
 })
 export class QuestionTagUpdateComponent implements OnInit {
   dataloading = false;

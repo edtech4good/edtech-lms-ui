@@ -15,9 +15,10 @@ import { SubjectService } from 'src/app/services/subject.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-curriculum-update',
-  templateUrl: './curriculum-update.component.html',
-  styleUrls: ['./curriculum-update.component.less'],
+    selector: 'app-curriculum-update',
+    templateUrl: './curriculum-update.component.html',
+    styleUrls: ['./curriculum-update.component.less'],
+    standalone: false
 })
 export class CurriculumUpdateComponent implements OnInit {
   dataloading = false;

@@ -9,9 +9,10 @@ import { LessonService } from 'src/app/services/lesson.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-lesson-create',
-  templateUrl: './lesson-create.component.html',
-  styleUrls: ['./lesson-create.component.less'],
+    selector: 'app-lesson-create',
+    templateUrl: './lesson-create.component.html',
+    styleUrls: ['./lesson-create.component.less'],
+    standalone: false
 })
 export class LessonCreateComponent implements OnInit {
   dataloading = false;

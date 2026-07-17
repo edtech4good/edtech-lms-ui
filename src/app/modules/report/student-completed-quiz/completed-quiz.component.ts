@@ -26,9 +26,10 @@ import { StudentService } from 'src/app/services/student.service';
 import saveAs from 'file-saver';
 
 @Component({
-  selector: 'app-completed-quiz',
-  templateUrl: './completed-quiz.component.html',
-  styleUrls: ['./completed-quiz.component.less'],
+    selector: 'app-completed-quiz',
+    templateUrl: './completed-quiz.component.html',
+    styleUrls: ['./completed-quiz.component.less'],
+    standalone: false
 })
 export class StudentCompletedQuizComponent implements OnInit {
   dataloading = false;
@@ -170,7 +171,7 @@ export class StudentCompletedQuizComponent implements OnInit {
     this.setupSearchLesson();
     this.setupSearchUser();
     this.route.queryParams.subscribe(p => {
-      this.online = (p.online === 'true') ?? false;
+      this.online = p.online === 'true';
       if(this.online) this.setperms();
     });
   }

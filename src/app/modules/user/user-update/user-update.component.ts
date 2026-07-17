@@ -12,9 +12,10 @@ import { UserService } from 'src/app/services/user.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-user-update',
-  templateUrl: './user-update.component.html',
-  styleUrls: ['./user-update.component.less'],
+    selector: 'app-user-update',
+    templateUrl: './user-update.component.html',
+    styleUrls: ['./user-update.component.less'],
+    standalone: false
 })
 export class UserUpdateComponent implements OnInit {
   initData = true;

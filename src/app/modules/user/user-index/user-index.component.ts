@@ -6,9 +6,10 @@ import { IFilter, IPaging } from 'src/app/models/IPaging';
 import { UserService } from 'src/app/services/user.service';
 
 @Component({
-  selector: 'app-user-index',
-  templateUrl: './user-index.component.html',
-  styleUrls: ['./user-index.component.less'],
+    selector: 'app-user-index',
+    templateUrl: './user-index.component.html',
+    styleUrls: ['./user-index.component.less'],
+    standalone: false
 })
 export class UserIndexComponent {
   dataloading = false;

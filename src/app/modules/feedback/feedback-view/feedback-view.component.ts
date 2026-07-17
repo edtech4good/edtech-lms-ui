@@ -9,9 +9,10 @@ import { UtilService } from 'src/app/services/util.service';
 import { environment } from "./../../../../environments/environment";
 
 @Component({
-  selector: 'app-feedback-view',
-  templateUrl: './feedback-view.component.html',
-  styleUrls: ['./feedback-view.component.less'],
+    selector: 'app-feedback-view',
+    templateUrl: './feedback-view.component.html',
+    styleUrls: ['./feedback-view.component.less'],
+    standalone: false
 })
 export class FeedbackViewComponent implements OnInit {
   dataloading = false;

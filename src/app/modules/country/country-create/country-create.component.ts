@@ -7,9 +7,10 @@ import { CountryService } from 'src/app/services/country.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-country-create',
-  templateUrl: './country-create.component.html',
-  styleUrls: ['./country-create.component.less']
+    selector: 'app-country-create',
+    templateUrl: './country-create.component.html',
+    styleUrls: ['./country-create.component.less'],
+    standalone: false
 })
 export class CountryCreateComponent implements OnInit {
   dataloading = false;

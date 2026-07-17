@@ -9,9 +9,10 @@ import { SchoolService } from 'src/app/services/school.service';
 import { ChartItemFormat, LineChartFormat } from './models/LineChartFormat';
 
 @Component({
-  selector: 'app-school-dashboard',
-  templateUrl: './school.component.html',
-  styleUrls: ['./school.component.less']
+    selector: 'app-school-dashboard',
+    templateUrl: './school.component.html',
+    styleUrls: ['./school.component.less'],
+    standalone: false
 })
 export class SchoolComponent implements OnInit {
 

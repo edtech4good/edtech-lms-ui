@@ -10,9 +10,10 @@ import { SchoolService } from 'src/app/services/school.service';
 import { StudentService } from 'src/app/services/student.service';
 
 @Component({
-  selector: 'app-school-index',
-  templateUrl: './school-index.component.html',
-  styleUrls: ['./school-index.component.less'],
+    selector: 'app-school-index',
+    templateUrl: './school-index.component.html',
+    styleUrls: ['./school-index.component.less'],
+    standalone: false
 })
 export class SchoolIndexComponent implements OnInit {
   dataloading = false;

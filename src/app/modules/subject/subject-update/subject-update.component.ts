@@ -12,9 +12,10 @@ import { SubjectService } from 'src/app/services/subject.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-subject-update',
-  templateUrl: './subject-update.component.html',
-  styleUrls: ['./subject-update.component.less'],
+    selector: 'app-subject-update',
+    templateUrl: './subject-update.component.html',
+    styleUrls: ['./subject-update.component.less'],
+    standalone: false
 })
 export class SubjectUpdateComponent implements OnInit {
   dataloading = false;

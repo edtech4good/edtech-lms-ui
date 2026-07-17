@@ -11,9 +11,10 @@ import { any } from 'joi';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-standard-update',
-  templateUrl: './standard-update.component.html',
-  styleUrls: ['./standard-update.component.less']
+    selector: 'app-standard-update',
+    templateUrl: './standard-update.component.html',
+    styleUrls: ['./standard-update.component.less'],
+    standalone: false
 })
 export class StandardUpdateComponent implements OnInit {
   dataloading = false;

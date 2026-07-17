@@ -6,9 +6,10 @@ import { CurriculumService } from 'src/app/services/curriculum.service';
 import { StudentService } from 'src/app/services/student.service';
 import { UtilService } from 'src/app/services/util.service';
 @Component({
-  selector: 'app-student-stats',
-  templateUrl: './student-stats.component.html',
-  styleUrls: ['./student-stats.component.less'],
+    selector: 'app-student-stats',
+    templateUrl: './student-stats.component.html',
+    styleUrls: ['./student-stats.component.less'],
+    standalone: false
 })
 export class StudentStatsComponent implements OnInit {
   constructor(

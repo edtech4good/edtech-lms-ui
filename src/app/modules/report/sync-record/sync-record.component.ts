@@ -8,9 +8,10 @@ import { ReportService } from 'src/app/services/report.service';
 import { StandardService } from 'src/app/services/standard.service';
 
 @Component({
-  selector: 'app-sync-record',
-  templateUrl: './sync-record.component.html',
-  styleUrls: ['./sync-record.component.less'],
+    selector: 'app-sync-record',
+    templateUrl: './sync-record.component.html',
+    styleUrls: ['./sync-record.component.less'],
+    standalone: false
 })
 export class SyncRecordComponent {
   dataloading = false;

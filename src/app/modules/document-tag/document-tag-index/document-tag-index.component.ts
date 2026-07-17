@@ -9,9 +9,10 @@ import { DocumentTagService } from 'src/app/services/document-tag.service';
 import { getappLoading } from 'src/app/store/appstate/appstate.selector';
 
 @Component({
-  selector: 'app-document-tag-index',
-  templateUrl: './document-tag-index.component.html',
-  styleUrls: ['./document-tag-index.component.less'],
+    selector: 'app-document-tag-index',
+    templateUrl: './document-tag-index.component.html',
+    styleUrls: ['./document-tag-index.component.less'],
+    standalone: false
 })
 export class DocumentTagIndexComponent {
   dataloading = false;

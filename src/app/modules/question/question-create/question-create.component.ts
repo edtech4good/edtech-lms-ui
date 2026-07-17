@@ -26,9 +26,10 @@ import { QuestionService } from '../services/question.service';
 import { QuestionHeading } from '../../../models/questionheading.model';
 
 @Component({
-  selector: 'app-question-create',
-  templateUrl: './question-create.component.html',
-  styleUrls: ['./question-create.component.less'],
+    selector: 'app-question-create',
+    templateUrl: './question-create.component.html',
+    styleUrls: ['./question-create.component.less'],
+    standalone: false
 })
 export class QuestionCreateComponent implements OnInit {
   @ViewChild('questionHeading', { static: true })

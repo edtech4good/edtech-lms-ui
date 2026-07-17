@@ -17,9 +17,10 @@ import { QuestionService } from '../../question/services/question.service';
 import { LessonService } from 'src/app/services/lesson.service';
 
 @Component({
-  selector: 'app-level-quiz',
-  templateUrl: './level-quiz.component.html',
-  styleUrls: ['./level-quiz.component.less'],
+    selector: 'app-level-quiz',
+    templateUrl: './level-quiz.component.html',
+    styleUrls: ['./level-quiz.component.less'],
+    standalone: false
 })
 export class LevelQuizComponent implements OnInit {
   dataloading = false;

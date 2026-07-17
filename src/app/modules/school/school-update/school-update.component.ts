@@ -11,9 +11,10 @@ import { SchoolService } from 'src/app/services/school.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-school-update',
-  templateUrl: './school-update.component.html',
-  styleUrls: ['./school-update.component.less'],
+    selector: 'app-school-update',
+    templateUrl: './school-update.component.html',
+    styleUrls: ['./school-update.component.less'],
+    standalone: false
 })
 export class SchoolUpdateComponent implements OnInit {
   dataloading = false;

@@ -13,9 +13,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { QuestionOptionComponent } from '../question-option/question-option.component';
 
 @Component({
-  selector: 'app-question-option-holder',
-  templateUrl: './question-option-holder.component.html',
-  styleUrls: ['./question-option-holder.component.less'],
+    selector: 'app-question-option-holder',
+    templateUrl: './question-option-holder.component.html',
+    styleUrls: ['./question-option-holder.component.less'],
+    standalone: false
 })
 export class QuestionOptionHolderComponent implements OnInit {
   @ViewChildren(QuestionOptionComponent)

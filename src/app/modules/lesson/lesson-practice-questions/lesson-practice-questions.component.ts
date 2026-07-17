@@ -16,9 +16,10 @@ import { UtilService } from 'src/app/services/util.service';
 import { QuestionService } from '../../question/services/question.service';
 
 @Component({
-  selector: 'app-lesson-practice-questions',
-  templateUrl: './lesson-practice-questions.component.html',
-  styleUrls: ['./lesson-practice-questions.component.less'],
+    selector: 'app-lesson-practice-questions',
+    templateUrl: './lesson-practice-questions.component.html',
+    styleUrls: ['./lesson-practice-questions.component.less'],
+    standalone: false
 })
 export class LessonPracticeQuestionsComponent implements OnInit {
   invalidOrder = false;

@@ -7,9 +7,10 @@ import { CurriculumService } from 'src/app/services/curriculum.service';
 import { SubjectService } from 'src/app/services/subject.service';
 
 @Component({
-  selector: 'app-subject-index',
-  templateUrl: './subject-index.component.html',
-  styleUrls: ['./subject-index.component.less'],
+    selector: 'app-subject-index',
+    templateUrl: './subject-index.component.html',
+    styleUrls: ['./subject-index.component.less'],
+    standalone: false
 })
 export class SubjectIndexComponent {
   dataloading = false;

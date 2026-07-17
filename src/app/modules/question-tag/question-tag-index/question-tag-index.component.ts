@@ -7,9 +7,10 @@ import { QuestionTagService } from 'src/app/services/question-tag.service';
 import { error } from 'console';
 
 @Component({
-  selector: 'app-question-tag-index',
-  templateUrl: './question-tag-index.component.html',
-  styleUrls: ['./question-tag-index.component.less'],
+    selector: 'app-question-tag-index',
+    templateUrl: './question-tag-index.component.html',
+    styleUrls: ['./question-tag-index.component.less'],
+    standalone: false
 })
 export class QuestionTagIndexComponent {
   dataloading = false;

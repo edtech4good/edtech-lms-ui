@@ -23,9 +23,10 @@ import { QuestionOptionHolderComponent } from '../question-option-holder/questio
 import { QuestionService } from '../services/question.service';
 
 @Component({
-  selector: 'app-question-update',
-  templateUrl: './question-update.component.html',
-  styleUrls: ['./question-update.component.less'],
+    selector: 'app-question-update',
+    templateUrl: './question-update.component.html',
+    styleUrls: ['./question-update.component.less'],
+    standalone: false
 })
 export class QuestionUpdateComponent implements OnInit {
   @ViewChild('questionHeading', { static: true })

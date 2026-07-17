@@ -8,9 +8,10 @@ import { ReportService } from 'src/app/services/report.service';
 import { ChartItemFormat, LineChartFormat } from './models/LineChartFormat';
 
 @Component({
-  selector: 'app-tech-downtime',
-  templateUrl: './tech-downtime.component.html',
-  styleUrls: ['./tech-downtime.component.less']
+    selector: 'app-tech-downtime',
+    templateUrl: './tech-downtime.component.html',
+    styleUrls: ['./tech-downtime.component.less'],
+    standalone: false
 })
 export class TechDowntimeComponent implements OnInit {
 

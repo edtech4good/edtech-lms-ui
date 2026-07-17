@@ -5,9 +5,10 @@ import { CurriculumService } from 'src/app/services/curriculum.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-map-index',
-  templateUrl: './map-index.component.html',
-  styleUrls: ['./map-index.component.less'],
+    selector: 'app-map-index',
+    templateUrl: './map-index.component.html',
+    styleUrls: ['./map-index.component.less'],
+    standalone: false
 })
 export class MapIndexComponent implements OnInit {
   dataloading = false

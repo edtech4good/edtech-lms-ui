@@ -27,9 +27,10 @@ import { StudentService } from 'src/app/services/student.service';
 import { studentactivitysearch, studentgradesearch } from '../../models/Search.interface';
 
 @Component({
-  selector: 'app-student-grade-progress',
-  templateUrl: './grade.component.html',
-  styleUrls: ['./grade.component.less'],
+    selector: 'app-student-grade-progress',
+    templateUrl: './grade.component.html',
+    styleUrls: ['./grade.component.less'],
+    standalone: false
 })
 export class StudentGradeProgressComponent implements OnInit {
   dataloading = false;
@@ -143,7 +144,7 @@ export class StudentGradeProgressComponent implements OnInit {
     this.setupSearchStandard();
     this.setupSearchGrade();
     this.route.queryParams.subscribe(p => {
-      this.online = (p.online === 'true') ?? false;
+      this.online = p.online === 'true';
     });
   }
 

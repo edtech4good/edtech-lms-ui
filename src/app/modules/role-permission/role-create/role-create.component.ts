@@ -9,9 +9,10 @@ import { RolePermService } from 'src/app/services/role-permission.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-role-create',
-  templateUrl: './role-create.component.html',
-  styleUrls: ['./role-create.component.less']
+    selector: 'app-role-create',
+    templateUrl: './role-create.component.html',
+    styleUrls: ['./role-create.component.less'],
+    standalone: false
 })
 export class RoleCreateComponent implements OnInit {
   dataLoading = false;

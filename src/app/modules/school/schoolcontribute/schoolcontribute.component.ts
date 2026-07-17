@@ -7,9 +7,10 @@ import { IFilter, IPaging } from 'src/app/models/IPaging';
 import { SchoolContributeService } from 'src/app/services/school-contribute.service';
 
 @Component({
-  selector: 'app-schoolcontribute',
-  templateUrl: './schoolcontribute.component.html',
-  styleUrls: ['./schoolcontribute.component.less']
+    selector: 'app-schoolcontribute',
+    templateUrl: './schoolcontribute.component.html',
+    styleUrls: ['./schoolcontribute.component.less'],
+    standalone: false
 })
 export class SchoolcontributeComponent implements OnInit {
   dataloading = false;

@@ -6,9 +6,10 @@ import { CurriculumService } from 'src/app/services/curriculum.service';
 import { LessonService } from 'src/app/services/lesson.service';
 
 @Component({
-  selector: 'app-lesson-index',
-  templateUrl: './lesson-index.component.html',
-  styleUrls: ['./lesson-index.component.less'],
+    selector: 'app-lesson-index',
+    templateUrl: './lesson-index.component.html',
+    styleUrls: ['./lesson-index.component.less'],
+    standalone: false
 })
 export class LessonIndexComponent implements OnInit {
   dataloading = false;

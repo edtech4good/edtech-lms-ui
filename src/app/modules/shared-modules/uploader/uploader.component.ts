@@ -11,9 +11,10 @@ import { appState } from 'src/app/store/appstate/appstate.reducer';
 import { DocumentService } from '../../document/services/document.service';
 
 @Component({
-  selector: 'app-uploader',
-  templateUrl: './uploader.component.html',
-  styleUrls: ['./uploader.component.less']
+    selector: 'app-uploader',
+    templateUrl: './uploader.component.html',
+    styleUrls: ['./uploader.component.less'],
+    standalone: false
 })
 export class UploaderComponent {
   showUpload = false;

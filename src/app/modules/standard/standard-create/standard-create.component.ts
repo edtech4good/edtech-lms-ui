@@ -10,9 +10,10 @@ import { UtilService } from 'src/app/services/util.service';
 import { SchoolService } from '../../../services/school.service';
 
 @Component({
-  selector: 'app-standard-create',
-  templateUrl: './standard-create.component.html',
-  styleUrls: ['./standard-create.component.less'],
+    selector: 'app-standard-create',
+    templateUrl: './standard-create.component.html',
+    styleUrls: ['./standard-create.component.less'],
+    standalone: false
 })
 export class StandardCreateComponent implements OnInit {
   dataloading = false;

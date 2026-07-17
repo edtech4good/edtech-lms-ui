@@ -7,9 +7,10 @@ import { BaseCurriculumService } from 'src/app/services/base-curriculum.service'
 import saveAs from 'file-saver';
 
 @Component({
-  selector: 'app-baseline-curriculum-index',
-  templateUrl: './baseline-curriculum-index.component.html',
-  styleUrls: ['./baseline-curriculum-index.component.less']
+    selector: 'app-baseline-curriculum-index',
+    templateUrl: './baseline-curriculum-index.component.html',
+    styleUrls: ['./baseline-curriculum-index.component.less'],
+    standalone: false
 })
 export class BaselineCurriculumIndexComponent {
   dataloading = false;

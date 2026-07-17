@@ -7,9 +7,10 @@ import { DocumentTagService } from 'src/app/services/document-tag.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-document-tag-create',
-  templateUrl: './document-tag-create.component.html',
-  styleUrls: ['./document-tag-create.component.less']
+    selector: 'app-document-tag-create',
+    templateUrl: './document-tag-create.component.html',
+    styleUrls: ['./document-tag-create.component.less'],
+    standalone: false
 })
 export class DocumentTagCreateComponent implements OnInit {
   dataloading = false;

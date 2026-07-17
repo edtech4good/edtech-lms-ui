@@ -6,9 +6,10 @@ import { IFilter, IPaging } from 'src/app/models/IPaging';
 import { CurriculumService } from 'src/app/services/curriculum.service';
 
 @Component({
-  selector: 'app-curriculum-index',
-  templateUrl: './curriculum-index.component.html',
-  styleUrls: ['./curriculum-index.component.less'],
+    selector: 'app-curriculum-index',
+    templateUrl: './curriculum-index.component.html',
+    styleUrls: ['./curriculum-index.component.less'],
+    standalone: false
 })
 export class CurriculumIndexComponent {
   dataloading = false;

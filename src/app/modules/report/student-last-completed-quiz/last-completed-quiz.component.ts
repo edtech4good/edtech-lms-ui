@@ -28,9 +28,10 @@ import { StudentService } from 'src/app/services/student.service';
 import saveAs from 'file-saver';
 
 @Component({
-  selector: 'app-last-completed-quiz',
-  templateUrl: './last-completed-quiz.component.html',
-  styleUrls: ['./last-completed-quiz.component.less'],
+    selector: 'app-last-completed-quiz',
+    templateUrl: './last-completed-quiz.component.html',
+    styleUrls: ['./last-completed-quiz.component.less'],
+    standalone: false
 })
 export class StudentLastCompletedQuizComponent {
   dataloading = false;
@@ -165,7 +166,7 @@ export class StudentLastCompletedQuizComponent {
     this.setupSearchStandard();
     this.setupSearchUser();
     this.route.queryParams.subscribe(p => {
-      this.online = (p.online === 'true') ?? false;
+      this.online = p.online === 'true';
       if(this.online) this.setperms();
     });
   }

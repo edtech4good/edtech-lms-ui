@@ -27,9 +27,10 @@ import { StudentService } from 'src/app/services/student.service';
 import { studentlevelprogresssearch } from '../../models/Search.interface';
 
 @Component({
-  selector: 'app-student-level-progress',
-  templateUrl: './level.component.html',
-  styleUrls: ['./level.component.less'],
+    selector: 'app-student-level-progress',
+    templateUrl: './level.component.html',
+    styleUrls: ['./level.component.less'],
+    standalone: false
 })
 export class StudentLevelProgressComponent implements OnInit {
   dataloading = false;
@@ -142,7 +143,7 @@ export class StudentLevelProgressComponent implements OnInit {
     this.setupSearchUser();
     this.setupSearchGrade();
     this.route.queryParams.subscribe(p => {
-      this.online = (p.online === 'true') ?? false;
+      this.online = p.online === 'true';
     });
   }
   // setupSearchCurriculum() {

@@ -12,9 +12,10 @@ import { SchoolService } from 'src/app/services/school.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-baseline-curriculum-update',
-  templateUrl: './baseline-curriculum-update.component.html',
-  styleUrls: ['./baseline-curriculum-update.component.less']
+    selector: 'app-baseline-curriculum-update',
+    templateUrl: './baseline-curriculum-update.component.html',
+    styleUrls: ['./baseline-curriculum-update.component.less'],
+    standalone: false
 })
 export class BaselineCurriculumUpdateComponent implements OnInit {
   editForm!: UntypedFormGroup;

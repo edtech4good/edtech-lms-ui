@@ -19,9 +19,10 @@ import { environment } from 'src/environments/environment';
 import { DocumentService } from '../../document/services/document.service';
 
 @Component({
-  selector: 'app-lesson-learning',
-  templateUrl: './lesson-learning.component.html',
-  styleUrls: ['./lesson-learning.component.less'],
+    selector: 'app-lesson-learning',
+    templateUrl: './lesson-learning.component.html',
+    styleUrls: ['./lesson-learning.component.less'],
+    standalone: false
 })
 export class LessonLearningComponent implements OnInit {
   dataloading = false;

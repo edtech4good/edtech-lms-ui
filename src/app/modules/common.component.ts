@@ -9,9 +9,10 @@ import { appState } from '../store/appstate/appstate.reducer';
 import { getappLoading } from '../store/appstate/appstate.selector';
 
 @Component({
-  selector: 'app-common',
-  templateUrl: './common.component.html',
-  styleUrls: ['./common.component.less'],
+    selector: 'app-common',
+    templateUrl: './common.component.html',
+    styleUrls: ['./common.component.less'],
+    standalone: false
 })
 export class CommonComponent implements OnInit {
   isCollapsed = false;

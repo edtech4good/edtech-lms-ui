@@ -10,9 +10,10 @@ import { IMultiFilter, IMultiPaging } from '../../../models/IPaging';
 import { object, x } from 'joi';
 
 @Component({
-  selector: 'app-standard-index',
-  templateUrl: './standard-index.component.html',
-  styleUrls: ['./standard-index.component.less'],
+    selector: 'app-standard-index',
+    templateUrl: './standard-index.component.html',
+    styleUrls: ['./standard-index.component.less'],
+    standalone: false
 })
 export class StandardIndexComponent implements OnInit {
   dataloading = false;
