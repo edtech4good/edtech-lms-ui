@@ -1,5 +1,5 @@
 import { registerLocaleData } from '@angular/common';
-import { HttpClientModule } from '@angular/common/http';
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import en from '@angular/common/locales/en';
 import { CUSTOM_ELEMENTS_SCHEMA, NgModule } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -37,46 +37,40 @@ export const jwtoptionsfactory = (
   skipWhenExpired: true,
   allowedDomains: [core.COREDOMAIN()],
 });
-@NgModule({
-  declarations: [AppComponent, PageNotFoundComponent, UnAuthorizedComponent],
-  imports: [
-    BrowserModule,
-    AppRoutingModule,
-    CoreModule,
-    FormsModule,
-    HttpClientModule,
-    BrowserAnimationsModule,
-    SharedModule,
-    IconsProviderModule,
-    EffectsModule.forRoot(),
-    NzLayoutModule,
-    NzMenuModule,
-    JwtModule.forRoot({
-      jwtOptionsProvider: {
-        provide: JWT_OPTIONS,
-        useFactory: jwtoptionsfactory,
-        deps: [TokenService, CoreService],
-      },
-    }),
-    StoreModule.forRoot(reducers, {
-      metaReducers,
-      runtimeChecks: {
-        strictStateImmutability: true,
-        strictActionImmutability: true,
-      },
-    }),
-    !environment.production
-      ? StoreDevtoolsModule.instrument({
-          name: 'FortyK LMS App',
-          maxAge: 25,
-          logOnly: environment.production,
-        connectInZone: true})
-      : [],
-    FontAwesomeModule,
-    NgxPermissionsModule.forRoot(),
-  ],
-  providers: [{ provide: NZ_I18N, useValue: en_US }],
-  bootstrap: [AppComponent],
-  schemas: [CUSTOM_ELEMENTS_SCHEMA]
-})
+@NgModule({ declarations: [AppComponent, PageNotFoundComponent, UnAuthorizedComponent],
+    bootstrap: [AppComponent],
+    schemas: [CUSTOM_ELEMENTS_SCHEMA], imports: [BrowserModule,
+        AppRoutingModule,
+        CoreModule,
+        FormsModule,
+        BrowserAnimationsModule,
+        SharedModule,
+        IconsProviderModule,
+        EffectsModule.forRoot(),
+        NzLayoutModule,
+        NzMenuModule,
+        JwtModule.forRoot({
+            jwtOptionsProvider: {
+                provide: JWT_OPTIONS,
+                useFactory: jwtoptionsfactory,
+                deps: [TokenService, CoreService],
+            },
+        }),
+        StoreModule.forRoot(reducers, {
+            metaReducers,
+            runtimeChecks: {
+                strictStateImmutability: true,
+                strictActionImmutability: true,
+            },
+        }),
+        !environment.production
+            ? StoreDevtoolsModule.instrument({
+                name: 'FortyK LMS App',
+                maxAge: 25,
+                logOnly: environment.production,
+                connectInZone: true
+            })
+            : [],
+        FontAwesomeModule,
+        NgxPermissionsModule.forRoot()], providers: [{ provide: NZ_I18N, useValue: en_US }, provideHttpClient(withInterceptorsFromDi())] })
 export class AppModule {}
