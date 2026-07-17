@@ -6,9 +6,10 @@ import { IFilter, IPaging } from 'src/app/models/IPaging';
 import { CountryService } from 'src/app/services/country.service';
 
 @Component({
-  selector: 'app-country-index',
-  templateUrl: './country-index.component.html',
-  styleUrls: ['./country-index.component.less']
+    selector: 'app-country-index',
+    templateUrl: './country-index.component.html',
+    styleUrls: ['./country-index.component.less'],
+    standalone: false
 })
 export class CountryIndexComponent {
   dataloading = false;

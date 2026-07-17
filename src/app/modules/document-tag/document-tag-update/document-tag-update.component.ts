@@ -7,10 +7,10 @@ import { DocumentTagService } from 'src/app/services/document-tag.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-document-tag-update',
-  templateUrl: './document-tag-update.component.html',
-  styleUrls: ['./document-tag-update.component.less'],
-
+    selector: 'app-document-tag-update',
+    templateUrl: './document-tag-update.component.html',
+    styleUrls: ['./document-tag-update.component.less'],
+    standalone: false
 })
 export class DocumentTagUpdateComponent implements OnInit {
   dataloading = false;

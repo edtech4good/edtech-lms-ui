@@ -10,9 +10,10 @@ import { SubjectService } from 'src/app/services/subject.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-curriculum-create',
-  templateUrl: './curriculum-create.component.html',
-  styleUrls: ['./curriculum-create.component.less'],
+    selector: 'app-curriculum-create',
+    templateUrl: './curriculum-create.component.html',
+    styleUrls: ['./curriculum-create.component.less'],
+    standalone: false
 })
 export class CurriculumCreateComponent implements OnInit {
   dataloading = false

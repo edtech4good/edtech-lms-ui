@@ -9,9 +9,10 @@ import { NzUploadFile } from 'ng-zorro-antd/upload';
 import { FeedbackService } from 'src/app/services/feedback.service';
 
 @Component({
-  selector: 'app-feedback-create',
-  templateUrl: './feedback-create.component.html',
-  styleUrls: ['./feedback-create.component.less']
+    selector: 'app-feedback-create',
+    templateUrl: './feedback-create.component.html',
+    styleUrls: ['./feedback-create.component.less'],
+    standalone: false
 })
 export class FeedbackCreateComponent implements OnInit {
   file: Array<any> = [];

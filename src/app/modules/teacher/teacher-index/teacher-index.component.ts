@@ -15,9 +15,10 @@ import { TeacherService } from 'src/app/services/teacher.service';
 import { UtilService } from 'src/app/services/util.service';
 import { uploadTeachersValidationSchema } from 'src/app/services/validator.service';
 @Component({
-  selector: 'app-teacher-index',
-  templateUrl: './teacher-index.component.html',
-  styleUrls: ['./teacher-index.component.less'],
+    selector: 'app-teacher-index',
+    templateUrl: './teacher-index.component.html',
+    styleUrls: ['./teacher-index.component.less'],
+    standalone: false
 })
 export class TeacherIndexComponent implements OnInit {
   school$?: Observable<any>;

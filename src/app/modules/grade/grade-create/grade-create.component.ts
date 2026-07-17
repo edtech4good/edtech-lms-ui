@@ -9,9 +9,10 @@ import { GradeService } from 'src/app/services/grade.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-grade-create',
-  templateUrl: './grade-create.component.html',
-  styleUrls: ['./grade-create.component.less'],
+    selector: 'app-grade-create',
+    templateUrl: './grade-create.component.html',
+    styleUrls: ['./grade-create.component.less'],
+    standalone: false
 })
 export class GradeCreateComponent implements OnInit {
   dataloading = false;

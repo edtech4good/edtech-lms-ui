@@ -28,9 +28,10 @@ import { StudentService } from 'src/app/services/student.service';
 import saveAs from 'file-saver';
 
 @Component({
-  selector: 'app-class-level-quiz',
-  templateUrl: './level-quiz.component.html',
-  styleUrls: ['./level-quiz.component.less'],
+    selector: 'app-class-level-quiz',
+    templateUrl: './level-quiz.component.html',
+    styleUrls: ['./level-quiz.component.less'],
+    standalone: false
 })
 export class ClassLevelQuizComponent implements OnInit {
   dataloading = false;
@@ -173,7 +174,7 @@ export class ClassLevelQuizComponent implements OnInit {
     this.setupSearchLesson();
     this.setupSearchUser();
     this.route.queryParams.subscribe(p => {
-      this.online = (p.online === 'true') ?? false;
+      this.online = p.online === 'true';
       if(this.online) this.setperms();
     });
   }

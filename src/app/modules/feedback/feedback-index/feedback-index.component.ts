@@ -10,9 +10,10 @@ import { SchoolService } from 'src/app/services/school.service';
 import { teacherfeedback } from '../../report/models/Search.interface';
 
 @Component({
-  selector: 'app-feedback-index',
-  templateUrl: './feedback-index.component.html',
-  styleUrls: ['./feedback-index.component.less']
+    selector: 'app-feedback-index',
+    templateUrl: './feedback-index.component.html',
+    styleUrls: ['./feedback-index.component.less'],
+    standalone: false
 })
 export class FeedbackIndexComponent implements OnInit{
   dataloading = false;

@@ -10,10 +10,10 @@ import { UtilService } from 'src/app/services/util.service';
 import { Location } from '@angular/common';
 
 @Component({
-  selector: 'app-lesson-update',
-  templateUrl: './lesson-update.component.html',
-  styleUrls: ['./lesson-update.component.less'],
-
+    selector: 'app-lesson-update',
+    templateUrl: './lesson-update.component.html',
+    styleUrls: ['./lesson-update.component.less'],
+    standalone: false
 })
 export class LessonUpdateComponent implements OnInit {
   dataloading = false;

@@ -11,9 +11,10 @@ import { error } from 'console';
 import { throwError } from 'rxjs';
 
 @Component({
-  selector: 'app-role-index',
-  templateUrl: './role-index.component.html',
-  styleUrls: ['./role-index.component.less']
+    selector: 'app-role-index',
+    templateUrl: './role-index.component.html',
+    styleUrls: ['./role-index.component.less'],
+    standalone: false
 })
 export class RoleIndexComponent {
   dataLoading = false;

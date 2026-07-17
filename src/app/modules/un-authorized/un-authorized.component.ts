@@ -1,9 +1,10 @@
 import { Location } from '@angular/common';
 import { Component } from '@angular/core';
 @Component({
-  selector: 'app-un-authorized',
-  templateUrl: './un-authorized.component.html',
-  styleUrls: ['./un-authorized.component.less'],
+    selector: 'app-un-authorized',
+    templateUrl: './un-authorized.component.html',
+    styleUrls: ['./un-authorized.component.less'],
+    standalone: false
 })
 export class UnAuthorizedComponent {
   constructor(

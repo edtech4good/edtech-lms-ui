@@ -4,9 +4,10 @@ import { QuestionDistractor } from 'src/app/models/questiondistractor.model';
 import { UtilService } from 'src/app/services/util.service';
 import { v4 as uuidv4 } from 'uuid';
 @Component({
-  selector: 'app-question-distractor',
-  templateUrl: './question-distractor.component.html',
-  styleUrls: ['./question-distractor.component.less']
+    selector: 'app-question-distractor',
+    templateUrl: './question-distractor.component.html',
+    styleUrls: ['./question-distractor.component.less'],
+    standalone: false
 })
 export class QuestionDistractorComponent implements OnInit {
 

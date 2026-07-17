@@ -10,9 +10,10 @@ import { SubjectService } from 'src/app/services/subject.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-subject-create',
-  templateUrl: './subject-create.component.html',
-  styleUrls: ['./subject-create.component.less'],
+    selector: 'app-subject-create',
+    templateUrl: './subject-create.component.html',
+    styleUrls: ['./subject-create.component.less'],
+    standalone: false
 })
 export class SubjectCreateComponent implements OnInit {
   dataloading = false

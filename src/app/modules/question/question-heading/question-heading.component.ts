@@ -8,9 +8,10 @@ import { UtilService } from 'src/app/services/util.service';
 import { DocumentService } from '../../document/services/document.service';
 
 @Component({
-  selector: 'app-question-heading',
-  templateUrl: './question-heading.component.html',
-  styleUrls: ['./question-heading.component.less'],
+    selector: 'app-question-heading',
+    templateUrl: './question-heading.component.html',
+    styleUrls: ['./question-heading.component.less'],
+    standalone: false
 })
 export class QuestionHeadingComponent implements OnInit {
   public defaultOption: Array<any> = [];

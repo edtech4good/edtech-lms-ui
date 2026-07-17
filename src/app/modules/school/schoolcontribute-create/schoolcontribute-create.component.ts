@@ -8,9 +8,10 @@ import { SchoolService } from 'src/app/services/school.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-school-update-contribute',
-  templateUrl: './schoolcontribute-create.component.html',
-  styleUrls: ['./schoolcontribute-create.component.less']
+    selector: 'app-school-update-contribute',
+    templateUrl: './schoolcontribute-create.component.html',
+    styleUrls: ['./schoolcontribute-create.component.less'],
+    standalone: false
 })
 export class SchoolCreateContributeComponent implements OnInit {
   createForm!: UntypedFormGroup;

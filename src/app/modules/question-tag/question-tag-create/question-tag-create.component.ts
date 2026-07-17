@@ -7,9 +7,10 @@ import { QuestionTagService } from 'src/app/services/question-tag.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-question-tag-create',
-  templateUrl: './question-tag-create.component.html',
-  styleUrls: ['./question-tag-create.component.less']
+    selector: 'app-question-tag-create',
+    templateUrl: './question-tag-create.component.html',
+    styleUrls: ['./question-tag-create.component.less'],
+    standalone: false
 })
 export class QuestionTagCreateComponent implements OnInit {
   dataloading = false;

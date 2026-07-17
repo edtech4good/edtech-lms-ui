@@ -23,10 +23,11 @@ import { error } from 'console';
 import { errorMonitor } from 'events';
 import { pipe } from 'rxjs';
 @Component({
-  selector: 'app-question-index',
-  templateUrl: './question-index.component.html',
-  styleUrls: ['./question-index.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush,
+    selector: 'app-question-index',
+    templateUrl: './question-index.component.html',
+    styleUrls: ['./question-index.component.less'],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    standalone: false
 })
 export class QuestionIndexComponent implements OnInit, AfterContentInit {
   dataloading = false;

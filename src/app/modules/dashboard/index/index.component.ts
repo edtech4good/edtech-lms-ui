@@ -9,9 +9,10 @@ import { single, offlineOnlineData } from './charts-data/data1';
 import { ChartItemFormat, LineChartFormat } from './models/LineChartFormat';
 
 @Component({
-  selector: 'app-index',
-  templateUrl: './index.component.html',
-  styleUrls: ['./index.component.less']
+    selector: 'app-index',
+    templateUrl: './index.component.html',
+    styleUrls: ['./index.component.less'],
+    standalone: false
 })
 export class IndexComponent implements OnInit {
 

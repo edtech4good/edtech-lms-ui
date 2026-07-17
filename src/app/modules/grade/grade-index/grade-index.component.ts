@@ -6,9 +6,10 @@ import { IFilter, IPaging } from 'src/app/models/IPaging';
 import { GradeService } from 'src/app/services/grade.service';
 
 @Component({
-  selector: 'app-grade-index',
-  templateUrl: './grade-index.component.html',
-  styleUrls: ['./grade-index.component.less']
+    selector: 'app-grade-index',
+    templateUrl: './grade-index.component.html',
+    styleUrls: ['./grade-index.component.less'],
+    standalone: false
 })
 export class GradeIndexComponent {
   dataloading = false;

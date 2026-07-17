@@ -12,9 +12,10 @@ import { IPaging } from 'src/app/models/IPaging';
 import { BaseCurriculumService } from 'src/app/services/base-curriculum.service';
 
 @Component({
-  selector: 'app-baselinequestion-index',
-  templateUrl: './baselinequestion-index.component.html',
-  styleUrls: ['./baselinequestion-index.component.less']
+    selector: 'app-baselinequestion-index',
+    templateUrl: './baselinequestion-index.component.html',
+    styleUrls: ['./baselinequestion-index.component.less'],
+    standalone: false
 })
 export class BaselinequestionIndexComponent implements OnInit {
   dataloading = false;
@@ -204,7 +205,7 @@ export class BaselinequestionIndexComponent implements OnInit {
       clonecurriculumbaselineid: [null, [Validators.required]],
       baselinetype: [null, Validators.required],
     });
-    this.cloneForm.get('clonecurriculumbaselineid' ?? '')
+    this.cloneForm.get('clonecurriculumbaselineid')
     ?.setValue(this.baselineData.curriculumbaselineid);
     this.showModalCloneQuestion = true;
   };

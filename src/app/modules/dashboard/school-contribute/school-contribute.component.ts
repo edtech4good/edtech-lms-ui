@@ -10,9 +10,10 @@ import { CountryService } from 'src/app/services/country.service';
 import saveAs from 'file-saver';
 
 @Component({
-  selector: 'app-school-contribute',
-  templateUrl: './school-contribute.component.html',
-  styleUrls: ['./school-contribute.component.less']
+    selector: 'app-school-contribute',
+    templateUrl: './school-contribute.component.html',
+    styleUrls: ['./school-contribute.component.less'],
+    standalone: false
 })
 export class SchoolContributeComponent implements OnInit {
   school: any[] = [];

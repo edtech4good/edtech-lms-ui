@@ -10,9 +10,10 @@ import { RolePermService } from 'src/app/services/role-permission.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-role-update',
-  templateUrl: './role-update.component.html',
-  styleUrls: ['./role-update.component.less']
+    selector: 'app-role-update',
+    templateUrl: './role-update.component.html',
+    styleUrls: ['./role-update.component.less'],
+    standalone: false
 })
 export class RoleUpdateComponent implements OnInit {
   dataloading = false;

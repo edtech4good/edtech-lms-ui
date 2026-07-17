@@ -6,9 +6,10 @@ import { IFilter, IPaging } from 'src/app/models/IPaging';
 import { LevelService } from 'src/app/services/level.service';
 
 @Component({
-  selector: 'app-level-index',
-  templateUrl: './level-index.component.html',
-  styleUrls: ['./level-index.component.less']
+    selector: 'app-level-index',
+    templateUrl: './level-index.component.html',
+    styleUrls: ['./level-index.component.less'],
+    standalone: false
 })
 export class LevelIndexComponent {
   dataloading = false;

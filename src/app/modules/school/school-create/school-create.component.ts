@@ -10,9 +10,10 @@ import { SchoolService } from 'src/app/services/school.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-school-create',
-  templateUrl: './school-create.component.html',
-  styleUrls: ['./school-create.component.less'],
+    selector: 'app-school-create',
+    templateUrl: './school-create.component.html',
+    styleUrls: ['./school-create.component.less'],
+    standalone: false
 })
 export class SchoolCreateComponent implements OnInit {
   dataloading = false;

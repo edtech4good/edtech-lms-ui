@@ -8,9 +8,10 @@ import { UtilService } from 'src/app/services/util.service';
 import { DocumentService } from '../../document/services/document.service';
 import { QuestionAssociateComponent } from '../question-associate/question-associate.component';
 @Component({
-  selector: 'app-question-option',
-  templateUrl: './question-option.component.html',
-  styleUrls: ['./question-option.component.less'],
+    selector: 'app-question-option',
+    templateUrl: './question-option.component.html',
+    styleUrls: ['./question-option.component.less'],
+    standalone: false
 })
 export class QuestionOptionComponent implements OnInit {
   @ViewChild('questionAssociate')

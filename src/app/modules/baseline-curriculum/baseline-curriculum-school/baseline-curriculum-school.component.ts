@@ -7,9 +7,10 @@ import { SchoolService } from 'src/app/services/school.service';
 import { parse } from 'date-fns';
 
 @Component({
-  selector: 'app-baseline-curriculum-school',
-  templateUrl: './baseline-curriculum-school.component.html',
-  styleUrls: ['./baseline-curriculum-school.component.less']
+    selector: 'app-baseline-curriculum-school',
+    templateUrl: './baseline-curriculum-school.component.html',
+    styleUrls: ['./baseline-curriculum-school.component.less'],
+    standalone: false
 })
 export class BaselineCurriculumSchoolComponent implements OnInit {
   baselineSchoolid: any;

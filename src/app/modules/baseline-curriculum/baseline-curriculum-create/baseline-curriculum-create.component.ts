@@ -12,9 +12,10 @@ import { SchoolService } from 'src/app/services/school.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-baseline-curriculum-create',
-  templateUrl: './baseline-curriculum-create.component.html',
-  styleUrls: ['./baseline-curriculum-create.component.less'],
+    selector: 'app-baseline-curriculum-create',
+    templateUrl: './baseline-curriculum-create.component.html',
+    styleUrls: ['./baseline-curriculum-create.component.less'],
+    standalone: false
 })
 export class BaselineCurriculumCreateComponent implements OnInit {
   dataloading = false;

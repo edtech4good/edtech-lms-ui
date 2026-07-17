@@ -28,9 +28,10 @@ import { StudentService } from 'src/app/services/student.service';
 import { studentlessonprogresssearch } from '../../models/Search.interface';
 
 @Component({
-  selector: 'app-student-lesson-progress',
-  templateUrl: './lesson.component.html',
-  styleUrls: ['./lesson.component.less'],
+    selector: 'app-student-lesson-progress',
+    templateUrl: './lesson.component.html',
+    styleUrls: ['./lesson.component.less'],
+    standalone: false
 })
 export class StudentLessonProgressComponent implements OnInit {
   dataloading = false;
@@ -156,7 +157,7 @@ export class StudentLessonProgressComponent implements OnInit {
     this.setupSearchGrade();
     this.setupSearchLevel();
     this.route.queryParams.subscribe(p => {
-      this.online = (p.online === 'true') ?? false;
+      this.online = p.online === 'true';
     });
   }
 

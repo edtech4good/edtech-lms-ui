@@ -8,9 +8,10 @@ import { LessonQuizService } from 'src/app/services/lesson.quiz.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-lesson-quiz',
-  templateUrl: './lesson-quiz.component.html',
-  styleUrls: ['./lesson-quiz.component.less'],
+    selector: 'app-lesson-quiz',
+    templateUrl: './lesson-quiz.component.html',
+    styleUrls: ['./lesson-quiz.component.less'],
+    standalone: false
 })
 export class LessonQuizComponent implements OnInit {
   dataloading = false;

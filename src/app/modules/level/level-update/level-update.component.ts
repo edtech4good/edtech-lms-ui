@@ -9,10 +9,10 @@ import { LevelService } from 'src/app/services/level.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-level-update',
-  templateUrl: './level-update.component.html',
-  styleUrls: ['./level-update.component.less'],
-
+    selector: 'app-level-update',
+    templateUrl: './level-update.component.html',
+    styleUrls: ['./level-update.component.less'],
+    standalone: false
 })
 export class LevelUpdateComponent implements OnInit {
   dataloading = false;

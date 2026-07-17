@@ -10,9 +10,10 @@ import { UtilService } from 'src/app/services/util.service';
 import { uploadStudentsValidationSchema } from 'src/app/services/validator.service';
 
 @Component({
-  selector: 'app-login',
-  templateUrl: './login.component.html',
-  styleUrls: ['./login.component.less'],
+    selector: 'app-login',
+    templateUrl: './login.component.html',
+    styleUrls: ['./login.component.less'],
+    standalone: false
 })
 export class LoginComponent implements OnInit {
   changePasswordisVisible = false;

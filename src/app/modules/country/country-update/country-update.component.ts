@@ -7,9 +7,10 @@ import { CountryService } from 'src/app/services/country.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-country-update',
-  templateUrl: './country-update.component.html',
-  styleUrls: ['./country-update.component.less']
+    selector: 'app-country-update',
+    templateUrl: './country-update.component.html',
+    styleUrls: ['./country-update.component.less'],
+    standalone: false
 })
 export class CountryUpdateComponent implements OnInit {
   dataloading = false;

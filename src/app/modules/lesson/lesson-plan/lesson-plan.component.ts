@@ -20,9 +20,10 @@ import { DocumentService } from '../../document/services/document.service';
 import { LessonPlanService } from 'src/app/services/lesson.plan.service';
 
 @Component({
-  selector: 'app-lesson-plan',
-  templateUrl: './lesson-plan.component.html',
-  styleUrls: ['./lesson-plan.component.less'],
+    selector: 'app-lesson-plan',
+    templateUrl: './lesson-plan.component.html',
+    styleUrls: ['./lesson-plan.component.less'],
+    standalone: false
 })
 export class LessonPlanComponent implements OnInit {
   dataloading = false;

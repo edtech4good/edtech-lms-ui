@@ -18,10 +18,11 @@ import { appState } from 'src/app/store/appstate/appstate.reducer';
 import { DocumentService } from '../services/document.service';
 import { environment } from "./../../../../environments/environment";
 @Component({
-  selector: 'app-document-index',
-  templateUrl: './document-index.component.html',
-  styleUrls: ['./document-index.component.less'],
-  changeDetection: ChangeDetectionStrategy.OnPush
+    selector: 'app-document-index',
+    templateUrl: './document-index.component.html',
+    styleUrls: ['./document-index.component.less'],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    standalone: false
 })
 export class DocumentIndexComponent implements OnInit, AfterContentInit {
   dataloading = false;

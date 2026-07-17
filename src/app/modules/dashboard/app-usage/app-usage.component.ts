@@ -8,9 +8,10 @@ import { ReportService } from 'src/app/services/report.service';
 import { ChartItemFormat, LineChartFormat } from './models/LineChartFormat';
 
 @Component({
-  selector: 'app-appusage-dashboard',
-  templateUrl: './app-usage.component.html',
-  styleUrls: ['./app-usage.component.less']
+    selector: 'app-appusage-dashboard',
+    templateUrl: './app-usage.component.html',
+    styleUrls: ['./app-usage.component.less'],
+    standalone: false
 })
 export class AppUsageComponent implements OnInit {
 

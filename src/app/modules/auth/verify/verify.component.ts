@@ -5,9 +5,10 @@ import { first } from 'rxjs/operators';
 import { AuthService } from 'src/app/services/auth.service';
 
 @Component({
-  selector: 'app-verify',
-  templateUrl: './verify.component.html',
-  styleUrls: ['./verify.component.less']
+    selector: 'app-verify',
+    templateUrl: './verify.component.html',
+    styleUrls: ['./verify.component.less'],
+    standalone: false
 })
 export class VerifyComponent implements OnInit {
 

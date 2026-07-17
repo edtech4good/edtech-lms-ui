@@ -9,9 +9,10 @@ import { LevelService } from 'src/app/services/level.service';
 import { UtilService } from 'src/app/services/util.service';
 
 @Component({
-  selector: 'app-level-create',
-  templateUrl: './level-create.component.html',
-  styleUrls: ['./level-create.component.less']
+    selector: 'app-level-create',
+    templateUrl: './level-create.component.html',
+    styleUrls: ['./level-create.component.less'],
+    standalone: false
 })
 export class LevelCreateComponent implements OnInit {
   dataloading = false;
