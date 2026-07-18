@@ -3,7 +3,6 @@ import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzAnchorModule } from 'ng-zorro-antd/anchor';
 import { NzAutocompleteModule } from 'ng-zorro-antd/auto-complete';
 import { NzAvatarModule } from 'ng-zorro-antd/avatar';
-import { NzBackTopModule } from 'ng-zorro-antd/back-top';
 import { NzBadgeModule } from 'ng-zorro-antd/badge';
 import { NzBreadCrumbModule } from 'ng-zorro-antd/breadcrumb';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -14,7 +13,7 @@ import { NzCascaderModule } from 'ng-zorro-antd/cascader';
 import { NzCheckboxModule } from 'ng-zorro-antd/checkbox';
 import { NzCollapseModule } from 'ng-zorro-antd/collapse';
 import { NzCommentModule } from 'ng-zorro-antd/comment';
-import { NzNoAnimationModule } from 'ng-zorro-antd/core/no-animation';
+import { NzNoAnimationModule } from 'ng-zorro-antd/core/animation';
 import { NzTransButtonModule } from 'ng-zorro-antd/core/trans-button';
 import { NzWaveModule } from 'ng-zorro-antd/core/wave';
 import { NzDatePickerModule } from 'ng-zorro-antd/date-picker';
@@ -55,7 +54,7 @@ import { NzTabsModule } from 'ng-zorro-antd/tabs';
 import { NzTagModule } from 'ng-zorro-antd/tag';
 import { NzTimePickerModule } from 'ng-zorro-antd/time-picker';
 import { NzTimelineModule } from 'ng-zorro-antd/timeline';
-import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
+import { NzTooltipModule } from 'ng-zorro-antd/tooltip';
 import { NzTransferModule } from 'ng-zorro-antd/transfer';
 import { NzTreeModule } from 'ng-zorro-antd/tree';
 import { NzTreeSelectModule } from 'ng-zorro-antd/tree-select';
@@ -70,7 +69,6 @@ export const SHARED_ZORRO_MODULES = [
   NzAnchorModule,
   NzAutocompleteModule,
   NzAvatarModule,
-  NzBackTopModule,
   NzBadgeModule,
   NzButtonModule,
   NzBreadCrumbModule,
@@ -119,7 +117,7 @@ export const SHARED_ZORRO_MODULES = [
   NzTagModule,
   NzTimePickerModule,
   NzTimelineModule,
-  NzToolTipModule,
+  NzTooltipModule,
   NzTransButtonModule,
   NzTransferModule,
   NzTreeModule,

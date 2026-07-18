@@ -1,4 +1,4 @@
-<nz-tabset nzType="card" [nzSelectedIndex]="selectTab">
+<nz-tabs nzType="card" [nzSelectedIndex]="selectTab">
   <nz-tab [nzTitle]="'List Students Tab'">
     <div nz-row>
       <div nz-col nzSpan="24">
@@ -273,7 +273,7 @@
       </div>
     </nz-tab>
   </ng-template>
-</nz-tabset>
+</nz-tabs>
 <ng-template #totalTemplate> Total : {{ total }} </ng-template>
 <nz-modal
   [(nzVisible)]="showUpload"
