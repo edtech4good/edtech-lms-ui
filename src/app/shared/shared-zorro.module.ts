@@ -33,9 +33,7 @@ import { NzLayoutModule } from 'ng-zorro-antd/layout';
 import { NzListModule } from 'ng-zorro-antd/list';
 import { NzMentionModule } from 'ng-zorro-antd/mention';
 import { NzMenuModule } from 'ng-zorro-antd/menu';
-import { NzMessageModule } from 'ng-zorro-antd/message';
 import { NzModalModule } from 'ng-zorro-antd/modal';
-import { NzNotificationModule } from 'ng-zorro-antd/notification';
 import { NzPageHeaderModule } from 'ng-zorro-antd/page-header';
 import { NzPaginationModule } from 'ng-zorro-antd/pagination';
 import { NzPopconfirmModule } from 'ng-zorro-antd/popconfirm';
@@ -99,10 +97,8 @@ export const SHARED_ZORRO_MODULES = [
   NzListModule,
   NzMentionModule,
   NzMenuModule,
-  NzMessageModule,
   NzModalModule,
   NzNoAnimationModule,
-  NzNotificationModule,
   NzPageHeaderModule,
   NzPaginationModule,
   NzPopconfirmModule,
