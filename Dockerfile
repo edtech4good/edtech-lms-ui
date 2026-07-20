@@ -10,7 +10,9 @@ COPY package*.json /app/
 RUN npm install --legacy-peer-deps
 COPY . /app
 ARG configuration=production
-RUN npm run build -- --outputPath=./dist/out --configuration $configuration
+# --output-path (kebab): Angular 21's CLI rejects the old camelCase --outputPath
+# ("Unknown argument: outputPath").
+RUN npm run build -- --output-path=./dist/out --configuration $configuration
 # Stage 2, use the compiled app, ready for production with Nginx
 FROM nginx
 COPY --from=build /app/dist/out/ /usr/share/nginx/html
