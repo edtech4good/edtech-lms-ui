@@ -1,8 +1,13 @@
 # Stage 1: Build an Angular Docker Image
-FROM node as build
+# Pin Node — unpinned `FROM node` pulled Node 26 on a clean host and broke the
+# build. Angular 21 supports Node 20 LTS.
+FROM node:20 as build
 WORKDIR /app
 COPY package*.json /app/
-RUN npm install
+# --legacy-peer-deps: the ladder upgrade moved @angular/cli to 21 while
+# @angular-eslint/schematics is still 16 (peer-wants cli 16), so strict npm (v7+)
+# fails to resolve. eslint is dev-only tooling and unused in the prod build.
+RUN npm install --legacy-peer-deps
 COPY . /app
 ARG configuration=production
 RUN npm run build -- --outputPath=./dist/out --configuration $configuration
