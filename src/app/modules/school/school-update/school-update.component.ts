@@ -34,6 +34,7 @@ export class SchoolUpdateComponent implements OnInit {
           schoolname: this.editForm.getRawValue()['schoolname'],
           countryid: this.editForm.getRawValue()['countryid'],
           curriculums: this.editForm.getRawValue()['curriculums'],
+          uitheme: this.editForm.getRawValue()['uitheme'],
           schoolid: this.school.schoolid
         })
         .pipe(first())
@@ -82,6 +83,7 @@ export class SchoolUpdateComponent implements OnInit {
       schoolname: [null, [Validators.required]],
       countryid: [null, [Validators.required]],
       curriculums: [null, [Validators.required]],
+      uitheme: ['kids'],
     });
     // load all country
     this.country$ = this.countryService.getall({ pagesize: 200 }).pipe(
@@ -132,6 +134,9 @@ export class SchoolUpdateComponent implements OnInit {
           this.editForm
             .get('curriculums')
             ?.setValue(this.school.curriculums);
+          this.editForm
+            .get('uitheme')
+            ?.setValue(this.school.uitheme ?? 'kids');
         }
       },
       (error ) => {

@@ -35,6 +35,7 @@ export class SchoolService {
         schoolname: school.schoolname,
         countryid: school.countryid,
         curriculums: school.curriculums,
+        uitheme: school.uitheme,
       },
       this.coreService.jsonhttpOptions
     );

@@ -49,6 +49,18 @@
               <ng-template #tagPlaceHolder let-selectedList>and {{ selectedList.length }} more selected</ng-template>
             </nz-form-control>
           </nz-form-item>
+          <nz-form-item>
+            <nz-form-label [nzSm]="6" [nzXs]="24" nzFor="uitheme">UI theme</nz-form-label>
+            <nz-form-control>
+              <nz-select
+                formControlName="uitheme"
+                nzPlaceHolder="Select UI theme"
+              >
+                <nz-option [nzLabel]="'Kids'" [nzValue]="'kids'"></nz-option>
+                <nz-option [nzLabel]="'Corporate'" [nzValue]="'corporate'"></nz-option>
+              </nz-select>
+            </nz-form-control>
+          </nz-form-item>
 
           <button
             nz-button style="float: right;"
