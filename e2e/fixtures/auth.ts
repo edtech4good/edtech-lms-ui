@@ -1,6 +1,6 @@
 import { APIRequestContext, Page, expect, request } from '@playwright/test';
-import { SUPERADMIN } from './accounts';
-import { API_URL } from './env';
+import { DEMO_STUDENT, SUPERADMIN } from './accounts';
+import { API_URL, RPI_API_URL } from './env';
 
 /**
  * Log in through the real form. Playwright's storageState only captures cookies
@@ -48,6 +48,32 @@ export function jwtClaims(token: string): Record<string, unknown> {
 export async function apiContext(token: string): Promise<APIRequestContext> {
   return request.newContext({
     baseURL: API_URL,
+    extraHTTPHeaders: { Authorization: `Bearer ${token}` },
+  });
+}
+
+/**
+ * A token from the rpi (student) API, for assertions that do not need a
+ * browser. The student login shape is different from staff login: different
+ * body fields, and the token comes back at a different path.
+ */
+export async function rpiApiLogin(
+  username: string = DEMO_STUDENT.username,
+  password: string = DEMO_STUDENT.password,
+): Promise<string> {
+  const ctx = await request.newContext();
+  const res = await ctx.post(`${RPI_API_URL}/auth/login`, {
+    data: { studentusername: username, studentpassword: password, logintime: '0' },
+  });
+  expect(res.ok(), `rpi login failed for ${username}: ${res.status()}`).toBeTruthy();
+  const body = await res.json();
+  await ctx.dispose();
+  return body.data.accessToken;
+}
+
+export async function rpiApiContext(token: string): Promise<APIRequestContext> {
+  return request.newContext({
+    baseURL: RPI_API_URL,
     extraHTTPHeaders: { Authorization: `Bearer ${token}` },
   });
 }
