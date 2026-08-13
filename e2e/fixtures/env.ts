@@ -4,3 +4,4 @@
  */
 export const BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:4200';
 export const API_URL = process.env.E2E_API_URL ?? 'http://localhost:3000';
+export const RPI_API_URL = process.env.E2E_RPI_API_URL ?? 'http://localhost:3001';
