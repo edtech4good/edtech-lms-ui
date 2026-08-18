@@ -65,15 +65,15 @@ export class SyncRecordComponent {
     if (this.searchValue.length > 0) {
       await this.loadDataFromServer({
         filter: [
-          ...this.filter.filter((x) => x.key !== 'standardname'),
-          ...[{ key: 'standardname', value: this.searchValue }],
+          ...this.filter.filter((x) => x.key !== 'filename'),
+          ...[{ key: 'filename', value: this.searchValue }],
         ],
         pageindex: this.pageIndex,
         pagesize: this.pageSize,
       });
     } else {
       await this.loadDataFromServer({
-        filter: this.filter.filter((x) => x.key !== 'standardname'),
+        filter: this.filter.filter((x) => x.key !== 'filename'),
         pageindex: this.pageIndex,
         pagesize: this.pageSize,
       });
