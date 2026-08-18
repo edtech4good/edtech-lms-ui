@@ -19,6 +19,16 @@
       >
         <thead>
           <tr>
+            <th nzColumnKey="filename" nzCustomFilter>
+              File Name
+              <nz-filter-trigger
+                [(nzVisible)]="visible"
+                [nzActive]="searchValue.length > 0"
+                [nzDropdownMenu]="menu"
+              >
+                <i nz-icon nzType="search"></i>
+              </nz-filter-trigger>
+            </th>
             <th nzColumnKey="Country">Country</th>
             <th nzColumnKey="">School Name</th>
             <th nzColumnKey="">Last Sync</th>
@@ -26,6 +36,7 @@
         </thead>
         <tbody>
           <tr *ngFor="let data of syncrecord$ | async">
+            <td>{{ data.filename }}</td>
             <td>{{ data.schooluser.school?.countries?.countryname ?? 'N/A' }}</td>
             <td>{{ data.schooluser.schoolname }}</td>
             <td>{{ data.created_at | date:'medium' }}</td>
