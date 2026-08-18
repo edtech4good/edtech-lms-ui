@@ -17,6 +17,12 @@ import { API_URL, BASE_URL } from './e2e/fixtures/env';
  */
 export default defineConfig({
   testDir: './e2e',
+  // e2e/expo-smoke is a separate suite (playwright.expo.config.ts) against a
+  // different app (edtech-expo) on a different port — it needs its own
+  // baseURL/account model and must not run as part of `npm run e2e`, which
+  // this repo's Angular stack backs. Without this, testDir: './e2e' would
+  // silently pick it up too.
+  testIgnore: '**/expo-smoke/**',
   // The API is shared mutable state and several specs create and delete rows in
   // it. Serial keeps failures readable; the suite is small enough not to care.
   fullyParallel: false,
