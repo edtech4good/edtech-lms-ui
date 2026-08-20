@@ -88,6 +88,8 @@ export class QuestionUpdateComponent implements OnInit {
         ],
       ],
       questioncorrectvalue: [0, [Validators.required, Validators.min(0)]],
+      questionfeedbackcorrect: [null, [Validators.maxLength(500)]],
+      questionfeedbackincorrect: [null, [Validators.maxLength(500)]],
     });
     if ((questionid || '')?.trim().length <= 0) {
       this.notification.create('error', 'error', 'Invalid link');
@@ -146,8 +148,12 @@ export class QuestionUpdateComponent implements OnInit {
           this.questionForm
             .get('questioncorrectvalue')
             ?.setValue(this.question.questioncorrectvalue);
-
-            this.questionForm.get
+          this.questionForm
+            .get('questionfeedbackcorrect')
+            ?.setValue(this.question.questionfeedback?.correctmessage ?? null);
+          this.questionForm
+            .get('questionfeedbackincorrect')
+            ?.setValue(this.question.questionfeedback?.incorrectmessage ?? null);
         }
       },
       (error) => {
@@ -291,6 +297,10 @@ export class QuestionUpdateComponent implements OnInit {
         ...tempquestion,
         ...tempquestionForm,
       };
+      const fbCorrect = this.questionForm.controls['questionfeedbackcorrect']?.value?.trim() || null;
+      const fbIncorrect = this.questionForm.controls['questionfeedbackincorrect']?.value?.trim() || null;
+      tempquestion!.questionfeedback = (fbCorrect || fbIncorrect) ? { correctmessage: fbCorrect, incorrectmessage: fbIncorrect } : null;
+      delete (tempquestion as any).questionfeedbackcorrect; delete (tempquestion as any).questionfeedbackincorrect;
       if (tempquestion) {
         if (this.questionHeading) {
           let tempquestionHeading = this.questionHeading.getFormValue();
