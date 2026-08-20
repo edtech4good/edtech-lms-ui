@@ -60,7 +60,27 @@ export const KM = {
   incorrectButton: 'សូមព្យាយាមម្តងទៀត', // screen.practice.incorrectButton
   correctTitle: 'អបអរសាទរ!', // screen.practice.correctTitle
   incorrectTitle: 'អូទេ!', // screen.practice.incorrectTitle
+  // Generic ResultPopUp body copy (screen.practice.correctMessage /
+  // incorrectMessage) — what a learner sees when the answered question has
+  // no questionfeedback of its own. ResultPopUp.tsx only reaches these when
+  // customMessages is undefined or its corresponding field is falsy.
+  genericCorrectMessage: 'ល្អណាស់!', // screen.practice.correctMessage
+  genericIncorrectMessage: 'ចម្លើយរបស់អ្នកមិនត្រឹមត្រូវទេ', // screen.practice.incorrectMessage
   resultHeader: 'លទ្ធផល', // screen.result.header
+} as const;
+
+/**
+ * questionfeedback seeded onto exactly one DCRS question (q1 — "Which of
+ * these is a sign of running a business with no plan?", the single question
+ * behind both lesson 1's practice AND its quiz) by both
+ * edtech-lms-api/scripts/seed-dcrs-content.js and
+ * edtech-lms-rpi-api/scripts/seed-dcrs-content.js (kept in lockstep — see
+ * comments there). Copied verbatim, not hand-typed a second time, so a typo
+ * in one place cannot silently pass against a typo in the other.
+ */
+export const Q1_FEEDBACK = {
+  correctMessage: 'ល្អណាស់! អ្នកយល់ច្បាស់ហើយ។',
+  incorrectMessage: 'សាកល្បងម្តងទៀត ហើយពិនិត្យមេរៀនឡើងវិញ។',
 } as const;
 
 /** Matches whichever of the two ResultPopUp buttons is currently showing. */
@@ -99,20 +119,24 @@ export async function loginViaExpoUi(
 
 /**
  * Drives the corporate DCRS drilldown from an already-logged-in home screen
- * (CORPORATE_STUDENT / miv.verify) down to the lesson activity list:
- * curriculum → grade → module → first lesson. The card titles below are the
- * fixed `npm run seed:dcrs` content (edtech-lms-rpi-api) that miv.verify's
- * school is seeded with — confirmed against the running dev stack, not
- * guessed. Every card on the way is a role="button" wrapping its title
- * text.
+ * (CORPORATE_STUDENT / miv.verify) down to a lesson's activity list:
+ * curriculum → grade → module → lesson. `lessonTitle` matches the lesson
+ * card by substring — defaults to lesson 1 ("Why direction matters"), the
+ * original and still most-used target. The card titles are the fixed
+ * `npm run seed:dcrs` content (edtech-lms-rpi-api) that miv.verify's school
+ * is seeded with — confirmed against the running dev stack, not guessed.
+ * Every card on the way is a role="button" wrapping its title text.
  */
-export async function goToFirstDcrsLessonActivities(page: Page): Promise<void> {
+export async function goToFirstDcrsLessonActivities(
+  page: Page,
+  lessonTitle = 'Why direction matters',
+): Promise<void> {
   await page.getByRole('button').filter({ hasText: 'DCRS' }).first().click();
   await page.getByRole('button').filter({ hasText: 'Cohort II' }).first().click();
   await page.getByRole('button').filter({ hasText: 'Module 1' }).first().click();
   await page
     .getByRole('button')
-    .filter({ hasText: 'Why direction matters' })
+    .filter({ hasText: lessonTitle })
     .first()
     .click();
   await expect(page.getByRole('heading', { name: KM.lessonHeader })).toBeVisible();

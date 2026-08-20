@@ -72,6 +72,46 @@
             <nz-form-label
               [nzSm]="6"
               [nzXs]="24"
+              nzFor="questionfeedbackcorrect"
+              >Correct Feedback</nz-form-label
+            >
+            <nz-form-control
+              nzExtra="Optional. Shown to the learner after a correct answer. Maximum 500 characters."
+            >
+              <textarea
+                nz-input
+                maxlength="500"
+                style="resize: none"
+                rows="3"
+                formControlName="questionfeedbackcorrect"
+                placeholder="Enter correct-answer feedback"
+              ></textarea>
+            </nz-form-control>
+          </nz-form-item>
+          <nz-form-item>
+            <nz-form-label
+              [nzSm]="6"
+              [nzXs]="24"
+              nzFor="questionfeedbackincorrect"
+              >Incorrect Feedback</nz-form-label
+            >
+            <nz-form-control
+              nzExtra="Optional. Shown after a wrong answer — write it to fit ANY wrong choice. Maximum 500 characters."
+            >
+              <textarea
+                nz-input
+                maxlength="500"
+                style="resize: none"
+                rows="3"
+                formControlName="questionfeedbackincorrect"
+                placeholder="Enter incorrect-answer feedback"
+              ></textarea>
+            </nz-form-control>
+          </nz-form-item>
+          <nz-form-item>
+            <nz-form-label
+              [nzSm]="6"
+              [nzXs]="24"
               nzRequired
               nzFor="questionfile"
               >Question File</nz-form-label

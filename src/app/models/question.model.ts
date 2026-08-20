@@ -16,4 +16,5 @@ export class Question {
   questionstatus: boolean = true;
   questiontags: Array<string> = [];
   questioncorrectvalue: number = 0;
+  questionfeedback?: { correctmessage: string | null; incorrectmessage: string | null } | null;
 }

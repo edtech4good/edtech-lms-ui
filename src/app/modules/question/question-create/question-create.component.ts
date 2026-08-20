@@ -89,6 +89,8 @@ export class QuestionCreateComponent implements OnInit {
         ],
       ],
       questioncorrectvalue: [0, [Validators.required, Validators.min(0)]],
+      questionfeedbackcorrect: [null, [Validators.maxLength(500)]],
+      questionfeedbackincorrect: [null, [Validators.maxLength(500)]],
     });
     this.templatetypes = await this.dropdownService
       .gettemplatetype()
@@ -244,6 +246,10 @@ export class QuestionCreateComponent implements OnInit {
         ...tempquestionForm,
         questioncorrectvalue: this.questionForm.controls['questioncorrectvalue']?.value
       };
+      const fbCorrect = this.questionForm.controls['questionfeedbackcorrect']?.value?.trim() || null;
+      const fbIncorrect = this.questionForm.controls['questionfeedbackincorrect']?.value?.trim() || null;
+      tempquestion!.questionfeedback = (fbCorrect || fbIncorrect) ? { correctmessage: fbCorrect, incorrectmessage: fbIncorrect } : null;
+      delete (tempquestion as any).questionfeedbackcorrect; delete (tempquestion as any).questionfeedbackincorrect;
       if (tempquestion) {
         if (this.questionHeading) {
           let tempquestionHeading = this.questionHeading.getFormValue();
