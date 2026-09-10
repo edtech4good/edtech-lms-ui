@@ -82,6 +82,20 @@
  *     form's password input visible again. Must run last — every other
  *     test in this file assumes an already-logged-in session and navigates
  *     via tab-home.
+ *
+ *     Also guards src/redux/slices/AuthenticationSlice.ts's `clearAllData`
+ *     reducer and useAuth.logout (edtech-expo): before that reducer existed,
+ *     AuthenticationSlice had no extraReducers case for clearAllData at all,
+ *     so logout's dispatch(clearAllData()) never touched this slice — the
+ *     accessToken and profile redux-persist had already written to
+ *     localStorage['persist:root'] survived the sign-out, and the next
+ *     learner to open the app on that device inherited the previous
+ *     learner's session. The URL/password-input assertions above passed
+ *     under that bug too (router.replace('/login') ran regardless), so this
+ *     test reads persist:root directly: a non-empty accessToken is asserted
+ *     *before* the logout click (so the after-check below cannot pass
+ *     vacuously against a session that was never actually persisted), and
+ *     an empty accessToken with no profile is asserted after.
  */
 import { test, expect, Page, ConsoleMessage } from '@playwright/test';
 import {
@@ -92,6 +106,28 @@ import {
 } from './fixtures';
 
 test.describe.configure({ mode: 'serial' });
+
+/**
+ * Reads the persisted authentication slice straight out of the web build's
+ * redux-persist storage. Store.ts's persistConfig (edtech-expo/src/redux/
+ * Store.ts) whitelists `authentication` under storage key `root`, and
+ * @react-native-async-storage/async-storage's web shim backs AsyncStorage
+ * with plain window.localStorage — so the persisted blob lives at
+ * localStorage['persist:root'], itself a JSON object whose `authentication`
+ * value is a second JSON string (redux-persist stringifies each whitelisted
+ * slice separately). Returns null if nothing has been persisted yet.
+ */
+async function readPersistedAuth(
+  page: Page,
+): Promise<{ accessToken?: string; profile?: unknown } | null> {
+  return page.evaluate(() => {
+    const raw = window.localStorage.getItem('persist:root');
+    if (!raw) return null;
+    const root = JSON.parse(raw) as Record<string, string>;
+    if (!root.authentication) return null;
+    return JSON.parse(root.authentication);
+  });
+}
 
 test.describe('expo web phone learner path (corporate / DCRS)', () => {
   let page: Page;
@@ -255,6 +291,15 @@ test.describe('expo web phone learner path (corporate / DCRS)', () => {
     // detour through tab-home first.
     await page.locator('[data-testid="tab-profile"]').click();
 
+    // Sanity check, not the regression assertion itself: confirms this
+    // session actually persisted a real token before logout, so the
+    // post-logout check below (accessToken === '') cannot pass vacuously
+    // against a session that was never written to persist:root in the
+    // first place.
+    const before = await readPersistedAuth(page);
+    expect(typeof before?.accessToken).toBe('string');
+    expect(before!.accessToken!.length).toBeGreaterThan(0);
+
     await page.getByRole('button', { name: KM.logout }).click();
 
     // LogoutButton.tsx's onPress calls useAuth's logout(), which clears
@@ -265,5 +310,19 @@ test.describe('expo web phone learner path (corporate / DCRS)', () => {
     await page.waitForURL(/\/login/, { timeout: 15_000 });
     expect(page.url()).not.toMatch(/\/home/);
     await expect(page.locator('input[type="password"]').first()).toBeVisible();
+
+    // See header comment (f): the URL/password-input assertions above would
+    // have passed even under the pre-fix bug, since router.replace('/login')
+    // ran regardless of whether the auth slice actually cleared. This is the
+    // assertion that actually catches that bug. redux-persist's write-back
+    // to localStorage isn't synchronous with the URL change, so poll rather
+    // than reading persist:root exactly once.
+    await expect
+      .poll(async () => (await readPersistedAuth(page))?.accessToken, {
+        timeout: 10_000,
+      })
+      .toBe('');
+    const after = await readPersistedAuth(page);
+    expect(after?.profile).toBeUndefined();
   });
 });
