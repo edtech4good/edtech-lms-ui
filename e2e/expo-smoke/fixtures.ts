@@ -50,6 +50,14 @@ export const KM = {
   loginButton: 'ចូលគណនី', // screen.login.loginButton
   ok: 'អូខេ', // button.ok
   logout: 'ចាកចេញ', // drawer.logout
+  // The corporate phone tab bar's profile/index Tabs.Screen
+  // ((app)/(home)/_layout.tsx) sets title: t('drawer.profile') as its
+  // static nav option, but StudentProfileScreen.tsx immediately overrides
+  // that at mount via navigation.setOptions({ title: t('screen.profile
+  // .header') }) — confirmed live (mutating the Tabs.Screen's own title had
+  // no visible effect). screen.profile.header is what actually renders;
+  // it is coincidentally the same Khmer string as drawer.profile.
+  profileHeader: 'ប្រវត្តិរូប', // screen.profile.header
   subjectGreeting: 'អរុណសួស្តី', // screen.subject.greeting
   lessonHeader: 'លំហាត់', // screen.lesson.header
   learningTitle: 'សិក្សា', // screen.lesson.learningTitle
