@@ -65,6 +65,23 @@
  *     `playerHeight = isPortrait ? Math.round((width * 9) / 16) : height`
  *     branch: in phone portrait the video must be a full-width 16:9 box,
  *     not the full-window player landscape/tablet gets.
+ *
+ *  e) 'profile tab navigates and comes back' (continued, same test) also
+ *     guards app/(app)/(home)/_layout.tsx's Tabs branch `headerRight`
+ *     (src/components/ui/LogoutButton.tsx): the phone shell has no
+ *     drawer/rail, so the Profile tab's header is the only place a logout
+ *     control can live — without it a learner on a phone cannot sign out at
+ *     all. Asserts the button (AppIconButton, testID="logout-button",
+ *     accessibilityRole="button", label KM.logout / drawer.logout) is both
+ *     visible and actually sits in the header (y < 100 at 390x844), not
+ *     buried somewhere else in the screen.
+ *
+ *  f) 'logout signs the learner out' — the actual click-through for (e),
+ *     kept as its own final test because logging out ends the session:
+ *     tapping the button must land on /login (not /home) with the login
+ *     form's password input visible again. Must run last — every other
+ *     test in this file assumes an already-logged-in session and navigates
+ *     via tab-home.
  */
 import { test, expect, Page, ConsoleMessage } from '@playwright/test';
 import {
@@ -113,16 +130,14 @@ test.describe('expo web phone learner path (corporate / DCRS)', () => {
 
     // expo-router logs exactly this when a Tabs.Screen/Drawer.Screen name
     // doesn't match a real route — the kind of mistake a shell-swap
-    // refactor invites. Excludes one pre-existing, unrelated warning
-    // (confirmed live, present before and unrelated to this feature: the
-    // root layout's own "(teacher)" route-group mismatch logs this on every
-    // load regardless of nav shell) so this only goes red on a NEW one —
-    // e.g. "home" or "profile/index", the Tabs' own screen names, going
-    // missing.
+    // refactor invites. The root layout's own former "(teacher)"
+    // route-group mismatch (app/(app)/_layout.tsx) is fixed — that
+    // Stack.Screen is now named "teacher", matching the real route — so
+    // there is no longer a pre-existing warning to exclude here. ANY
+    // "No route named" message now fails the test, e.g. "home" or
+    // "profile/index", the Tabs' own screen names, going missing.
     expect(
-      consoleMessages.some(
-        text => text.includes('No route named') && !text.includes('(teacher)'),
-      ),
+      consoleMessages.some(text => text.includes('No route named')),
     ).toBe(false);
   });
 
@@ -131,6 +146,22 @@ test.describe('expo web phone learner path (corporate / DCRS)', () => {
     await expect(
       page.getByRole('heading', { name: KM.profileHeader }),
     ).toBeVisible();
+
+    // See header comment (e): the phone shell has no drawer/rail, so this
+    // header logout button (LogoutButton.tsx, rendered as the Profile tab's
+    // headerRight) is the only way a phone learner can sign out. Must be
+    // visible and actually live in the header, not just present somewhere
+    // on the screen.
+    const logoutButton = page.getByRole('button', { name: KM.logout });
+    await expect(logoutButton).toBeVisible();
+    const logoutBox = await logoutButton.boundingBox();
+    expect(logoutBox).not.toBeNull();
+    // Confirmed live at 390x844: the Profile tab's header sits well within
+    // the first 100px. Generous enough to hold against header height
+    // changes elsewhere while still failing hard if the button renders
+    // outside the header (e.g. inline in the screen body instead of as
+    // headerRight).
+    expect(logoutBox!.y).toBeLessThan(100);
 
     await page.locator('[data-testid="tab-home"]').click();
     await expect(page.getByText(KM.subjectGreeting, { exact: true })).toBeVisible();
@@ -210,5 +241,29 @@ test.describe('expo web phone learner path (corporate / DCRS)', () => {
     // passing expectation from the same overridden viewport.
     expect(Math.abs(box!.width - 390)).toBeLessThanOrEqual(1);
     expect(Math.abs(box!.height - 219)).toBeLessThanOrEqual(2);
+  });
+
+  test('logout signs the learner out', async () => {
+    // See header comment (f): must run last — every earlier test in this
+    // file assumes an already-logged-in session and navigates via
+    // tab-home, and this one ends the session. Test (d) leaves the shared
+    // page deep in the lesson video screen (home/lessons/[id].tsx), but
+    // that route nests inside the "home" Tabs.Screen's own stack — the
+    // bottom tab bar stays mounted throughout (same reasoning test (d)'s
+    // own comment gives for tab-home staying reachable from test (c)'s
+    // practice screen) — so tab-profile is clickable directly, no need to
+    // detour through tab-home first.
+    await page.locator('[data-testid="tab-profile"]').click();
+
+    await page.getByRole('button', { name: KM.logout }).click();
+
+    // LogoutButton.tsx's onPress calls useAuth's logout(), which clears
+    // redux auth state and router.replace('/login') — confirmed live
+    // against edtech-expo/src/services/hooks/useAuth.ts. A regression that
+    // wires the button up to something else (or nothing) leaves the
+    // learner on /home instead.
+    await page.waitForURL(/\/login/, { timeout: 15_000 });
+    expect(page.url()).not.toMatch(/\/home/);
+    await expect(page.locator('input[type="password"]').first()).toBeVisible();
   });
 });
