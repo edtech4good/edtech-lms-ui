@@ -95,6 +95,40 @@
  *     32px H3 fallback (`fontSizes.h3`) that branch used to collapse to —
  *     confirmed live against the seeded q1 heading text.
  *
+ *     Extended for the child app bar rework (edtech-expo
+ *     app/(app)/(home)/home/_layout.tsx, `childHeaderTitleStyle`): on
+ *     corporate, the react-navigation screen title above the question — a
+ *     distinct `role="heading"` from PracticeHeading.tsx's own, confirmed
+ *     live as two separate elements — now renders at
+ *     `theme.fontSizes.subtitle` (18px) in the display-bold face instead of
+ *     the Stack's own default `fontSizes.h4` (28px) SemiBold. Confirmed live
+ *     at 390x844: the title element's computed `fontFamily` is
+ *     `NotoSansKhmerBold` (matches /Bold/, not /SemiBold/) at `fontSize:
+ *     18px`. A second, weaker assertion checks the title isn't truncated
+ *     *worse* than this fixed build already renders it — it is NOT
+ *     asserting zero truncation, because live measurement shows the fixed
+ *     18px title still overflows its ~230px header slot (react-navigation
+ *     centers the title symmetrically around the back button's reserved
+ *     width, regardless of font size): `scrollWidth` 278 vs `clientWidth`
+ *     230, an ellipsis-truncated ~48px short. What the fix actually buys is
+ *     a much smaller shortfall than the pre-fix 28px SemiBold render, which
+ *     a detached-clone probe at the same 230px slot measured at
+ *     `scrollWidth` 421 (~191px short, the "Why direction matter…" cutoff
+ *     the corporate handoff flagged). The assertion below bounds the
+ *     overflow well above the fixed build's ~48px but well below the
+ *     28px-regression's ~191px, so it still goes red on that regression
+ *     without asserting something false about the current, passing build.
+ *
+ *     Also asserts BackButton.tsx's back control on this same header:
+ *     `accessibilityLabel={t('button.back')}` (km.json: "ត្រឡប់ក្រោយ",
+ *     `KM.back`), rendered by react-native-web as `aria-label` on a
+ *     `role="button"`. Confirmed live: exactly one button on the Practice
+ *     screen carries that label (other mounted stack screens' default
+ *     react-navigation back buttons carry the unlocalized "Go back"
+ *     instead — confirmed live via the full aria-label list — so this
+ *     locator can't collide with them), box `{x: 16, y: 14, width: 36,
+ *     height: 36}` — comfortably inside the header.
+ *
  *  e) 'lesson video is a full-width 16:9 box' — guards LessonScreen.tsx's
  *     `playerHeight = isPortrait ? Math.round((width * 9) / 16) : height`
  *     branch: in phone portrait the video must be a full-width 16:9 box,
@@ -348,6 +382,45 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
       (el) => getComputedStyle(el).fontSize
     );
     expect(questionFontSize).toBe("18px");
+
+    // See header comment (d)'s extension: the child app bar's own screen
+    // title, a distinct role="heading" from the question heading above.
+    // Confirmed live it renders the seeded practice name verbatim (no
+    // ellipsis in the DOM text — CSS truncation only clips the paint, not
+    // textContent).
+    const headerTitle = page.getByRole("heading", {
+      name: "Why direction matters practice",
+    });
+    await expect(headerTitle).toBeVisible();
+    const headerTitleFontSize = await headerTitle.evaluate(
+      (el) => getComputedStyle(el).fontSize
+    );
+    expect(headerTitleFontSize).toBe("18px");
+    const headerTitleFontFamily = await headerTitle.evaluate(
+      (el) => getComputedStyle(el).fontFamily
+    );
+    expect(headerTitleFontFamily).toMatch(/Bold/);
+    expect(headerTitleFontFamily).not.toMatch(/SemiBold/);
+
+    // Not a "zero truncation" claim — see header comment (d)'s extension
+    // for why that would be false against this live build. Bounds the
+    // ellipsis shortfall to comfortably above the fixed build's own ~48px
+    // (scrollWidth 278 - clientWidth 230) but well below the pre-fix 28px
+    // SemiBold render's ~191px shortfall, so a regression back to the
+    // larger stack default still fails this hard.
+    const headerTitleOverflow = await headerTitle.evaluate(
+      (el) => el.scrollWidth - el.clientWidth
+    );
+    expect(headerTitleOverflow).toBeLessThanOrEqual(70);
+
+    // BackButton.tsx's accessibilityLabel, now t('button.back') —
+    // confirmed live as the only button on this screen carrying KM.back
+    // (see header comment).
+    const backButton = page.getByRole("button", { name: KM.back });
+    await expect(backButton).toBeVisible();
+    const backButtonBox = await backButton.boundingBox();
+    expect(backButtonBox).not.toBeNull();
+    expect(backButtonBox!.y).toBeLessThan(100);
 
     const count = await radios.count();
     expect(count).toBeGreaterThan(0);

@@ -2,8 +2,11 @@
  * Practice & quiz — catches: MCQ options failing to render or submit (e.g.
  * a disabled/hidden question row), the result popup not appearing after
  * submit, the quiz's final-question handoff to the result screen breaking,
- * and per-question feedback (questionfeedback) either not reaching the
- * popup when seeded or leaking/bleeding into questions that have none.
+ * per-question feedback (questionfeedback) either not reaching the popup
+ * when seeded or leaking/bleeding into questions that have none, and (added
+ * for the child app bar rework) the corporate Quiz screen's header showing
+ * the quiz's own seeded name instead of the literal 'Quiz' fallback — see
+ * the quiz test's own comment.
  *
  * All tests are independent (each does its own login + drilldown) on
  * purpose: the first two used to share one login/navigation via a shared
@@ -12,7 +15,7 @@
  * it failed. Paying for a second login is cheap; losing that coverage
  * exactly when something is broken is not.
  */
-import { test, expect, Page } from '@playwright/test';
+import { test, expect, Page } from "@playwright/test";
 import {
   CORPORATE_STUDENT,
   KM,
@@ -20,9 +23,9 @@ import {
   RESULT_POPUP_BUTTON,
   goToFirstDcrsLessonActivities,
   loginViaExpoUi,
-} from './fixtures';
+} from "./fixtures";
 
-test.describe('expo web practice & quiz (corporate / DCRS)', () => {
+test.describe("expo web practice & quiz (corporate / DCRS)", () => {
   let page: Page;
 
   test.beforeAll(async ({ browser }) => {
@@ -34,14 +37,18 @@ test.describe('expo web practice & quiz (corporate / DCRS)', () => {
     await page.context().close();
   });
 
-  test('practice: tapping an MCQ option and submitting shows the result popup', async () => {
-    await loginViaExpoUi(page, CORPORATE_STUDENT.username, CORPORATE_STUDENT.password);
+  test("practice: tapping an MCQ option and submitting shows the result popup", async () => {
+    await loginViaExpoUi(
+      page,
+      CORPORATE_STUDENT.username,
+      CORPORATE_STUDENT.password
+    );
     await goToFirstDcrsLessonActivities(page);
 
     // Fixed seed:dcrs content: lesson 1's single practice.
     await page
-      .getByRole('button')
-      .filter({ hasText: 'Why direction matters practice' })
+      .getByRole("button")
+      .filter({ hasText: "Why direction matters practice" })
       .first()
       .click();
 
@@ -56,12 +63,16 @@ test.describe('expo web practice & quiz (corporate / DCRS)', () => {
     // wrong option sidesteps it so this spec tests the popup, not that race.
     // "Family and staff pull the same way" is a seeded incorrect option for
     // this question (see edtech-lms-rpi-api's seed:dcrs).
-    await page.getByRole('radio', { name: 'Family and staff pull the same way' }).click();
-    await page.getByRole('button', { name: KM.submitButton }).click();
+    await page
+      .getByRole("radio", { name: "Family and staff pull the same way" })
+      .click();
+    await page.getByRole("button", { name: KM.submitButton }).click();
 
     // Exact incorrect title from km.json — deterministic now that the
     // answer above is deterministic.
-    await expect(page.getByText(KM.incorrectTitle, { exact: true })).toBeVisible();
+    await expect(
+      page.getByText(KM.incorrectTitle, { exact: true })
+    ).toBeVisible();
 
     // This is q1 (see seed-dcrs-content.js in both API repos), the one
     // question in the whole DCRS fixture seeded with questionfeedback.
@@ -75,30 +86,34 @@ test.describe('expo web practice & quiz (corporate / DCRS)', () => {
     // same words as the generic fallback ("ល្អណាស់!") so a substring match
     // could not tell them apart.
     await expect(
-      page.getByText(Q1_FEEDBACK.incorrectMessage, { exact: true }),
+      page.getByText(Q1_FEEDBACK.incorrectMessage, { exact: true })
     ).toBeVisible();
     // And the generic fallback text must NOT be showing instead/alongside —
     // guards against a regression that ignores questionfeedback and always
     // renders the generic copy (which would otherwise satisfy the assertion
     // above only coincidentally, if the two ever collided).
     await expect(
-      page.getByText(KM.genericIncorrectMessage, { exact: true }),
+      page.getByText(KM.genericIncorrectMessage, { exact: true })
     ).not.toBeVisible();
   });
 
-  test('practice: a question with NO feedback still shows the generic message', async () => {
+  test("practice: a question with NO feedback still shows the generic message", async () => {
     // Fresh login + fresh navigation, same reasoning as the other two tests
     // in this file. Targets lesson 2 ("Your business vision" / q2), which
     // seed-dcrs-content.js deliberately leaves with questionfeedback = null
     // — the negative case for the assertion above, proving ResultPopUp's
     // fallback (`customMessages?.incorrectMessage || t(...)`) still renders
     // the generic i18n string when there is no per-question feedback to show.
-    await loginViaExpoUi(page, CORPORATE_STUDENT.username, CORPORATE_STUDENT.password);
-    await goToFirstDcrsLessonActivities(page, 'Your business vision');
+    await loginViaExpoUi(
+      page,
+      CORPORATE_STUDENT.username,
+      CORPORATE_STUDENT.password
+    );
+    await goToFirstDcrsLessonActivities(page, "Your business vision");
 
     await page
-      .getByRole('button')
-      .filter({ hasText: 'Your business vision practice' })
+      .getByRole("button")
+      .filter({ hasText: "Your business vision practice" })
       .first()
       .click();
 
@@ -106,33 +121,68 @@ test.describe('expo web practice & quiz (corporate / DCRS)', () => {
     // seed-dcrs-content.js) — picked explicitly, not getByRole('radio').first(),
     // for the same shuffle reason as the q1 test above.
     await page
-      .getByRole('radio', { name: 'We ran out of ice this morning.' })
+      .getByRole("radio", { name: "We ran out of ice this morning." })
       .click();
-    await page.getByRole('button', { name: KM.submitButton }).click();
+    await page.getByRole("button", { name: KM.submitButton }).click();
 
-    await expect(page.getByText(KM.incorrectTitle, { exact: true })).toBeVisible();
     await expect(
-      page.getByText(KM.genericIncorrectMessage, { exact: true }),
+      page.getByText(KM.incorrectTitle, { exact: true })
+    ).toBeVisible();
+    await expect(
+      page.getByText(KM.genericIncorrectMessage, { exact: true })
     ).toBeVisible();
     // Confirms this really is the fallback path, not q1's custom text
     // leaking in from stale state.
     await expect(
-      page.getByText(Q1_FEEDBACK.incorrectMessage, { exact: true }),
+      page.getByText(Q1_FEEDBACK.incorrectMessage, { exact: true })
     ).not.toBeVisible();
   });
 
-  test('quiz: answering every question reaches the result screen', async () => {
+  test("quiz: answering every question reaches the result screen", async () => {
     // Fresh login + fresh navigation — see header comment: this does not
     // depend on the practice test above having run or passed.
-    await loginViaExpoUi(page, CORPORATE_STUDENT.username, CORPORATE_STUDENT.password);
+    await loginViaExpoUi(
+      page,
+      CORPORATE_STUDENT.username,
+      CORPORATE_STUDENT.password
+    );
     await goToFirstDcrsLessonActivities(page);
 
     // Fixed seed:dcrs content: lesson 1's single quiz.
     await page
-      .getByRole('button')
-      .filter({ hasText: 'Why direction matters quiz' })
+      .getByRole("button")
+      .filter({ hasText: "Why direction matters quiz" })
       .first()
       .click();
+
+    // Guards QuizScreen.tsx's navigation.setOptions title spread
+    // (`isCorporate && lessonquizname ? { title: lessonquizname } : {}`,
+    // run in a useEffect keyed on `navigation` at mount): the corporate
+    // Quiz screen's react-navigation header must show the quiz's own
+    // seeded name, not the literal 'Quiz' the (home)/_layout.tsx
+    // Stack.Screen falls back to only as its pre-mount default (that
+    // fallback is deliberately kept literal for the kids theme, which never
+    // sets this title — see _layout.tsx's own comment). lessonquizname for
+    // lesson 1's quiz is `${lessonname} quiz` from both API repos'
+    // seed-dcrs-content.js (`INSERT INTO lessonquizzes ...
+    // lessonquizname`) — "Why direction matters quiz", the exact string
+    // this test already clicks by above. Confirmed live at 1280x800: the
+    // only role="heading" on this screen reads "Why direction matters
+    // quiz"; no heading reads the bare "Quiz" fallback. exact: true matters
+    // here — Playwright's getByRole `name` is a substring match by
+    // default, so without it a mutation that appends to lessonquizname
+    // (the mutation-proof lever below) would still satisfy a bare
+    // substring check; confirmed live the mutation-proof failed to catch
+    // that regression until exact: true was added.
+    await expect(
+      page.getByRole("heading", {
+        name: "Why direction matters quiz",
+        exact: true,
+      })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Quiz", exact: true })
+    ).toHaveCount(0);
 
     // PracticeFooter's corporate branch shows "<current> / <max>" — read the
     // real question count rather than guessing or polling for the result
@@ -145,7 +195,7 @@ test.describe('expo web practice & quiz (corporate / DCRS)', () => {
       .getByText(/^\d+\s*\/\s*\d+$/)
       .first()
       .innerText();
-    const totalQuestions = Number(progressText.split('/')[1].trim());
+    const totalQuestions = Number(progressText.split("/")[1].trim());
     expect(totalQuestions).toBeGreaterThan(0);
 
     // QuizScreen advances to the next question (or to /home/result after the
@@ -155,12 +205,14 @@ test.describe('expo web practice & quiz (corporate / DCRS)', () => {
     // navigation, so answering with whichever option comes first is safe
     // here even though options are shuffled.
     for (let i = 0; i < totalQuestions; i++) {
-      await page.getByRole('radio').first().click();
-      await page.getByRole('button', { name: KM.submitButton }).click();
-      await page.getByRole('button', { name: RESULT_POPUP_BUTTON }).click();
+      await page.getByRole("radio").first().click();
+      await page.getByRole("button", { name: KM.submitButton }).click();
+      await page.getByRole("button", { name: RESULT_POPUP_BUTTON }).click();
     }
 
     await expect(page).toHaveURL(/\/home\/result/);
-    await expect(page.getByRole('heading', { name: KM.resultHeader })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: KM.resultHeader })
+    ).toBeVisible();
   });
 });
