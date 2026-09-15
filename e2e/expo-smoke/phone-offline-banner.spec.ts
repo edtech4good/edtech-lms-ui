@@ -40,11 +40,7 @@
  *     cleanup is unnecessary.
  */
 import { test, expect, Page, BrowserContext } from "@playwright/test";
-import {
-  CORPORATE_STUDENT,
-  KIDS_STUDENT,
-  loginViaExpoUi,
-} from "./fixtures";
+import { CORPORATE_STUDENT, KIDS_STUDENT, loginViaExpoUi } from "./fixtures";
 
 test.describe.configure({ mode: "serial" });
 
@@ -99,7 +95,9 @@ test.describe("expo web offline banner (phone)", () => {
 
   test("corporate phone shell shows the offline banner when the network drops and hides it when it returns", async () => {
     // Verify we are in the corporate phone shell (Tabs, not rail or drawer).
-    await expect(corporatePage.locator('[data-testid="tab-home"]')).toBeVisible();
+    await expect(
+      corporatePage.locator('[data-testid="tab-home"]')
+    ).toBeVisible();
 
     const banner = corporatePage.locator('[data-testid="offline-banner"]');
 
@@ -118,10 +116,9 @@ test.describe("expo web offline banner (phone)", () => {
     // Go offline — the banner wrapper should animate to 36px (BANNER_HEIGHT).
     await corporateContext.setOffline(true);
     await expect
-      .poll(
-        async () => (await banner.boundingBox())?.height ?? -1,
-        { timeout: 5000 }
-      )
+      .poll(async () => (await banner.boundingBox())?.height ?? -1, {
+        timeout: 5000,
+      })
       .toBeGreaterThanOrEqual(36);
 
     // Verify the banner's inner alert text is present and correct.
@@ -130,10 +127,9 @@ test.describe("expo web offline banner (phone)", () => {
     // Go back online — the banner wrapper should animate back to 0px.
     await corporateContext.setOffline(false);
     await expect
-      .poll(
-        async () => (await banner.boundingBox())?.height ?? -1,
-        { timeout: 5000 }
-      )
+      .poll(async () => (await banner.boundingBox())?.height ?? -1, {
+        timeout: 5000,
+      })
       .toBe(0);
   });
 
@@ -146,14 +142,18 @@ test.describe("expo web offline banner (phone)", () => {
     ).toBeAttached();
 
     // Verify the offline banner is not mounted (count 0).
-    await expect(kidsPage.locator('[data-testid="offline-banner"]')).toHaveCount(0);
+    await expect(
+      kidsPage.locator('[data-testid="offline-banner"]')
+    ).toHaveCount(0);
 
     // Go offline and wait for any potential async mounts.
     await kidsContext.setOffline(true);
     await kidsPage.waitForTimeout(500);
 
     // Banner should still not be mounted.
-    await expect(kidsPage.locator('[data-testid="offline-banner"]')).toHaveCount(0);
+    await expect(
+      kidsPage.locator('[data-testid="offline-banner"]')
+    ).toHaveCount(0);
 
     // Go back online.
     await kidsContext.setOffline(false);
