@@ -376,6 +376,59 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
     // guards useScreenDimension.ts's tabBarHeight subtraction.
     expect(submitBox!.y + submitBox!.height).toBeLessThanOrEqual(tabHomeBox!.y);
 
+    // Guards PracticeFooter.tsx's corporate `alignSelf: 'stretch'` fix
+    // directly (audit U-04/U-05): the footer's outer View used to
+    // shrink-wrap to its buttons — 296px wide at x≈47 on this 390 viewport —
+    // because Container centres its children, which also collapsed the 4dp
+    // `ProgressBar variant="quiz"` track's 100%-width bar to a null/zero-width
+    // box (there was nothing to stretch against). stretch is what makes the
+    // bar, and the track inside it, span the full screen width instead. Two
+    // things are asserted here: the track running full-bleed across the
+    // footer's top, and the Submit button (`<View style={{ flex: 1 }}>` +
+    // `fullWidth`) growing to fill the row instead of sitting at its old
+    // 72px.
+    //
+    // ProgressBar.tsx sets accessibilityRole="progressbar", which
+    // react-native-web renders as role="progressbar" on web — confirmed live,
+    // same as test (c) above. Unlike test (c)'s curriculum-card bar, there is
+    // no container to scope the locator to here: the Home screen's own
+    // curriculum-card progress bars stay mounted behind this screen's
+    // navigation stack, so [role="progressbar"] matches several elements on
+    // this page (confirmed live) — most with a null bounding box since
+    // they're not actually laid out while hidden. The quiz track is picked
+    // out by position instead: the one progress bar with a non-null box that
+    // sits within 120px directly above the Submit button. Confirmed live at
+    // 390x844: exactly one candidate matches, box {x: 0, y: 715, width: 390,
+    // height: 4} — the Submit button's own box is {x: 16, y: 735, width:
+    // 178.0625, height: 44} at that same run.
+    const allProgressBars = page.locator('[role="progressbar"]');
+    const progressBarCount = await allProgressBars.count();
+    const tracksNearSubmit: Array<{
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }> = [];
+    for (let i = 0; i < progressBarCount; i++) {
+      const box = await allProgressBars.nth(i).boundingBox();
+      if (box !== null && box.y < submitBox!.y && box.y > submitBox!.y - 120) {
+        tracksNearSubmit.push(box);
+      }
+    }
+    expect(tracksNearSubmit.length).toBe(1);
+    const trackBox = tracksNearSubmit[0];
+    // Full-bleed: width ~= the 390 viewport (0.98x tolerance for the pill
+    // radius/overflow rounding) and flush against the left edge, not the
+    // pre-fix shrink-wrapped 296px box starting at x≈47.
+    expect(trackBox.width).toBeGreaterThanOrEqual(0.98 * 390);
+    expect(trackBox.x).toBeLessThanOrEqual(1);
+
+    // Submit grows to fill its flex:1 wrapper instead of sitting at its
+    // pre-fix ~72px content-hug width. Confirmed live the fixed button is
+    // 178px wide (see box above) — comfortably past the 0.3x/117px floor,
+    // which still fails hard against the old 72px.
+    expect(submitBox!.width).toBeGreaterThanOrEqual(0.3 * 390);
+
     await expect(page.getByText(/^\d+\s*\/\s*\d+$/)).toBeVisible();
   });
 
