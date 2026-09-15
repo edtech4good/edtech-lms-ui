@@ -229,6 +229,41 @@
  *     *before* the logout click (so the after-check below cannot pass
  *     vacuously against a session that was never actually persisted), and
  *     an empty accessToken with no profile is asserted after.
+ *
+ *     Extended once more for the WCAG target-size pass (audit U-12/U-20,
+ *     edtech-expo Chip.tsx): the login screen the learner lands on right
+ *     after this logout is where the language-toggle chips actually get
+ *     covered, so the assertion lives at the end of this test rather than
+ *     in login.spec.ts. Which theme's login screen renders here is not
+ *     obvious from this file alone — SettingSlice's `theme` key
+ *     (kids/corporate, set from the login JWT's uithemeClaim) is its own
+ *     whitelisted redux-persist slice, separate from `authentication`, and
+ *     clearAllData's extraReducers only clears the latter (see this test's
+ *     own logout-bug paragraph above) — so a corporate learner's
+ *     post-logout /login keeps rendering the corporate layout, chips
+ *     included, confirmed live by running this exact corporate
+ *     login -> logout cycle at 390x844. (The kids theme's login has no
+ *     language chips at all — confirmed by reading LoginScreen.tsx's kids
+ *     branch — so this assertion would need to move to login.spec.ts's own
+ *     corporate-login test if that persistence behaviour ever changed.)
+ *     Chip.tsx's Pressable wrapper around the "English"/"ភាសាខ្មែរ" pills
+ *     now carries `style={{ minHeight: 44, justifyContent: 'center' }}`
+ *     while the pill itself stays the original 32dp
+ *     (`useBreakpoint({ mobile: 32, ... })`) — the Pressable grew, not the
+ *     visible pill. Chip.tsx sets accessibilityRole="button" but no
+ *     accessibilityLabel, so react-native-web derives the accessible name
+ *     from the pill's own Text child, the same subtree-text accname
+ *     Playwright's getByRole already relies on for the plain-text login
+ *     button and other chips in this suite — confirmed live: the chip's
+ *     `[role="button"]` element carries no aria-label, and
+ *     getByRole('button', { name: 'English' }) still resolves it. Confirmed
+ *     live at 390x844: the chip's own bounding box is
+ *     `{width: 72.17, height: 44}`, and scanning its descendants for
+ *     computed `height` turns up exactly one match at `32px` (the pill's
+ *     Animated.View) — proving the pill itself did not also grow to 44.
+ *     Mutation-proved: deleting Chip.tsx's `minHeight: 44,` line turns the
+ *     height assertion red (the Pressable collapses back to the pill's own
+ *     32px, since nothing else in the tree enforces a taller hit box).
  */
 import { test, expect, Page, ConsoleMessage } from "@playwright/test";
 import {
@@ -748,5 +783,31 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
       .toBe("");
     const after = await readPersistedAuth(page);
     expect(after?.profile).toBeUndefined();
+
+    // See header comment (g)'s WCAG-target-size paragraph: this corporate
+    // account's theme survives logout (settingSlice isn't cleared by
+    // clearAllData), so the login screen we just landed on is corporate,
+    // chips included. No exact: true — 'English' doesn't collide with
+    // anything else accessible-name-wise on this screen, confirmed live.
+    const englishChip = page.getByRole("button", { name: "English" });
+    await expect(englishChip).toBeVisible();
+    const chipBox = await englishChip.boundingBox();
+    expect(chipBox).not.toBeNull();
+    // 44dp touch target (Chip.tsx's Pressable minHeight) — the regression
+    // this exists to catch.
+    expect(chipBox!.height).toBeGreaterThanOrEqual(44);
+
+    // The visible pill must stay 32dp — only the invisible Pressable grew.
+    // Scan descendants for computed height '32px' rather than asserting on
+    // a specific element: confirmed live exactly one such descendant
+    // exists (Chip.tsx's own Animated.View), so a regression that also
+    // stretched the pill (not just the tap target) would surface as either
+    // zero or a different count here, not a false pass.
+    const pillHeights = await englishChip.evaluate((el) =>
+      Array.from(el.querySelectorAll("*"))
+        .map((child) => getComputedStyle(child as Element).height)
+        .filter((h) => h === "32px")
+    );
+    expect(pillHeights.length).toBe(1);
   });
 });

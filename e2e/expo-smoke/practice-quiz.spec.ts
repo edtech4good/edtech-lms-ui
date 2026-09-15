@@ -6,7 +6,11 @@
  * when seeded or leaking/bleeding into questions that have none, and (added
  * for the child app bar rework) the corporate Quiz screen's header showing
  * the quiz's own seeded name instead of the literal 'Quiz' fallback — see
- * the quiz test's own comment.
+ * the quiz test's own comment. Also covers the WCAG target-size pass (audit
+ * U-07-adjacent): the ResultPopUp button and the Result screen's "Done"
+ * button both regressing from `fullWidth` back to a content-hugging width —
+ * see each assertion's own comment for the live geometry it's proved
+ * against.
  *
  * All tests are independent (each does its own login + drilldown) on
  * purpose: the first two used to share one login/navigation via a shared
@@ -95,6 +99,34 @@ test.describe("expo web practice & quiz (corporate / DCRS)", () => {
     await expect(
       page.getByText(KM.genericIncorrectMessage, { exact: true })
     ).not.toBeVisible();
+
+    // WCAG target-size pass (audit U-07-adjacent, edtech-expo
+    // ResultPopUp.tsx, corporate-only): the popup's AppButton now carries
+    // `fullWidth`, so it spans the dialog's own padded content box instead
+    // of hugging its label. Locate the dialog as the button's own ancestor
+    // with computed `minWidth: '356px'` (ResultPopUp.tsx's own
+    // `minWidth: 356`) rather than an RN-web class name — those atomic
+    // classes aren't stable locators. Confirmed live at 1280x800: the
+    // popup button (RESULT_POPUP_BUTTON, currently KM.incorrectButton)
+    // measures 362.66px wide inside a 426.66px-wide dialog —
+    // (426.66 - 64) == 362.66 to the pixel, i.e. the button exactly fills
+    // the dialog's content box once its 32px-a-side padding
+    // (`theme.layouts.large * 2`) is subtracted. 0.8x is a floor
+    // comfortably under that, but still well above what a content-hugging
+    // (non-fullWidth) button renders for this label.
+    const popupButton = page.getByRole("button", { name: RESULT_POPUP_BUTTON });
+    await expect(popupButton).toBeVisible();
+    const popupBox = await popupButton.boundingBox();
+    expect(popupBox).not.toBeNull();
+    const dialogWidth = await popupButton.evaluate((btn) => {
+      let el: Element | null = btn;
+      while (el && getComputedStyle(el).minWidth !== "356px") {
+        el = el.parentElement;
+      }
+      return el ? el.getBoundingClientRect().width : null;
+    });
+    expect(dialogWidth).not.toBeNull();
+    expect(popupBox!.width).toBeGreaterThanOrEqual(0.8 * (dialogWidth! - 64));
   });
 
   test("practice: a question with NO feedback still shows the generic message", async () => {
@@ -214,5 +246,37 @@ test.describe("expo web practice & quiz (corporate / DCRS)", () => {
     await expect(
       page.getByRole("heading", { name: KM.resultHeader })
     ).toBeVisible();
+
+    // Same WCAG target-size / full-width pass, ResultScreen.tsx's corporate
+    // branch (audit U-07, "Full-width CTA like Level Detail's Continue
+    // button"): the "រួចរាល់" (Done) button sits inside
+    // `<View style={{ alignSelf: 'stretch' }}>` with `fullWidth`, so it
+    // spans that View's width rather than hugging its label. Locate "the
+    // content" as the nearest ancestor strictly wider than the button
+    // itself — same reasoning as the dialog-locator above, RN-web's atomic
+    // class names aren't stable handles, and walking up avoids hard-coding
+    // Container's own DOM shape. Confirmed live at 1280x800: the Done
+    // button measures 1160px wide inside a 1192px-wide ancestor
+    // (Container's own box — the 32px gap is
+    // `theme.layouts.pageHorizontalPadding`, 16px a side, Metrics.ts) —
+    // comfortably over the 0.8x floor. The extra >=400px floor is a second,
+    // independent net: confirmed live a content-hugging (non-fullWidth)
+    // "រួចរាល់" button renders far under 400px, so this still fails hard
+    // even if the ancestor-walk above ever landed on an unexpected element.
+    const doneButton = page.getByRole("button", { name: KM.finishButton });
+    await expect(doneButton).toBeVisible();
+    const doneBox = await doneButton.boundingBox();
+    expect(doneBox).not.toBeNull();
+    const contentWidth = await doneButton.evaluate((btn) => {
+      const btnWidth = btn.getBoundingClientRect().width;
+      let el: Element | null = btn.parentElement;
+      while (el && el.getBoundingClientRect().width <= btnWidth + 1) {
+        el = el.parentElement;
+      }
+      return el ? el.getBoundingClientRect().width : null;
+    });
+    expect(contentWidth).not.toBeNull();
+    expect(doneBox!.width).toBeGreaterThanOrEqual(0.8 * contentWidth!);
+    expect(doneBox!.width).toBeGreaterThanOrEqual(400);
   });
 });

@@ -76,6 +76,7 @@ export const KM = {
   genericCorrectMessage: "ល្អណាស់!", // screen.practice.correctMessage
   genericIncorrectMessage: "ចម្លើយរបស់អ្នកមិនត្រឹមត្រូវទេ", // screen.practice.incorrectMessage
   resultHeader: "លទ្ធផល", // screen.result.header
+  finishButton: "រួចរាល់", // screen.result.finishButton
   back: "ត្រឡប់ក្រោយ", // button.back
 } as const;
 
