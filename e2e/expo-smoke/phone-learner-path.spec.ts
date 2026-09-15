@@ -199,6 +199,28 @@
  *     branch: in phone portrait the video must be a full-width 16:9 box,
  *     not the full-window player landscape/tablet gets.
  *
+ *     Extended for the U-11 corporate-portrait canvas fix: LessonScreen.tsx's
+ *     `isCorporatePortrait` branch now paints the canvas
+ *     `theme.colors.background` (#FFF9EE, `rgb(255, 249, 238)`) and
+ *     top-aligns the 16:9 box (`canvasJustify: 'flex-start'`) instead of the
+ *     black, vertically-centred canvas every other combination (landscape,
+ *     kids) still gets. Two things are asserted: the box's own `y`, and the
+ *     colour of its nearest non-transparent ancestor. Confirmed live at
+ *     390x844: box.y is 0 (this route runs with `headerShown: false`, so
+ *     there's no header offset above the box); the colour lives on
+ *     LayoutScrollView's `StyledSafeArea` (LayoutScrollView.tsx:
+ *     `styled(SafeAreaView)`, binding `background-color` to
+ *     `backgroundColor ?? theme.colors.background`), not on the video
+ *     element or its immediate parent (confirmed live that parent computes
+ *     fully transparent) — the assertion walks up from the video to the
+ *     first ancestor with a non-transparent computed backgroundColor rather
+ *     than asserting a fixed DOM depth. Mutation-proved: forcing
+ *     `canvasColor` to always `'black'` and `canvasJustify` to always
+ *     `'center'` for the corporate-portrait case turns both assertions red
+ *     — the y assertion against the pre-fix centred layout (≈312 in an 844
+ *     viewport, well past the 120 ceiling) and the colour assertion against
+ *     opaque black.
+ *
  *  f) 'profile tab navigates and comes back' (continued, same test) also
  *     guards app/(app)/(home)/_layout.tsx's Tabs branch `headerRight`
  *     (src/components/ui/LogoutButton.tsx): the phone shell has no
@@ -473,6 +495,20 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
       (el) => getComputedStyle(el, "::placeholder").color
     );
     expect(placeholderColor).toBe("rgb(90, 107, 128)");
+
+    // U-15 corporate gutter fix (Themes.ts's corporateTheme:
+    // `layouts: { ...layouts, pageHorizontalPadding: 20 }`, applied to the
+    // corporate theme only — kids keeps the shared 16). CurriculumCard.tsx
+    // sets no horizontal margin/padding of its own; it just fills the
+    // Home screen's own paddingHorizontal, so the card's outer box sits
+    // exactly at the page gutter on each side (390 viewport - 2*20 = 350).
+    // Confirmed live at 390x844: box {x: 20, y: 198, width: 350,
+    // height: 340.75} — pre-fix (pageHorizontalPadding: 16) this was x=16,
+    // width=358. Mutation-proved: reverting the token to 16 turns this red.
+    const cardBox = await dcrsCard.boundingBox();
+    expect(cardBox).not.toBeNull();
+    expect(Math.abs(cardBox!.x - 20)).toBeLessThanOrEqual(1);
+    expect(Math.abs(cardBox!.width - 350)).toBeLessThanOrEqual(2);
   });
 
   test("lesson chip uses the contrast token", async () => {
@@ -635,6 +671,17 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
       previousY = box!.y;
     }
 
+    // U-15 corporate gutter fix, same token as the Home card assertion
+    // above: QuizOption's stacked radio options sit inside the same
+    // pageHorizontalPadding gutter, so the first option's own left edge now
+    // sits at x=20, not the pre-fix x=12. Confirmed live: radios.first()
+    // box {x: 20, y: 160, width: 350, height: 60}. Mutation-proved:
+    // reverting Themes.ts's pageHorizontalPadding to 16 turns this red
+    // together with the Home card assertion.
+    const firstRadioBox = await radios.first().boundingBox();
+    expect(firstRadioBox).not.toBeNull();
+    expect(Math.abs(firstRadioBox!.x - 20)).toBeLessThanOrEqual(1);
+
     const submitButton = page.getByRole("button", { name: KM.submitButton });
     const submitBox = await submitButton.boundingBox();
     const tabHomeBox = await page
@@ -736,6 +783,45 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
     // passing expectation from the same overridden viewport.
     expect(Math.abs(box!.width - 390)).toBeLessThanOrEqual(1);
     expect(Math.abs(box!.height - 219)).toBeLessThanOrEqual(2);
+
+    // U-11 corporate-portrait lesson canvas fix (LessonScreen.tsx:
+    // `isCorporatePortrait` branch): the 16:9 box now sits on the page
+    // background near the top (`canvasJustify: 'flex-start'`) instead of
+    // vertically centred on a full-screen black canvas. Confirmed live at
+    // 390x844: box.y is 0 (headerShown: false on this route, so there's no
+    // header offset above it). Pre-fix (`canvasJustify: 'center'`, black
+    // canvas) this was vertically centred in the 844 viewport — (844 - 219)
+    // / 2 ≈ 312, close to the ≈310 the handoff reported — confirmed by this
+    // test's own mutation-proof lever below, which reproduces that
+    // pre-fix layout and pushes box.y well past 120. 120 is a generous
+    // ceiling: comfortably above the fixed build's 0 (holds against small
+    // header/inset changes) but well below the pre-fix ≈312, so a
+    // regression back to centred-on-black still fails this hard.
+    expect(box!.y).toBeLessThanOrEqual(120);
+
+    // Second half of the same fix: canvasColor swaps from 'black' to
+    // theme.colors.background (#FFF9EE) in corporate portrait.
+    // LessonScreen's <Video> itself paints no background of its own
+    // (confirmed live: its immediate parent DIV computes fully transparent
+    // — `rgba(0, 0, 0, 0)`) — the colour lives on LayoutScrollView's
+    // StyledSafeArea (LayoutScrollView.tsx wraps children in a
+    // `styled(SafeAreaView)` with `background-color:
+    // ${props.backgroundColor ?? props.theme.colors.background}`), one level
+    // further up. Walk up from the video element to the first ancestor
+    // whose computed backgroundColor isn't transparent, rather than
+    // asserting on a specific DOM depth, so this survives an unrelated
+    // wrapper being added or removed between them. Confirmed live: that
+    // walk stops two ancestors up, at exactly `rgb(255, 249, 238)`.
+    const canvasBackgroundColor = await video.evaluate((el) => {
+      let node: Element | null = el.parentElement;
+      while (node) {
+        const bg = getComputedStyle(node).backgroundColor;
+        if (bg !== "rgba(0, 0, 0, 0)" && bg !== "transparent") return bg;
+        node = node.parentElement;
+      }
+      return null;
+    });
+    expect(canvasBackgroundColor).toBe("rgb(255, 249, 238)");
   });
 
   test("logout signs the learner out", async () => {
@@ -809,5 +895,53 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
         .filter((h) => h === "32px")
     );
     expect(pillHeights.length).toBe(1);
+
+    // U-19 EyebrowText caption floor (EyebrowText.tsx:
+    // `Math.max(theme.fontSizes.caption, isKhmer ? resolvedSize + 2 :
+    // resolvedSize)`). This suite always logs in and runs in Khmer, so
+    // Khmer eyebrows already get bumped to size+2 regardless of this fix —
+    // the only place that actually proves the floor applies to English is
+    // this login footer, reachable without ever logging in (see header
+    // comment (g)'s WCAG-target-size paragraph for why this corporate login
+    // screen is here at all). Switch to English via the chip already
+    // asserted above.
+    await englishChip.click();
+
+    // LoginScreen.tsx ~line 182: `<EyebrowText size={9}>POWERED BY EDTECH
+    // FOR GOOD</EyebrowText>` — a hardcoded JSX child, not a t() key
+    // (confirmed by reading LoginScreen.tsx directly; en.json has no
+    // corresponding string to check instead). EyebrowText's own
+    // textTransform: uppercase (non-Khmer branch) is a no-op here since the
+    // source string is already upper case. Bare Text with no distinguishing
+    // role, same pattern the curriculum-card title/caption rely on —
+    // confirmed live getByText(..., {exact: true}) resolves to exactly one
+    // element on this screen.
+    const footerText = page.getByText("POWERED BY EDTECH FOR GOOD", {
+      exact: true,
+    });
+    await expect(footerText).toBeVisible();
+    const footerStyle = await footerText.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { fontSize: cs.fontSize, letterSpacing: cs.letterSpacing };
+    });
+    // Confirmed live: 12px, the caption token floor — pre-fix this rendered
+    // at the raw size={9}, i.e. 9px, with no floor applied at all.
+    // letterSpacing is EyebrowText's own non-Khmer formula, fontSize * 0.16
+    // = 12 * 0.16 = 1.92px, confirmed live at exactly that value.
+    // Mutation-proved: see this branch's mutation-proof notes (lever B).
+    expect(footerStyle.fontSize).toBe("12px");
+    expect(footerStyle.letterSpacing).toBe("1.92px");
+
+    // Put the app back in Khmer. Confirmed this doesn't matter for
+    // isolation between spec files: this describe block's beforeAll opens
+    // its own `browser.newContext()` with no localStorage (fixtures.ts's
+    // own loginViaExpoUi comment notes a fresh context boots kids by
+    // default), and every spec file gets its own such context, so a
+    // language change made here cannot leak into another file's run. It's
+    // done anyway as hygiene, in case this test is ever re-run a second
+    // time against the same still-open context (e.g. --repeat-each), where
+    // a stale 'en' would otherwise change what the next pass's login screen
+    // renders before the language is ever touched.
+    await page.getByRole("button", { name: "ភាសាខ្មែរ" }).click();
   });
 });
