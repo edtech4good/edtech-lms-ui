@@ -78,6 +78,54 @@
  *     progressTrack) — see the suite's mutation-proof notes for this
  *     branch; each assertion was independently driven red and restored.
  *
+ *     Extended for the WCAG contrast pass on corporate.ts's remaining
+ *     colour tokens (U-03): the Home search pill's placeholder text
+ *     (AppTextField.tsx's `placeholderTextColor={theme.colors.placeholder}`,
+ *     rendered by SubjectSelectionScreen.tsx as the `variant="search"`
+ *     field). Confirmed live in Chromium: react-native-web exposes the
+ *     placeholder colour through the standard `::placeholder` pseudo-element
+ *     — `getComputedStyle(el, '::placeholder').color` reads it directly, no
+ *     CSS-variable or attribute workaround needed (the underlying atomic
+ *     class does bind a `--placeholderTextColor` custom property, but the
+ *     pseudo-element query resolves through it on its own). Computed colour
+ *     is `rgb(90, 107, 128)` (#5A6B80). Located by placeholder text
+ *     (km.json's `screen.subject.searchPlaceholder`), not
+ *     `input[type="text"]` the way `loginViaExpoUi` locates the login
+ *     screen's username field — confirmed live this input carries no
+ *     `type` attribute at all (the login screen's does; react-native-web
+ *     only emits one for `secureTextEntry`/certain `keyboardType`s, not
+ *     this field's plain default). `input[type="text"]` matched zero
+ *     elements here, went red on a locator timeout rather than the
+ *     assertion, and is what first surfaced this. `getByPlaceholder` is
+ *     confirmed live to match exactly one element on this screen.
+ *     Mutation-proved: dropping corporate.ts's `placeholder` to '#94A3B8'
+ *     (the old `secondaryLight` shade this token used to fall back to)
+ *     turns this assertion red.
+ *
+ *  c2) 'lesson chip uses the contrast token' — added for the same WCAG
+ *     contrast pass (U-22): LessonRow.tsx's "Lesson N" chip View
+ *     (`backgroundColor: theme.colors.lessonChip`) wrapping each lesson
+ *     row's EyebrowText label on the corporate Level Detail screen. Reaches
+ *     that screen via the same DCRS -> Cohort II -> Module 1 clicks
+ *     goToFirstDcrsLessonActivities makes, but stops there instead of
+ *     clicking into a lesson row, so the chip can be asserted on its own
+ *     before the drilldown continues. km.json's `screen.level.lessonChip`
+ *     ("មេរៀនទី {{n}}") renders lesson 1's chip as exactly "មេរៀនទី 1" —
+ *     confirmed live, a bare DIV with no distinguishing role, same pattern
+ *     test (c) already relies on for the curriculum card's own title and
+ *     caption. The chip's own EyebrowText carries no background — the
+ *     colour lives on its immediate parent View — confirmed live via a full
+ *     descendant scan of the chip text's own computed style (transparent)
+ *     against its parent's (`rgb(22, 114, 154)`, #16729A). This test then
+ *     continues the drilldown itself (clicking the "Why direction matters"
+ *     row and waiting for the activity list's `lessonHeader` heading, the
+ *     same wait goToFirstDcrsLessonActivities does) before returning to
+ *     Home via tab-home — that fixture starts from an already-logged-in
+ *     Home screen with no tab-home detour of its own (confirmed by reading
+ *     fixtures.ts), so ending anywhere else would break the following MCQ
+ *     test's own call to it. Mutation-proved: dropping corporate.ts's
+ *     `lessonChip` to '#2AAADD' turns this assertion red.
+ *
  *  d) 'MCQ options stack full-width above the tab bar' — guards
  *     PracticeMCQText.tsx's `isStacked` branch and useScreenDimension.ts's
  *     tabBarHeight subtraction together: below 768dp, MCQ options must
@@ -94,6 +142,57 @@
  *     `theme.fontSizes.subtitle`) renders at 18px, not the kids theme's
  *     32px H3 fallback (`fontSizes.h3`) that branch used to collapse to —
  *     confirmed live against the seeded q1 heading text.
+ *
+ *     Extended for the child app bar rework (edtech-expo
+ *     app/(app)/(home)/home/_layout.tsx, `childHeaderTitleStyle`): on
+ *     corporate, the react-navigation screen title above the question — a
+ *     distinct `role="heading"` from PracticeHeading.tsx's own, confirmed
+ *     live as two separate elements — now renders at
+ *     `theme.fontSizes.subtitle` (18px) in the display-bold face instead of
+ *     the Stack's own default `fontSizes.h4` (28px) SemiBold. Confirmed live
+ *     at 390x844: the title element's computed `fontFamily` is
+ *     `NotoSansKhmerBold` (matches /Bold/, not /SemiBold/) at `fontSize:
+ *     18px`. A second, weaker assertion checks the title isn't truncated
+ *     *worse* than this fixed build already renders it — it is NOT
+ *     asserting zero truncation, because live measurement shows the fixed
+ *     18px title still overflows its ~230px header slot (react-navigation
+ *     centers the title symmetrically around the back button's reserved
+ *     width, regardless of font size): `scrollWidth` 278 vs `clientWidth`
+ *     230, an ellipsis-truncated ~48px short. What the fix actually buys is
+ *     a much smaller shortfall than the pre-fix 28px SemiBold render, which
+ *     a detached-clone probe at the same 230px slot measured at
+ *     `scrollWidth` 421 (~191px short, the "Why direction matter…" cutoff
+ *     the corporate handoff flagged). The assertion below bounds the
+ *     overflow well above the fixed build's ~48px but well below the
+ *     28px-regression's ~191px, so it still goes red on that regression
+ *     without asserting something false about the current, passing build.
+ *
+ *     Extended again for the WCAG contrast pass (U-23): QuizOption.tsx's
+ *     24x24 radio ring View gets `borderWidth: 6, borderColor:
+ *     theme.colors.selection` only once an option's `state === 'selected'`
+ *     — before any click, all three options render the default 1.5px
+ *     `outline` ring instead (not the 6px accent ring, and not the
+ *     separately-drawn 2px `success` border around the option itself — see
+ *     that file's own comment on why the *option's* border deliberately
+ *     stays on `success`, not `selection`). This test clicks the first
+ *     radio, then scans its descendant divs for the one whose computed
+ *     `borderWidth` is exactly `6px` — confirmed live exactly one such div
+ *     exists once selected — and asserts its `borderColor` is `rgb(7, 138,
+ *     149)` (#078A95). Confirmed live that clicking here does not disturb
+ *     the assertions that follow: the option boxes stay the same width and
+ *     vertical order, and the footer/submit/tab-bar positions are
+ *     unaffected. Mutation-proved: dropping corporate.ts's `selection` to
+ *     '#06AFBC' turns this assertion red.
+ *
+ *     Also asserts BackButton.tsx's back control on this same header:
+ *     `accessibilityLabel={t('button.back')}` (km.json: "ត្រឡប់ក្រោយ",
+ *     `KM.back`), rendered by react-native-web as `aria-label` on a
+ *     `role="button"`. Confirmed live: exactly one button on the Practice
+ *     screen carries that label (other mounted stack screens' default
+ *     react-navigation back buttons carry the unlocalized "Go back"
+ *     instead — confirmed live via the full aria-label list — so this
+ *     locator can't collide with them), box `{x: 16, y: 14, width: 36,
+ *     height: 36}` — comfortably inside the header.
  *
  *  e) 'lesson video is a full-width 16:9 box' — guards LessonScreen.tsx's
  *     `playerHeight = isPortrait ? Math.round((width * 9) / 16) : height`
@@ -130,6 +229,41 @@
  *     *before* the logout click (so the after-check below cannot pass
  *     vacuously against a session that was never actually persisted), and
  *     an empty accessToken with no profile is asserted after.
+ *
+ *     Extended once more for the WCAG target-size pass (audit U-12/U-20,
+ *     edtech-expo Chip.tsx): the login screen the learner lands on right
+ *     after this logout is where the language-toggle chips actually get
+ *     covered, so the assertion lives at the end of this test rather than
+ *     in login.spec.ts. Which theme's login screen renders here is not
+ *     obvious from this file alone — SettingSlice's `theme` key
+ *     (kids/corporate, set from the login JWT's uithemeClaim) is its own
+ *     whitelisted redux-persist slice, separate from `authentication`, and
+ *     clearAllData's extraReducers only clears the latter (see this test's
+ *     own logout-bug paragraph above) — so a corporate learner's
+ *     post-logout /login keeps rendering the corporate layout, chips
+ *     included, confirmed live by running this exact corporate
+ *     login -> logout cycle at 390x844. (The kids theme's login has no
+ *     language chips at all — confirmed by reading LoginScreen.tsx's kids
+ *     branch — so this assertion would need to move to login.spec.ts's own
+ *     corporate-login test if that persistence behaviour ever changed.)
+ *     Chip.tsx's Pressable wrapper around the "English"/"ភាសាខ្មែរ" pills
+ *     now carries `style={{ minHeight: 44, justifyContent: 'center' }}`
+ *     while the pill itself stays the original 32dp
+ *     (`useBreakpoint({ mobile: 32, ... })`) — the Pressable grew, not the
+ *     visible pill. Chip.tsx sets accessibilityRole="button" but no
+ *     accessibilityLabel, so react-native-web derives the accessible name
+ *     from the pill's own Text child, the same subtree-text accname
+ *     Playwright's getByRole already relies on for the plain-text login
+ *     button and other chips in this suite — confirmed live: the chip's
+ *     `[role="button"]` element carries no aria-label, and
+ *     getByRole('button', { name: 'English' }) still resolves it. Confirmed
+ *     live at 390x844: the chip's own bounding box is
+ *     `{width: 72.17, height: 44}`, and scanning its descendants for
+ *     computed `height` turns up exactly one match at `32px` (the pill's
+ *     Animated.View) — proving the pill itself did not also grow to 44.
+ *     Mutation-proved: deleting Chip.tsx's `minHeight: 44,` line turns the
+ *     height assertion red (the Pressable collapses back to the pill's own
+ *     32px, since nothing else in the tree enforces a taller hit box).
  */
 import { test, expect, Page, ConsoleMessage } from "@playwright/test";
 import {
@@ -321,6 +455,77 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
       (el) => getComputedStyle(el).backgroundColor
     );
     expect(trackColor).toBe("rgb(74, 90, 110)");
+
+    // U-03 corporate contrast fix (see header comment's extension to this
+    // test): AppTextField.tsx's placeholderTextColor now binds to
+    // theme.colors.placeholder. Confirmed live in Chromium that
+    // react-native-web's placeholder colour is readable straight off the
+    // `::placeholder` pseudo-element — no CSS-variable or attribute
+    // workaround needed. Located by placeholder text, not
+    // `input[type="text"]` (loginViaExpoUi's approach): confirmed live this
+    // field carries no `type` attribute at all, unlike the login screen's
+    // username input, so that selector matches nothing here — confirmed
+    // live via a full `<input>` element scan of this screen (also
+    // confirming `getByPlaceholder` matches exactly one element).
+    const searchInput = page.getByPlaceholder(KM.searchPlaceholder);
+    await expect(searchInput).toBeVisible();
+    const placeholderColor = await searchInput.evaluate(
+      (el) => getComputedStyle(el, "::placeholder").color
+    );
+    expect(placeholderColor).toBe("rgb(90, 107, 128)");
+  });
+
+  test("lesson chip uses the contrast token", async () => {
+    // U-22 corporate contrast fix (see header comment (c2)): reaches the
+    // Level Detail screen the same way goToFirstDcrsLessonActivities does
+    // (DCRS -> Cohort II -> Module 1), but stops there instead of clicking
+    // into a lesson row, so the chip can be asserted on its own first.
+    await page.getByRole("button").filter({ hasText: "DCRS" }).first().click();
+    await page
+      .getByRole("button")
+      .filter({ hasText: "Cohort II" })
+      .first()
+      .click();
+    await page
+      .getByRole("button")
+      .filter({ hasText: "Module 1" })
+      .first()
+      .click();
+
+    // km.json's screen.level.lessonChip ("មេរៀនទី {{n}}") renders lesson
+    // 1's chip as exactly "មេរៀនទី 1" — confirmed live, a bare DIV with no
+    // distinguishing role.
+    const chipText = page.getByText("មេរៀនទី 1", { exact: true });
+    await expect(chipText).toBeVisible();
+    // LessonRow.tsx binds theme.colors.lessonChip to the View wrapping the
+    // chip's EyebrowText, not the text itself — confirmed live the text
+    // node's own computed backgroundColor is transparent, and its
+    // immediate parent's is the chip colour.
+    const chip = chipText.locator("xpath=..");
+    const chipBackgroundColor = await chip.evaluate(
+      (el) => getComputedStyle(el).backgroundColor
+    );
+    expect(chipBackgroundColor).toBe("rgb(22, 114, 154)");
+
+    // Continue the drilldown so the following MCQ test's own call to
+    // goToFirstDcrsLessonActivities still finds an already-logged-in Home
+    // screen to start from — that fixture begins with the DCRS card click
+    // and has no tab-home detour of its own (confirmed by reading
+    // fixtures.ts). Land on the activity list first (the same lessonHeader
+    // wait the fixture itself does), proving the lesson row this test just
+    // asserted the chip colour on is still clickable, then return to Home.
+    await page
+      .getByRole("button")
+      .filter({ hasText: "Why direction matters" })
+      .first()
+      .click();
+    await expect(
+      page.getByRole("heading", { name: KM.lessonHeader })
+    ).toBeVisible();
+    await page.locator('[data-testid="tab-home"]').click();
+    await expect(
+      page.getByText(KM.subjectGreeting, { exact: true })
+    ).toBeVisible();
   });
 
   test("MCQ options stack full-width above the tab bar", async () => {
@@ -336,6 +541,32 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
     const radios = page.getByRole("radio");
     await expect(radios.first()).toBeVisible();
 
+    // U-23 corporate contrast fix (see header comment (d)'s second
+    // extension): QuizOption.tsx's 24x24 radio ring only takes the 6px
+    // `theme.colors.selection` border once `state === 'selected'`, so the
+    // option has to actually be clicked first. Confirmed live exactly one
+    // descendant div of the clicked option has a computed borderWidth of
+    // '6px' (the option's own separate 2px `success` border doesn't match)
+    // — filtered rather than matched with `find` so a future regression
+    // that puts a second 6px-border div in this subtree fails loudly
+    // instead of the lookup silently keeping whichever one came first.
+    // Clicking here is confirmed live not to disturb any assertion below —
+    // option widths/order and the footer/submit/tab-bar positions are
+    // unchanged.
+    await radios.first().click();
+    const ringBorderColor = await radios.first().evaluate((optionEl) => {
+      const rings = Array.from(optionEl.querySelectorAll("div")).filter(
+        (d) => getComputedStyle(d).borderWidth === "6px"
+      );
+      if (rings.length !== 1) {
+        throw new Error(
+          `Expected exactly 1 div with 6px borderWidth, found ${rings.length}`
+        );
+      }
+      return getComputedStyle(rings[0]).borderColor;
+    });
+    expect(ringBorderColor).toBe("rgb(7, 138, 149)");
+
     // See header comment (d): guards PracticeHeading.tsx's corporate
     // branch (`theme.fontSizes.subtitle`) against falling back to the kids
     // theme's 32px H3. Confirmed live against the seeded q1 heading text.
@@ -348,6 +579,45 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
       (el) => getComputedStyle(el).fontSize
     );
     expect(questionFontSize).toBe("18px");
+
+    // See header comment (d)'s extension: the child app bar's own screen
+    // title, a distinct role="heading" from the question heading above.
+    // Confirmed live it renders the seeded practice name verbatim (no
+    // ellipsis in the DOM text — CSS truncation only clips the paint, not
+    // textContent).
+    const headerTitle = page.getByRole("heading", {
+      name: "Why direction matters practice",
+    });
+    await expect(headerTitle).toBeVisible();
+    const headerTitleFontSize = await headerTitle.evaluate(
+      (el) => getComputedStyle(el).fontSize
+    );
+    expect(headerTitleFontSize).toBe("18px");
+    const headerTitleFontFamily = await headerTitle.evaluate(
+      (el) => getComputedStyle(el).fontFamily
+    );
+    expect(headerTitleFontFamily).toMatch(/Bold/);
+    expect(headerTitleFontFamily).not.toMatch(/SemiBold/);
+
+    // Not a "zero truncation" claim — see header comment (d)'s extension
+    // for why that would be false against this live build. Bounds the
+    // ellipsis shortfall to comfortably above the fixed build's own ~48px
+    // (scrollWidth 278 - clientWidth 230) but well below the pre-fix 28px
+    // SemiBold render's ~191px shortfall, so a regression back to the
+    // larger stack default still fails this hard.
+    const headerTitleOverflow = await headerTitle.evaluate(
+      (el) => el.scrollWidth - el.clientWidth
+    );
+    expect(headerTitleOverflow).toBeLessThanOrEqual(70);
+
+    // BackButton.tsx's accessibilityLabel, now t('button.back') —
+    // confirmed live as the only button on this screen carrying KM.back
+    // (see header comment).
+    const backButton = page.getByRole("button", { name: KM.back });
+    await expect(backButton).toBeVisible();
+    const backButtonBox = await backButton.boundingBox();
+    expect(backButtonBox).not.toBeNull();
+    expect(backButtonBox!.y).toBeLessThan(100);
 
     const count = await radios.count();
     expect(count).toBeGreaterThan(0);
@@ -375,6 +645,59 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
     // The footer must clear the tab bar, not render underneath it —
     // guards useScreenDimension.ts's tabBarHeight subtraction.
     expect(submitBox!.y + submitBox!.height).toBeLessThanOrEqual(tabHomeBox!.y);
+
+    // Guards PracticeFooter.tsx's corporate `alignSelf: 'stretch'` fix
+    // directly (audit U-04/U-05): the footer's outer View used to
+    // shrink-wrap to its buttons — 296px wide at x≈47 on this 390 viewport —
+    // because Container centres its children, which also collapsed the 4dp
+    // `ProgressBar variant="quiz"` track's 100%-width bar to a null/zero-width
+    // box (there was nothing to stretch against). stretch is what makes the
+    // bar, and the track inside it, span the full screen width instead. Two
+    // things are asserted here: the track running full-bleed across the
+    // footer's top, and the Submit button (`<View style={{ flex: 1 }}>` +
+    // `fullWidth`) growing to fill the row instead of sitting at its old
+    // 72px.
+    //
+    // ProgressBar.tsx sets accessibilityRole="progressbar", which
+    // react-native-web renders as role="progressbar" on web — confirmed live,
+    // same as test (c) above. Unlike test (c)'s curriculum-card bar, there is
+    // no container to scope the locator to here: the Home screen's own
+    // curriculum-card progress bars stay mounted behind this screen's
+    // navigation stack, so [role="progressbar"] matches several elements on
+    // this page (confirmed live) — most with a null bounding box since
+    // they're not actually laid out while hidden. The quiz track is picked
+    // out by position instead: the one progress bar with a non-null box that
+    // sits within 120px directly above the Submit button. Confirmed live at
+    // 390x844: exactly one candidate matches, box {x: 0, y: 715, width: 390,
+    // height: 4} — the Submit button's own box is {x: 16, y: 735, width:
+    // 178.0625, height: 44} at that same run.
+    const allProgressBars = page.locator('[role="progressbar"]');
+    const progressBarCount = await allProgressBars.count();
+    const tracksNearSubmit: Array<{
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }> = [];
+    for (let i = 0; i < progressBarCount; i++) {
+      const box = await allProgressBars.nth(i).boundingBox();
+      if (box !== null && box.y < submitBox!.y && box.y > submitBox!.y - 120) {
+        tracksNearSubmit.push(box);
+      }
+    }
+    expect(tracksNearSubmit.length).toBe(1);
+    const trackBox = tracksNearSubmit[0];
+    // Full-bleed: width ~= the 390 viewport (0.98x tolerance for the pill
+    // radius/overflow rounding) and flush against the left edge, not the
+    // pre-fix shrink-wrapped 296px box starting at x≈47.
+    expect(trackBox.width).toBeGreaterThanOrEqual(0.98 * 390);
+    expect(trackBox.x).toBeLessThanOrEqual(1);
+
+    // Submit grows to fill its flex:1 wrapper instead of sitting at its
+    // pre-fix ~72px content-hug width. Confirmed live the fixed button is
+    // 178px wide (see box above) — comfortably past the 0.3x/117px floor,
+    // which still fails hard against the old 72px.
+    expect(submitBox!.width).toBeGreaterThanOrEqual(0.3 * 390);
 
     await expect(page.getByText(/^\d+\s*\/\s*\d+$/)).toBeVisible();
   });
@@ -460,5 +783,31 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
       .toBe("");
     const after = await readPersistedAuth(page);
     expect(after?.profile).toBeUndefined();
+
+    // See header comment (g)'s WCAG-target-size paragraph: this corporate
+    // account's theme survives logout (settingSlice isn't cleared by
+    // clearAllData), so the login screen we just landed on is corporate,
+    // chips included. No exact: true — 'English' doesn't collide with
+    // anything else accessible-name-wise on this screen, confirmed live.
+    const englishChip = page.getByRole("button", { name: "English" });
+    await expect(englishChip).toBeVisible();
+    const chipBox = await englishChip.boundingBox();
+    expect(chipBox).not.toBeNull();
+    // 44dp touch target (Chip.tsx's Pressable minHeight) — the regression
+    // this exists to catch.
+    expect(chipBox!.height).toBeGreaterThanOrEqual(44);
+
+    // The visible pill must stay 32dp — only the invisible Pressable grew.
+    // Scan descendants for computed height '32px' rather than asserting on
+    // a specific element: confirmed live exactly one such descendant
+    // exists (Chip.tsx's own Animated.View), so a regression that also
+    // stretched the pill (not just the tap target) would surface as either
+    // zero or a different count here, not a false pass.
+    const pillHeights = await englishChip.evaluate((el) =>
+      Array.from(el.querySelectorAll("*"))
+        .map((child) => getComputedStyle(child as Element).height)
+        .filter((h) => h === "32px")
+    );
+    expect(pillHeights.length).toBe(1);
   });
 });

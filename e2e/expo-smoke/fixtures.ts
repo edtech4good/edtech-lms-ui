@@ -21,7 +21,7 @@
  * demo.student or miv.demo here: the rpi API allows one token per user, and
  * those two accounts are in interactive use by others.
  */
-import { Page, expect } from '@playwright/test';
+import { Page, expect } from "@playwright/test";
 
 /**
  * Shared default password for both automation accounts (both are seeded
@@ -29,15 +29,15 @@ import { Page, expect } from '@playwright/test';
  * login.spec.ts: `E2E_EXPO_STUDENT_PASS=wrong npm run e2e:expo` breaks both
  * accounts' logins and should turn the "reaches home" assertions red.
  */
-const DEFAULT_PASSWORD = process.env.E2E_EXPO_STUDENT_PASS ?? 'demo';
+const DEFAULT_PASSWORD = process.env.E2E_EXPO_STUDENT_PASS ?? "demo";
 
 export const KIDS_STUDENT = {
-  username: process.env.E2E_EXPO_KIDS_USER ?? 'demo.sophea',
+  username: process.env.E2E_EXPO_KIDS_USER ?? "demo.sophea",
   password: process.env.E2E_EXPO_KIDS_PASS ?? DEFAULT_PASSWORD,
 };
 
 export const CORPORATE_STUDENT = {
-  username: process.env.E2E_EXPO_CORPORATE_USER ?? 'miv.verify',
+  username: process.env.E2E_EXPO_CORPORATE_USER ?? "miv.verify",
   password: process.env.E2E_EXPO_CORPORATE_PASS ?? DEFAULT_PASSWORD,
 };
 
@@ -47,9 +47,9 @@ export const CORPORATE_STUDENT = {
  * session actually renders.
  */
 export const KM = {
-  loginButton: 'ចូលគណនី', // screen.login.loginButton
-  ok: 'អូខេ', // button.ok
-  logout: 'ចាកចេញ', // drawer.logout
+  loginButton: "ចូលគណនី", // screen.login.loginButton
+  ok: "អូខេ", // button.ok
+  logout: "ចាកចេញ", // drawer.logout
   // The corporate phone tab bar's profile/index Tabs.Screen
   // ((app)/(home)/_layout.tsx) sets title: t('drawer.profile') as its
   // static nav option, but StudentProfileScreen.tsx immediately overrides
@@ -57,24 +57,27 @@ export const KM = {
   // .header') }) — confirmed live (mutating the Tabs.Screen's own title had
   // no visible effect). screen.profile.header is what actually renders;
   // it is coincidentally the same Khmer string as drawer.profile.
-  profileHeader: 'ប្រវត្តិរូប', // screen.profile.header
-  subjectGreeting: 'អរុណសួស្តី', // screen.subject.greeting
-  lessonHeader: 'លំហាត់', // screen.lesson.header
-  learningTitle: 'សិក្សា', // screen.lesson.learningTitle
-  practiceTitle: 'អនុវត្ត', // screen.lesson.practiceTitle
-  quizTitle: 'តេស្ត', // screen.lesson.quizTitle
-  submitButton: 'បញ្ជូន', // screen.practice.submitButton
-  correctButton: 'បន្ទាប់', // screen.practice.correctButton
-  incorrectButton: 'សូមព្យាយាមម្តងទៀត', // screen.practice.incorrectButton
-  correctTitle: 'អបអរសាទរ!', // screen.practice.correctTitle
-  incorrectTitle: 'អូទេ!', // screen.practice.incorrectTitle
+  profileHeader: "ប្រវត្តិរូប", // screen.profile.header
+  subjectGreeting: "អរុណសួស្តី", // screen.subject.greeting
+  searchPlaceholder: "ស្វែងរកកម្មវិធីសិក្សា", // screen.subject.searchPlaceholder
+  lessonHeader: "លំហាត់", // screen.lesson.header
+  learningTitle: "សិក្សា", // screen.lesson.learningTitle
+  practiceTitle: "អនុវត្ត", // screen.lesson.practiceTitle
+  quizTitle: "តេស្ត", // screen.lesson.quizTitle
+  submitButton: "បញ្ជូន", // screen.practice.submitButton
+  correctButton: "បន្ទាប់", // screen.practice.correctButton
+  incorrectButton: "សូមព្យាយាមម្តងទៀត", // screen.practice.incorrectButton
+  correctTitle: "អបអរសាទរ!", // screen.practice.correctTitle
+  incorrectTitle: "អូទេ!", // screen.practice.incorrectTitle
   // Generic ResultPopUp body copy (screen.practice.correctMessage /
   // incorrectMessage) — what a learner sees when the answered question has
   // no questionfeedback of its own. ResultPopUp.tsx only reaches these when
   // customMessages is undefined or its corresponding field is falsy.
-  genericCorrectMessage: 'ល្អណាស់!', // screen.practice.correctMessage
-  genericIncorrectMessage: 'ចម្លើយរបស់អ្នកមិនត្រឹមត្រូវទេ', // screen.practice.incorrectMessage
-  resultHeader: 'លទ្ធផល', // screen.result.header
+  genericCorrectMessage: "ល្អណាស់!", // screen.practice.correctMessage
+  genericIncorrectMessage: "ចម្លើយរបស់អ្នកមិនត្រឹមត្រូវទេ", // screen.practice.incorrectMessage
+  resultHeader: "លទ្ធផល", // screen.result.header
+  finishButton: "រួចរាល់", // screen.result.finishButton
+  back: "ត្រឡប់ក្រោយ", // button.back
 } as const;
 
 /**
@@ -87,13 +90,13 @@ export const KM = {
  * in one place cannot silently pass against a typo in the other.
  */
 export const Q1_FEEDBACK = {
-  correctMessage: 'ល្អណាស់! អ្នកយល់ច្បាស់ហើយ។',
-  incorrectMessage: 'សាកល្បងម្តងទៀត ហើយពិនិត្យមេរៀនឡើងវិញ។',
+  correctMessage: "ល្អណាស់! អ្នកយល់ច្បាស់ហើយ។",
+  incorrectMessage: "សាកល្បងម្តងទៀត ហើយពិនិត្យមេរៀនឡើងវិញ។",
 } as const;
 
 /** Matches whichever of the two ResultPopUp buttons is currently showing. */
 export const RESULT_POPUP_BUTTON = new RegExp(
-  `^(${KM.correctButton}|${KM.incorrectButton})$`,
+  `^(${KM.correctButton}|${KM.incorrectButton})$`
 );
 
 /**
@@ -108,9 +111,9 @@ export const RESULT_POPUP_BUTTON = new RegExp(
 export async function loginViaExpoUi(
   page: Page,
   username: string,
-  password: string,
+  password: string
 ): Promise<void> {
-  await page.goto('/');
+  await page.goto("/");
   // Neither input carries a name/id/testID (confirmed against the live
   // dev build) — type + order is the only stable handle RN-web gives us.
   await page.locator('input[type="text"]').first().fill(username);
@@ -137,15 +140,25 @@ export async function loginViaExpoUi(
  */
 export async function goToFirstDcrsLessonActivities(
   page: Page,
-  lessonTitle = 'Why direction matters',
+  lessonTitle = "Why direction matters"
 ): Promise<void> {
-  await page.getByRole('button').filter({ hasText: 'DCRS' }).first().click();
-  await page.getByRole('button').filter({ hasText: 'Cohort II' }).first().click();
-  await page.getByRole('button').filter({ hasText: 'Module 1' }).first().click();
+  await page.getByRole("button").filter({ hasText: "DCRS" }).first().click();
   await page
-    .getByRole('button')
+    .getByRole("button")
+    .filter({ hasText: "Cohort II" })
+    .first()
+    .click();
+  await page
+    .getByRole("button")
+    .filter({ hasText: "Module 1" })
+    .first()
+    .click();
+  await page
+    .getByRole("button")
     .filter({ hasText: lessonTitle })
     .first()
     .click();
-  await expect(page.getByRole('heading', { name: KM.lessonHeader })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: KM.lessonHeader })
+  ).toBeVisible();
 }
