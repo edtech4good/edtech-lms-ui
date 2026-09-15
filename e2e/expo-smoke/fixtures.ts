@@ -59,6 +59,7 @@ export const KM = {
   // it is coincidentally the same Khmer string as drawer.profile.
   profileHeader: "ប្រវត្តិរូប", // screen.profile.header
   subjectGreeting: "អរុណសួស្តី", // screen.subject.greeting
+  searchPlaceholder: "ស្វែងរកកម្មវិធីសិក្សា", // screen.subject.searchPlaceholder
   lessonHeader: "លំហាត់", // screen.lesson.header
   learningTitle: "សិក្សា", // screen.lesson.learningTitle
   practiceTitle: "អនុវត្ត", // screen.lesson.practiceTitle
