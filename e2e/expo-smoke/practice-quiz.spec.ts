@@ -100,6 +100,37 @@ test.describe("expo web practice & quiz (corporate / DCRS)", () => {
       page.getByText(KM.genericIncorrectMessage, { exact: true })
     ).not.toBeVisible();
 
+    // Guards MCQTextItem.tsx's corporate QuizOption paint: before the fix,
+    // the isShowingAnswer effect in PracticeMCQText.tsx cleared the
+    // current selection as soon as the popup opened, so MCQTextItem's
+    // `state` calc never reached its `isJudged && isSelected && !isCorrect`
+    // branch — QuizOption kept rendering 'selected' (border =
+    // theme.colors.success, rgb(34, 219, 141)), never 'incorrect'. The
+    // border colour is the most robust thing to assert here: it's a token
+    // (theme.colors.error, '#C7420A' / rgb(199, 66, 10)) rather than text,
+    // so it can't be satisfied by an unrelated copy change, and it cleanly
+    // distinguishes 'incorrect' from 'selected' and 'default' (the divider
+    // grey). Re-query by role for the seeded-wrong option's own stable
+    // name rather than reusing the click locator above. The border itself
+    // lives on QuizOption.tsx's Animated.View — the radio's *first child*
+    // div (borderWidth/borderColor/backgroundColor are set there, not on
+    // the Pressable that carries role="radio") — confirmed live against
+    // the running app via page.evaluate before writing this. Also
+    // confirmed live: the result popup is a portal-rendered dialog with no
+    // aria-hidden anywhere on the background tree, so the radio stays
+    // queryable by role while the popup is open, and toHaveCSS only needs
+    // the element present (not interactable), so the overlay doesn't
+    // affect either the locator or the assertion. border-color (not
+    // border-top-color) normalises fine on this DOM — checked live via
+    // getComputedStyle before relying on it.
+    const wrongOption = page.getByRole("radio", {
+      name: "Family and staff pull the same way",
+    });
+    await expect(wrongOption.locator("> div").first()).toHaveCSS(
+      "border-color",
+      "rgb(199, 66, 10)"
+    );
+
     // WCAG target-size pass (audit U-07-adjacent, edtech-expo
     // ResultPopUp.tsx, corporate-only): the popup's AppButton now carries
     // `fullWidth`, so it spans the dialog's own padded content box instead
