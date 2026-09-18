@@ -111,10 +111,13 @@ test('POST /report/studentstatus (rpi) rejects unauthenticated access', async ()
       res.ok(),
       'unauthenticated request to /report/studentstatus succeeded — the report guard is missing again',
     ).toBeFalsy();
+    // No Authorization header at all — AccessGuard's err||!user branch, still
+    // 401 after edtech-lms-rpi-api#33 (that change only moved the valid-token
+    // wrong-role branch to 403; a missing/bad token is unchanged).
     expect(
-      [401, 403],
-      `expected 401/403, got ${res.status()}`,
-    ).toContain(res.status());
+      res.status(),
+      `expected 401, got ${res.status()}`,
+    ).toBe(401);
   } finally {
     await anon.dispose();
   }
