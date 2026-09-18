@@ -20,6 +20,10 @@
   "description": "Educational Technology Learning Management System UI",
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/edtech4good/edtech-lms-ui.git"
+  },
   "dependencies": {
     "@angular/animations": "^21.2.18",
     "@angular/cdk": "^21.2.14",
