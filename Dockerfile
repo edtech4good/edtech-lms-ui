@@ -1,7 +1,7 @@
 # Stage 1: Build an Angular Docker Image
 # Pin Node — unpinned `FROM node` pulled Node 26 on a clean host and broke the
-# build. Angular 21 supports Node 20 LTS.
-FROM node:20 as build
+# build. Angular 21 supports Node 22 LTS and Node 20 is end of life.
+FROM node:22 as build
 WORKDIR /app
 COPY package*.json /app/
 # --legacy-peer-deps: the ladder upgrade moved @angular/cli to 21 while
