@@ -1,182 +1,94 @@
 # EdTech LMS UI
 
-A comprehensive user interface for the Educational Technology Learning Management System, built with Angular 12. This is the main frontend application that provides a complete learning management experience for students, teachers, and administrators.
+The web app for the LMS: admin, teacher and student screens, plus the reports. It is an Angular 21 app that talks to the central API, [edtech-lms-api](https://github.com/edtech4good/edtech-lms-api). The product is taught in Khmer, so anything you build here has to hold up with Khmer text, not just ASCII.
 
-## In the full system
+Stack: Angular 21 (NgModule-based, not standalone), ng-zorro-antd for components, NgRx for state, ngx-charts for charts, Less for styles, FontAwesome for icons. Auth is a JWT from the API, decoded client-side with `@auth0/angular-jwt`. That is a helper library, not the Auth0 service.
 
-This is the **central admin / teacher / student web UI** for [**edtech-lms-api**](../edtech-lms-api). Classroom tablets may use [**edtech-expo**](../edtech-expo) or [**edtech-android**](../edtech-android) against [**edtech-lms-rpi-api**](../edtech-lms-rpi-api). Overview: [**ARCHITECTURE.md**](../ARCHITECTURE.md); legacy PDF-style guides: [**docs/**](../docs/README.md).
+## How it fits with the other repos
 
-## 🚀 Features
+This is the only web front end. The old reporting UI, [edtech-lms-report-ui](https://github.com/edtech4good/edtech-lms-report-ui), was a copy of this repo with nothing extra in it and is archived; the reports live here. Students on tablets and phones use [edtech-expo](https://github.com/edtech4good/edtech-expo), which talks to the classroom API, [edtech-lms-rpi-api](https://github.com/edtech4good/edtech-lms-rpi-api).
 
-- **Student Dashboard**: Interactive learning interface with progress tracking
-- **Teacher Portal**: Comprehensive tools for lesson management and student monitoring
-- **Administrative Panel**: School and curriculum management capabilities
-- **Course Management**: Create, edit, and organize educational content
-- **Assessment System**: Quizzes, tests, and evaluation tools
-- **Progress Tracking**: Real-time student progress monitoring
-- **File Management**: Upload and manage educational resources
-- **Multi-language Support**: Internationalization ready
-- **Responsive Design**: Mobile-friendly interface using Ant Design
-- **Real-time Updates**: Live data synchronization
+This repo also holds the Playwright suites for the whole stack, including the ones that drive the Expo web build. See Testing below.
 
-## 🛠️ Technology Stack
+## What you need
 
-- **Framework**: Angular 12
-- **UI Library**: Ant Design (ng-zorro-antd)
-- **Charts**: ngx-charts (D3.js based)
-- **State Management**: NgRx
-- **Styling**: Less CSS
-- **Authentication**: JWT with Auth0
-- **Icons**: FontAwesome
-- **Language**: TypeScript
+- Node 20 or 22. Angular 21 needs 20.19 or newer. The Docker image still builds on `node:20`, which reached end of life in April 2026, so Node 22 is where this is heading.
+- The central API running on port 3000. For the end-to-end tests you also need the classroom API on 3001.
 
-## 📋 Prerequisites
-
-- Node.js (v14 or higher)
-- npm or yarn
-- EdTech LMS API running (see [edtech-lms-api](../edtech-lms-api))
-
-## 🚀 Quick Start
-
-### 1. Get the code
-
-Clone or copy this repository into your workspace.
-
-### 2. Install Dependencies
+## Running it locally
 
 ```bash
-npm install
-```
-
-### 3. Environment Configuration
-
-For **local multi-repo setup**, [`src/environments/environment.ts`](src/environments/environment.ts) is already wired to **`http://localhost:3000`** (central `edtech-lms-api`). See [**LOCAL_DEVELOPMENT.md** §2a](../LOCAL_DEVELOPMENT.md) in the workspace root.
-
-For staging/production or custom hosts, copy the example and edit:
-
-```bash
-cp src/environments/environment.example.ts src/environments/environment.ts
-```
-
-Important: `PAYLOAD_KEY`, `ALG_KEY`, `HASH_KEY`, and the `REFRESH_*` keys are **sessionStorage key names** for JWT segments (not the API signing secret). Use the values in `environment.example.ts` unless you have a reason to change them.
-
-### 4. Start the Development Server
-
-```bash
+npm install --legacy-peer-deps
 npm start
 ```
 
-The application will be available at `http://localhost:4200`
+Open http://localhost:4200. The `--legacy-peer-deps` is needed because `@angular-eslint/schematics` is still on 16 and its peer range does not include the current CLI. It is dev-only tooling and does not affect the build.
 
-## Development server
+`src/environments/environment.ts` is checked in and already points at `http://localhost:3000`, so there is nothing to copy for local work. For another host, edit it or copy `environment.example.ts` over it. The keys named `PAYLOAD_KEY`, `ALG_KEY`, `HASH_KEY` and the `REFRESH_*` set are sessionStorage key names for the three JWT segments. They are not secrets and they do not need to match anything on the API.
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The app will automatically reload if you change any of the source files.
+The other environment files (`environment.dev.ts`, `environment.staging.ts`, `environment.prod.ts`) hold placeholder hostnames. Fill them in for your deployment. `angular.json` has four build configurations: `production`, `development`, `staging` and `local`. `npm run watch` serves with `local`, which turns optimization off and source maps on.
 
-## Code scaffolding
-
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
-
-## Build
-
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
-
-## Running unit tests
-
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
-
-## Running end-to-end tests
-
-Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To use this command, you need to first add a package that implements end-to-end testing capabilities.
-
-## 🏗️ Build for Production
+## Testing
 
 ```bash
-# Build for production
-npm run build
+# Playwright, against a local stack on 4200 / 3000 / 3001
+npm run e2e
 
-# Build for specific environment
-ng build --configuration=production
-ng build --configuration=staging
-ng build --configuration=development
+# Same, with the Playwright UI
+npm run e2e:ui
+
+# The Expo web smoke suite, against an Expo web build on 8081
+npm run e2e:expo
+
+# Open the last HTML report
+npm run e2e:report
 ```
 
-## 🧪 Testing
+The suites under `e2e/` are the tests we actually trust:
+
+- `smoke/` covers login, CRUD on the main screens, lazy-loaded modules, question templates and the sync record filter.
+- `authorization/` checks role grants and role enforcement, including the baseline curriculum download.
+- `security/` runs SQL injection probes against both the central and the classroom API.
+- `localization/` checks Khmer text end to end.
+- `expo-smoke/` drives the Expo web build: login, lesson video, practice quiz, drill-down, the phone learner path and the offline banner. It has its own config, `playwright.expo.config.ts`, because it targets a different app and account model.
+
+Where the suites point is set with environment variables, all with local defaults: `E2E_BASE_URL` (4200), `E2E_API_URL` (3000), `E2E_RPI_API_URL` (3001), `EXPO_WEB_URL` (8081). The account fixtures default to the superadmin and demo student that the API seed scripts create; override with `E2E_SUPERADMIN_USER`, `E2E_SUPERADMIN_PASS`, `E2E_DEMO_STUDENT_USER` and `E2E_DEMO_STUDENT_PASS`.
+
+Two cautions from experience. The API issues one access token per user, so running a suite or a `curl` login while you are signed in to the same account in a browser logs the browser out. And a test that only uses ASCII data cannot catch a Khmer bug.
+
+`npm test` runs the Karma unit tests via `ng test`. `npm run lint` runs ESLint via `ng lint`.
+
+## Building
 
 ```bash
-# Run unit tests
-npm test
-
-# Run tests with coverage
-npm run test:cov
-
-# Run linting
-npm run lint
+npm run build -- --configuration production
 ```
 
-## 📝 Available Scripts
+Output goes to `dist/`. The `Dockerfile` does the same build inside `node:20` and serves the result with nginx on port 80, using `nginx/nginx.conf`. Pass `--build-arg configuration=staging` to build another configuration.
 
-- `npm start` - Start development server
-- `npm run build` - Build for production
-- `npm run watch` - Start with file watching
-- `npm test` - Run unit tests
-- `npm run lint` - Run ESLint
-
-## 🗂️ Project Structure
+## Layout
 
 ```
 src/
 ├── app/
-│   ├── modules/           # Feature modules
-│   │   ├── auth/         # Authentication module
-│   │   ├── dashboard/    # Dashboard components
-│   │   ├── lesson/       # Lesson management
-│   │   ├── question/     # Question management
-│   │   ├── student/      # Student features
-│   │   ├── teacher/      # Teacher features
-│   │   └── ...
-│   ├── services/         # API services
-│   ├── models/          # TypeScript interfaces
-│   ├── guards/          # Route guards
-│   ├── interceptors/    # HTTP interceptors
-│   └── shared/          # Shared components
-├── assets/              # Static assets
-└── environments/        # Environment configurations
+│   ├── modules/        # One feature module per area: auth, dashboard, lesson,
+│   │                   #   question, student, teacher, school, curriculum,
+│   │                   #   report, grade, level, subject, ...
+│   ├── services/       # API services
+│   ├── models/
+│   ├── guards/         # Route guards
+│   ├── interceptors/   # HTTP interceptors (JWT, errors)
+│   └── shared/         # Shared components and the ng-zorro module
+├── assets/
+└── environments/
+e2e/                    # Playwright suites (see Testing)
+nginx/                  # Config for the Docker image
 ```
 
-## 🔧 Configuration
+## Contributing
 
-### Environment Files
+See [CONTRIBUTING.md](CONTRIBUTING.md). If you add a Playwright assertion, break the thing it watches once and confirm it goes red. We have had specs that passed happily for a module that did not exist.
 
-The application supports multiple environments:
+## License and support
 
-- `environment.ts` - Default/development
-- `environment.prod.ts` - Production
-- `environment.dev.ts` - Development server
-- `environment.staging.ts` - Staging server
-
-### API Integration
-
-The UI connects to the EdTech LMS API. Make sure to:
-
-1. Configure the correct API URL in your environment file
-2. Set up proper authentication keys
-3. Ensure CORS is configured on the API server
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on how to contribute to this project.
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-If you encounter any issues or have questions, use your team’s issue tracker or internal docs.
-
-## 🙏 Acknowledgments
-
-- Built with [Angular](https://angular.io/)
-- UI components from [Ant Design](https://ng.ant.design/)
-- Charts powered by [ngx-charts](https://swimlane.github.io/ngx-charts/)
-- State management with [NgRx](https://ngrx.io/)
+MIT, see [LICENSE](LICENSE). Questions and bugs go to [GitHub Issues](https://github.com/edtech4good/edtech-lms-ui/issues).
