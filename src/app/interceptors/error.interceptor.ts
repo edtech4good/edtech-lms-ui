@@ -28,6 +28,9 @@ export class ErrorInterceptor implements HttpInterceptor {
           this.createNotification('error', error.error.errormessage);
         }
         if (error.status === 401) {
+          // The API returns 401 for role failures too (access.guard.ts), not just
+          // a bad/expired token, so this must not clear the session here until the
+          // API returns 403 for role failures instead (tracked separately).
           if (this.route.snapshot.url.length > 0) {
             this.router.navigateByUrl('/auth/login');
           }
