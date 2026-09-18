@@ -22,7 +22,11 @@ export class AuthInterceptor implements HttpInterceptor {
     let authReq = req;
     const token = this.tokenService.gettoken();
     if (token != null) {
-      if (!this.coreService.ignoreToken()) {
+      // Safe only because CORE_API() ends with "/", which pins the authority
+      // boundary (so "https://api.example.com/" can't prefix-match
+      // "https://api.example.com.evil.com/"). If that trailing slash ever goes
+      // away, compare origins instead of using startsWith.
+      if (req.url.startsWith(this.coreService.CORE_API())) {
         authReq = req.clone({
           headers: req.headers
             .set(TOKEN_HEADER_KEY, `bearer ${token}`)

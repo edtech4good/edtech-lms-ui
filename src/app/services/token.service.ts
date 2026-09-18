@@ -8,11 +8,11 @@ const REFRESH_PAYLOAD_KEY = environment.REFRESH_PAYLOAD_KEY;
 const REFRESH_ALG_KEY = environment.REFRESH_ALG_KEY;
 const REFRESH_HASH_KEY = environment.REFRESH_HASH_KEY;
 
-const accesstokenkeys = ['PAYLOAD_KEY', 'ALG_KEY', 'HASH_KEY'];
+const accesstokenkeys = [PAYLOAD_KEY, ALG_KEY, HASH_KEY];
 const refreshtokenkeys = [
-  'REFRESH_PAYLOAD_KEY',
-  'REFRESH_ALG_KEY',
-  'REFRESH_HASH_KEY',
+  REFRESH_PAYLOAD_KEY,
+  REFRESH_ALG_KEY,
+  REFRESH_HASH_KEY,
 ];
 const storagekeys = [...accesstokenkeys, ...refreshtokenkeys];
 
