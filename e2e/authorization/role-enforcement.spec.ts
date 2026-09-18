@@ -85,27 +85,28 @@ test('a user without the role is refused by /student/create', async () => {
   // The body is deliberately invalid, which is what makes this test safe to
   // run. Nest runs guards before interceptors, so the status says exactly which
   // layer answered:
-  //   401/403 — the guard refused. Correct.
-  //   400     — the guard let it through and the schema validator caught it.
-  //             That was the bug: lmsuserrole was stamped superadmin for every
-  //             account, so the role check passed for anyone.
+  //   403 — the guard refused. Correct.
+  //   400 — the guard let it through and the schema validator caught it.
+  //         That was the bug: lmsuserrole was stamped superadmin for every
+  //         account, so the role check passed for anyone.
   // Sending a *valid* body would prove the same thing by creating a real
   // student on every run, polluting the disability report's "not collected"
   // bucket. Asking for the refusal is enough.
   //
-  // Accept either refusal status rather than pinning one: AccessGuard throws
-  // 401 and CheckPermissionsGuard throws 403, and this spec is about the
-  // bearer being denied, not about which layer does it. Pinning 403 would have
-  // let a correct fix look like a still-failing test.
+  // /student/create has no @RequirePermissions, so AccessGuard's role list is
+  // the only guard in play here. A valid token that fails that role check is a
+  // ForbiddenException (edtech-lms-api#52): a dead session and a denied role
+  // are no longer both reported as 401, so this pins 403 rather than accepting
+  // either.
   const ctx = await apiContext(lowPrivToken);
   const res = await ctx.post('/student/create?online=true', {
     data: { students: [] },
   });
   await ctx.dispose();
   expect(
-    [401, 403],
+    res.status(),
     `a "User"-role account reached /student/create (${res.status()}) — see docs/authorization-model.md`,
-  ).toContain(res.status());
+  ).toBe(403);
 });
 
 test('a user with no permissions cannot list users', async () => {

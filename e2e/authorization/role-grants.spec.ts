@@ -127,13 +127,13 @@ test('an Admin cannot bind roles to users', async () => {
     data: { lmsuserid: createdUserIds[0], rolesid: [ROLE.superadmin] },
   });
   await ctx.dispose();
-  // 401 (AccessGuard) or 403 (CheckPermissionsGuard) — this is about the bearer
-  // being denied, not which layer denies it. 200 would mean an Admin just made
-  // themselves Super Admin.
+  // AccessGuard(TokenType.ACCESS) here carries no role list, so only
+  // CheckPermissionsGuard can refuse a valid token — always 403. 200 would mean
+  // an Admin just made themselves Super Admin.
   expect(
-    [401, 403],
+    res.status(),
     `an Admin reached user-bind-role (${res.status()}) — that is self-promotion to Super Admin`,
-  ).toContain(res.status());
+  ).toBe(403);
 });
 
 test('an Admin cannot mint a Super Admin', async () => {
@@ -148,10 +148,12 @@ test('an Admin cannot mint a Super Admin', async () => {
     },
   });
   await ctx.dispose();
+  // POST /user/create carries no role list on AccessGuard either — same
+  // CheckPermissionsGuard-only refusal, always 403.
   expect(
-    [401, 403],
+    res.status(),
     `an Admin created an account (${res.status()}) — it could have asked for Super Admin`,
-  ).toContain(res.status());
+  ).toBe(403);
 });
 
 test('the Teacher role is read-only', async () => {
@@ -221,20 +223,25 @@ test('a Teacher still cannot reach learner records', async () => {
   // depends on the class guard; see the migration-endpoint test below.)
   // See PILOT.md. If this ever goes green, that decision was made — check it
   // was made deliberately.
+  //
+  // A valid token that fails this role list is now a ForbiddenException
+  // (edtech-lms-api#52), so this pins 403 rather than accepting 401 too.
   const ctx = await apiContext(teacherToken);
   const res = await ctx.get('/student/all');
   await ctx.dispose();
-  expect([401, 403]).toContain(res.status());
+  expect(res.status()).toBe(403);
 });
 
 test('a Teacher cannot write', async () => {
   const ctx = await apiContext(teacherToken);
   const res = await ctx.post('/subject/create', { data: { subjectname: 'e2e-should-not-exist' } });
   await ctx.dispose();
+  // /subject/create carries no role list on AccessGuard — CheckPermissionsGuard
+  // is the only guard that can refuse a valid token, always 403.
   expect(
-    [401, 403],
+    res.status(),
     `a Teacher created a subject (${res.status()}) — read-only means read-only`,
-  ).toContain(res.status());
+  ).toBe(403);
 });
 
 test('the data-migration endpoints are Super Admin only', async () => {
@@ -247,9 +254,11 @@ test('the data-migration endpoints are Super Admin only', async () => {
   //
   // This asserts refusal only. A Super Admin token is deliberately NOT exercised
   // here: a successful call would run a destructive migration against the DB.
-  // The guard rejects before the handler, so 401/403 is the whole signal. A 404
-  // would also fail this (route gone), and a 200/400 means the guard was dropped
-  // and the handler ran — either way it goes red, which is the point.
+  // The guard rejects before the handler, so 403 is the whole signal (both
+  // callers hold a valid token and fail AccessGuard's Role.superadmin-only
+  // list — a ForbiddenException per edtech-lms-api#52). A 404 would also fail
+  // this (route gone), and a 200/400 means the guard was dropped and the
+  // handler ran — either way it goes red, which is the point.
   const routes = [
     '/standard/migrate-standardid',
     '/standard/remove-standardid',
@@ -264,9 +273,9 @@ test('the data-migration endpoints are Super Admin only', async () => {
     for (const route of routes) {
       const res = await ctx.post(route);
       expect(
-        [401, 403],
+        res.status(),
         `${label} reached POST ${route} (${res.status()}) — migration endpoints must be Super Admin only`,
-      ).toContain(res.status());
+      ).toBe(403);
     }
     await ctx.dispose();
   }
