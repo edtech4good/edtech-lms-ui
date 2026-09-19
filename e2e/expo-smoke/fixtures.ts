@@ -99,6 +99,11 @@ export const RESULT_POPUP_BUTTON = new RegExp(
   `^(${KM.correctButton}|${KM.incorrectButton})$`
 );
 
+/** Any back control: the app's own labelled BackButton (button.back, Khmer)
+ *  or react-navigation's stock web header button, whose accessible name is
+ *  the hard-coded English "Go back". */
+export const ANY_BACK = /^(ត្រឡប់ក្រោយ|Go back)$/;
+
 /**
  * Logs in through the real form. Both UI themes share the same input types
  * and the same (translated) submit button copy — only the surrounding
