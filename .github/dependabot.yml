@@ -4,9 +4,31 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
     groups:
       minor-and-patch:
         update-types:
           - minor
           - patch
+    # Angular and toolchain versions are intentionally pinned; major bumps are
+    # deliberate tasks managed as explicit PRs. Karma is deprecated; not worth bumps.
+    ignore:
+      - dependency-name: "@angular/*"
+        update-types:
+          - version-update:semver-major
+      - dependency-name: "@angular-devkit/*"
+        update-types:
+          - version-update:semver-major
+      - dependency-name: "@ngrx/*"
+        update-types:
+          - version-update:semver-major
+      - dependency-name: "zone.js"
+        update-types:
+          - version-update:semver-major
+      - dependency-name: "typescript"
+        update-types:
+          - version-update:semver-major
+      - dependency-name: "rxjs"
+        update-types:
+          - version-update:semver-major
+      - dependency-name: "karma*"
