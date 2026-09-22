@@ -6,6 +6,7 @@ import { ResponseBody } from 'src/app/models/response.model';
 import { CountryService } from 'src/app/services/country.service';
 import { ReportService } from 'src/app/services/report.service';
 import { ChartItemFormat, LineChartFormat } from './models/LineChartFormat';
+import { CHART_SERIES_EXTENDED } from '../chart-palette';
 
 @Component({
     selector: 'app-tech-downtime',
@@ -36,7 +37,7 @@ export class TechDowntimeComponent implements OnInit {
     name: 'myScheme',
     selectable: true,
     group: ScaleType.Linear,
-    domain: ['#005d43', '#d86d28', '#e4d161', '#f9f1e5', '#211ee6', '#e61e24']
+    domain: CHART_SERIES_EXTENDED
   };
   showLabels: boolean = true;
 
