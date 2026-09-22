@@ -4,6 +4,8 @@ The web app for the LMS: admin, teacher and student screens, plus the reports. I
 
 Stack: Angular 21 (NgModule-based, not standalone), ng-zorro-antd for components, NgRx for state, ngx-charts for charts, Less for styles, FontAwesome for icons. Auth is a JWT from the API, decoded client-side with `@auth0/angular-jwt`. That is a helper library, not the Auth0 service.
 
+For where this project came from, see [HISTORY.md](HISTORY.md).
+
 ## How it fits with the other repos
 
 This is the only web front end. The old reporting UI, [edtech-lms-report-ui](https://github.com/edtech4good/edtech-lms-report-ui), was a copy of this repo with nothing extra in it and is archived; the reports live here. Students on tablets and phones use [edtech-expo](https://github.com/edtech4good/edtech-expo), which talks to the classroom API, [edtech-lms-rpi-api](https://github.com/edtech4good/edtech-lms-rpi-api).
