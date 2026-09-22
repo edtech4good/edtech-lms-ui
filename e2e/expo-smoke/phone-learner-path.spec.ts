@@ -201,13 +201,16 @@
  *
  *     Extended for the U-11 corporate-portrait canvas fix: LessonScreen.tsx's
  *     `isCorporatePortrait` branch now paints the canvas
- *     `theme.colors.background` (#FFF9EE, `rgb(255, 249, 238)`) and
+ *     `theme.colors.background` (#F3F5FF, `rgb(243, 245, 255)`) and
  *     top-aligns the 16:9 box (`canvasJustify: 'flex-start'`) instead of the
  *     black, vertically-centred canvas every other combination (landscape,
  *     kids) still gets. Two things are asserted: the box's own `y`, and the
- *     colour of its nearest non-transparent ancestor. Confirmed live at
- *     390x844: box.y is 0 (this route runs with `headerShown: false`, so
- *     there's no header offset above the box); the colour lives on
+ *     colour of its nearest non-transparent ancestor. box.y is 0, confirmed
+ *     live at 390x844 (this route runs with `headerShown: false`, so
+ *     there's no header offset above the box); the colour is
+ *     `rgb(243, 245, 255)`, re-pinned to the cool paper on 22 Sep 2026 and
+ *     not yet re-confirmed live (the cream value it replaced was confirmed
+ *     live at 390x844) — it lives on
  *     LayoutScrollView's `StyledSafeArea` (LayoutScrollView.tsx:
  *     `styled(SafeAreaView)`, binding `background-color` to
  *     `backgroundColor ?? theme.colors.background`), not on the video
@@ -800,7 +803,7 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
     expect(box!.y).toBeLessThanOrEqual(120);
 
     // Second half of the same fix: canvasColor swaps from 'black' to
-    // theme.colors.background (#FFF9EE) in corporate portrait.
+    // theme.colors.background (#F3F5FF) in corporate portrait.
     // LessonScreen's <Video> itself paints no background of its own
     // (confirmed live: its immediate parent DIV computes fully transparent
     // — `rgba(0, 0, 0, 0)`) — the colour lives on LayoutScrollView's
@@ -810,8 +813,10 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
     // further up. Walk up from the video element to the first ancestor
     // whose computed backgroundColor isn't transparent, rather than
     // asserting on a specific DOM depth, so this survives an unrelated
-    // wrapper being added or removed between them. Confirmed live: that
-    // walk stops two ancestors up, at exactly `rgb(255, 249, 238)`.
+    // wrapper being added or removed between them. Confirmed live on the
+    // old cream paper: that walk stops two ancestors up. The value was
+    // re-pinned to the cool paper `rgb(243, 245, 255)` on 22 Sep 2026 and
+    // is not yet re-confirmed live.
     const canvasBackgroundColor = await video.evaluate((el) => {
       let node: Element | null = el.parentElement;
       while (node) {
@@ -821,7 +826,7 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
       }
       return null;
     });
-    expect(canvasBackgroundColor).toBe("rgb(255, 249, 238)");
+    expect(canvasBackgroundColor).toBe("rgb(243, 245, 255)");
   });
 
   test("logout signs the learner out", async () => {

@@ -7,6 +7,7 @@ import { CountryService } from 'src/app/services/country.service';
 import { ReportService } from 'src/app/services/report.service';
 import { SchoolService } from 'src/app/services/school.service';
 import { ChartItemFormat, LineChartFormat } from './models/LineChartFormat';
+import { CHART_SERIES, CHART_SERIES_RECESSIVE } from '../chart-palette';
 
 @Component({
     selector: 'app-school-dashboard',
@@ -37,7 +38,7 @@ export class SchoolComponent implements OnInit {
     name: 'myScheme',
     selectable: true,
     group: ScaleType.Linear,
-    domain: ['#005d43', '#d86d28', '#e4d161', '#f9f1e5']
+    domain: CHART_SERIES
   };
   showLabels: boolean = true;
   //pie charts
@@ -73,7 +74,7 @@ export class SchoolComponent implements OnInit {
     name: 'disabilityScheme',
     selectable: true,
     group: ScaleType.Ordinal,
-    domain: ['#005d43', '#d86d28', '#8a8a8a']
+    domain: CHART_SERIES_RECESSIVE
   };
 
   searchFields = {

@@ -6,6 +6,7 @@ import { ResponseBody } from 'src/app/models/response.model';
 import { CountryService } from 'src/app/services/country.service';
 import { ReportService } from 'src/app/services/report.service';
 import { ChartItemFormat, LineChartFormat } from './models/LineChartFormat';
+import { CHART_SERIES } from '../chart-palette';
 
 @Component({
     selector: 'app-appusage-dashboard',
@@ -36,7 +37,7 @@ export class AppUsageComponent implements OnInit {
     name: 'myScheme',
     selectable: true,
     group: ScaleType.Linear,
-    domain: ['#005d43', '#d86d28', '#e4d161', '#f9f1e5']
+    domain: CHART_SERIES
   };
   showLabels: boolean = true;
 

@@ -8,6 +8,7 @@ import { SchoolService } from 'src/app/services/school.service';
 import { SchoolContributeService } from 'src/app/services/school-contribute.service';
 import { CountryService } from 'src/app/services/country.service';
 import saveAs from 'file-saver';
+import { CHART_SERIES } from '../chart-palette';
 
 @Component({
     selector: 'app-school-contribute',
@@ -54,7 +55,7 @@ export class SchoolContributeComponent implements OnInit {
     name: 'myScheme',
     selectable: true,
     group: ScaleType.Linear,
-    domain: ['#005d43', '#d86d28', '#e4d161', '#f9f1e5']
+    domain: CHART_SERIES
   };
 
   gradientPie: boolean = true;
