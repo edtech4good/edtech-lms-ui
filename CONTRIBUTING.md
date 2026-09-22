@@ -32,6 +32,13 @@ Testing
 
 The Playwright suites under e2e/ are the tests we trust. Run them with npm run e2e against a local stack with the APIs on ports 3000 and 3001. The suites cover login, CRUD, authorization, SQL injection, Khmer text and the Expo web build.
 
-License
+## Licensing of contributions
 
-By contributing to this project, you agree that your contributions will be licensed under the MIT License.
+By submitting a contribution you agree that it is licensed under the
+AGPL-3.0-only licence of this repository, and you grant Jesse Orndorff a
+perpetual, worldwide, non-exclusive, royalty-free licence to use,
+reproduce, modify, sublicense and distribute your contribution as part of
+this project under any licence, including commercial licences, so the
+project can be dual-licensed. You confirm you have the right to grant
+this. Sign your commits with `git commit -s` (Developer Certificate of
+Origin, https://developercertificate.org/).

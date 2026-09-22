@@ -19,7 +19,7 @@
   "private": false,
   "description": "Educational Technology Learning Management System UI",
   "author": "",
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "repository": {
     "type": "git",
     "url": "https://github.com/edtech4good/edtech-lms-ui.git"
