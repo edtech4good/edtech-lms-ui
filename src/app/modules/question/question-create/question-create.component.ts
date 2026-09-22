@@ -17,7 +17,7 @@ import { DropDownService } from 'src/app/services/dropdown.service';
 import { QuestionTagService } from 'src/app/services/question-tag.service';
 import { UtilService } from 'src/app/services/util.service';
 import { v4 } from 'uuid';
-import { countSubstrings } from 'voca';
+import voca from 'voca';
 import { DocumentService } from '../../document/services/document.service';
 import { QuestionDistractorComponent } from '../question-distractor/question-distractor.component';
 import { QuestionHeadingComponent } from '../question-heading/question-heading.component';
@@ -286,7 +286,7 @@ export class QuestionCreateComponent implements OnInit {
           //check for fill in the blanks
           if (this.selectedtemplatetype === 8) {
             if (
-              countSubstrings(tempquestion.questiontext, '-----') !==
+              voca.countSubstrings(tempquestion.questiontext, '-----') !==
               tempOptions.length
             ) {
               this.questionForm.controls['questiontext'].setErrors({

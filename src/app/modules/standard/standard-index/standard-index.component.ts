@@ -5,7 +5,6 @@ import { catchError, first, map } from 'rxjs/operators';
 import { IFilter, IPaging } from 'src/app/models/IPaging';
 import { StandardService } from 'src/app/services/standard.service';
 import { SchoolService } from '../../../services/school.service';
-import { indexOf } from 'voca';
 import { IMultiFilter, IMultiPaging } from '../../../models/IPaging';
 import { object, x } from 'joi';
 

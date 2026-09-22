@@ -4,7 +4,7 @@ import { UntypedFormGroup } from '@angular/forms';
 import fileExtension from 'file-extension';
 import { compile, Schema, ValidationOptions } from 'joi';
 import { typeCheck } from 'type-check';
-import { replaceAll, stripBom, stripTags, trim } from 'voca';
+import voca from 'voca';
 import { FileType } from '../models/enums/filetype.enum';
 import { FileMeta } from '../models/filemeta.model';
 @Injectable({
@@ -63,9 +63,9 @@ export class UtilService {
   };
 
   cleantext = (text: string) =>
-    text ? replaceAll(stripBom(stripTags(text)), ' ', '') : '';
+    text ? voca.replaceAll(voca.stripBom(voca.stripTags(text)), ' ', '') : '';
   filemetaextractor = (filename: string): FileMeta => {
-    const actualfilename = this.cleantext(trim(filename) || 'invalid');
+    const actualfilename = this.cleantext(voca.trim(filename) || 'invalid');
     const fileext = this.cleantext(fileExtension(actualfilename) || 'invalid');
     let filetype = -1;
     switch (fileext.toLowerCase()) {

@@ -4,7 +4,6 @@ import { NzTableQueryParams } from 'ng-zorro-antd/table';
 import { first, catchError } from 'rxjs/operators';
 import { IFilter, IPaging } from 'src/app/models/IPaging';
 import { QuestionTagService } from 'src/app/services/question-tag.service';
-import { error } from 'console';
 
 @Component({
     selector: 'app-question-tag-index',
