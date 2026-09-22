@@ -15,7 +15,7 @@ import { Question } from 'src/app/models/question.model';
 import { QuestionDistractor } from 'src/app/models/questiondistractor.model';
 import { DropDownService } from 'src/app/services/dropdown.service';
 import { UtilService } from 'src/app/services/util.service';
-import { countSubstrings } from 'voca';
+import voca from 'voca';
 import { DocumentService } from '../../document/services/document.service';
 import { QuestionDistractorComponent } from '../question-distractor/question-distractor.component';
 import { QuestionHeadingComponent } from '../question-heading/question-heading.component';
@@ -334,7 +334,7 @@ export class QuestionUpdateComponent implements OnInit {
           //check for fill in the blanks
           if (this.selectedtemplatetype === 8) {
             if (
-              countSubstrings(tempquestion.questiontext, '-----') !==
+              voca.countSubstrings(tempquestion.questiontext, '-----') !==
               tempOptions.length
             ) {
               this.questionForm.controls['questiontext'].setErrors({

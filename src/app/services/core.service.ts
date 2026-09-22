@@ -1,7 +1,7 @@
 import { HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { environment } from 'src/environments/environment';
-import { indexOf } from 'voca';
+import voca from 'voca';
 
 @Injectable({
   providedIn: 'root',
@@ -28,7 +28,7 @@ export class CoreService {
       '/auth/changepassword',
       '/auth/verify',
     ];
-    return !tokenignorelist.find((x) => indexOf(window.location.pathname, x));
+    return !tokenignorelist.find((x) => voca.indexOf(window.location.pathname, x));
   };
 
   constructor() {}

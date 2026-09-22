@@ -19,8 +19,6 @@ import { Question } from 'src/app/models/question.model';
 import { QuestionTagService } from 'src/app/services/question-tag.service';
 import { UtilService } from 'src/app/services/util.service';
 import { QuestionService } from '../services/question.service';
-import { error } from 'console';
-import { errorMonitor } from 'events';
 import { pipe } from 'rxjs';
 @Component({
     selector: 'app-question-index',

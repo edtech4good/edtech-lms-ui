@@ -7,7 +7,6 @@ import { RolePermService } from 'src/app/services/role-permission.service';
 import { Router } from '@angular/router';
 import { IMultiFilter, IMultiPaging } from '../../../models/IPaging';
 import { x } from 'joi';
-import { error } from 'console';
 import { throwError } from 'rxjs';
 
 @Component({
