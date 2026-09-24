@@ -25,9 +25,13 @@ import { Page, expect } from "@playwright/test";
 
 /**
  * Shared default password for both automation accounts (both are seeded
- * with `demo`). Overriding this is also the mutation-proof lever for
- * login.spec.ts: `E2E_EXPO_STUDENT_PASS=wrong npm run e2e:expo` breaks both
- * accounts' logins and should turn the "reaches home" assertions red.
+ * with `demo`). This default is correct only for a local seed. A non-local
+ * EXPO_WEB_URL requires E2E_EXPO_STUDENT_PASS alone, or both
+ * E2E_EXPO_CORPORATE_PASS and E2E_EXPO_KIDS_PASS to be exported in the shell
+ * — enforced by global-setup.ts. Overriding E2E_EXPO_STUDENT_PASS is also the
+ * mutation-proof lever for login.spec.ts: `E2E_EXPO_STUDENT_PASS=wrong npm
+ * run e2e:expo` breaks both accounts' logins and should turn the "reaches
+ * home" assertions red.
  */
 const DEFAULT_PASSWORD = process.env.E2E_EXPO_STUDENT_PASS ?? "demo";
 
