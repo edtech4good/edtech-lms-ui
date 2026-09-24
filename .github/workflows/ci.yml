@@ -42,7 +42,6 @@ jobs:
   audit:
     name: Dependency audit (report only)
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -56,5 +55,7 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      # Report only: never fails the job or the workflow. Advisory counts
+      # are too high across the org today (docs/ci-cd-plan.md) to gate a PR.
       - name: npm audit (critical only, non-blocking)
-        run: npm audit --audit-level=critical
+        run: npm audit --audit-level=critical || true
