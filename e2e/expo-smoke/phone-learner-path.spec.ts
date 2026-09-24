@@ -294,8 +294,10 @@ import { test, expect, Page, ConsoleMessage } from "@playwright/test";
 import {
   CORPORATE_STUDENT,
   KM,
+  dismissResumePromptIfShowing,
   goToFirstDcrsLessonActivities,
   loginViaExpoUi,
+  waitForLearningResourceLoaded,
 } from "./fixtures";
 
 test.describe.configure({ mode: "serial" });
@@ -764,7 +766,10 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
     await page.locator('[data-testid="tab-home"]').click();
     await goToFirstDcrsLessonActivities(page);
 
-    // Fixed seed:dcrs content: lesson 1's single learning item.
+    // Fixed seed:dcrs content: lesson 1's single learning item. Captured
+    // BEFORE the click — see waitForLearningResourceLoaded's own header
+    // comment for why.
+    const learningResourceLoaded = waitForLearningResourceLoaded(page);
     await page
       .getByRole("button")
       .filter({ hasText: "Animation: No plan vs clear vision" })
@@ -773,6 +778,23 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
 
     const video = page.locator("video");
     await expect(video).toBeVisible();
+
+    // A returning learner with >=5s of saved progress on this exact item
+    // legitimately sees ResumeVideoPopUp here (LessonScreen.tsx's
+    // handleResumeProgress) — real behaviour, not a bug. It's a known side
+    // effect on this shared account: if lesson-player-polish.spec.ts ran
+    // earlier in a full-suite pass, it plays this item past the save floor,
+    // and neither of the resume prompt's own buttons clears that saved
+    // progress (Yes just seeks to it; No just closes the modal), so this
+    // test can find it here too. Dismiss it rather than assuming a clean
+    // slate, so the Modal it opens doesn't sit on top and block a later
+    // test's clicks (this is exactly how "logout signs the learner out",
+    // below, used to fail — confirmed live: without this dismiss, its
+    // tab-profile click timed out with "subtree intercepts pointer
+    // events").
+    await learningResourceLoaded;
+    await dismissResumePromptIfShowing(page);
+
     const box = await video.boundingBox();
     expect(box).not.toBeNull();
     // LessonScreen.tsx: playerWidth = width, playerHeight =
