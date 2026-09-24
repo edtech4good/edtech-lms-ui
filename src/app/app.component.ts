@@ -10,8 +10,5 @@ import { getappLoading } from './store/appstate/appstate.selector';
     standalone: false
 })
 export class AppComponent  {
-  // Deliberate build break to prove the CI build check can go red.
-  // Reverted immediately after confirming the failure.
-  private readonly ciMutationProof: string = 12345;
 
 }
