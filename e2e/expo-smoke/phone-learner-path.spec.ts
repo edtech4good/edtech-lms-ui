@@ -250,10 +250,21 @@
  *     learner to open the app on that device inherited the previous
  *     learner's session. The URL/password-input assertions above passed
  *     under that bug too (router.replace('/login') ran regardless), so this
- *     test reads persist:root directly: a non-empty accessToken is asserted
- *     *before* the logout click (so the after-check below cannot pass
- *     vacuously against a session that was never actually persisted), and
- *     an empty accessToken with no profile is asserted after.
+ *     test reads the stored session directly (readWebSession).
+ *
+ *     Since then Store.ts's authTransform keeps accessToken out of
+ *     persist:root entirely; on web secureToken.ts holds it in
+ *     sessionStorage['accessToken'] instead (expo-secure-store has no web
+ *     implementation). app/(app)/_layout.tsx restores a session from that
+ *     token plus the persisted profile, so both are checked: a JWT-shaped
+ *     token and a profile *before* the click (so the after-checks cannot
+ *     pass vacuously), then no token and no profile after. persist:root
+ *     must never hold an accessToken at either point. Mutation-proved
+ *     24 Sep 2026: removing the clearAllData case from AuthenticationSlice
+ *     fails the profile poll; removing clearAccessToken() from
+ *     useAuth.logout fails the token check; dropping `transforms:
+ *     [authTransform]` from Store.ts fails the before-logout
+ *     no-accessToken check.
  *
  *     Extended once more for the WCAG target-size pass (audit U-12/U-20,
  *     edtech-expo Chip.tsx): the login screen the learner lands on right
@@ -303,24 +314,32 @@ import {
 test.describe.configure({ mode: "serial" });
 
 /**
- * Reads the persisted authentication slice straight out of the web build's
- * redux-persist storage. Store.ts's persistConfig (edtech-expo/src/redux/
- * Store.ts) whitelists `authentication` under storage key `root`, and
- * @react-native-async-storage/async-storage's web shim backs AsyncStorage
- * with plain window.localStorage — so the persisted blob lives at
- * localStorage['persist:root'], itself a JSON object whose `authentication`
- * value is a second JSON string (redux-persist stringifies each whitelisted
- * slice separately). Returns null if nothing has been persisted yet.
+ * Reads the two places the web build keeps a learner's session, i.e.
+ * everything app/(app)/_layout.tsx's handleCheckAuth restores on a reload:
+ *
+ *  - `token`: the access token. edtech-expo/src/services/secureToken.ts
+ *    stores it in expo-secure-store on native, but expo-secure-store has no
+ *    web implementation, so on web it falls back to
+ *    window.sessionStorage['accessToken'] (per-tab, never localStorage).
+ *  - `persisted`: the redux-persist `authentication` slice. Store.ts
+ *    whitelists it under storage key `root`, and async-storage's web shim
+ *    backs AsyncStorage with window.localStorage, so it lives at
+ *    localStorage['persist:root'] as a second JSON string inside that
+ *    object. Store.ts's authTransform strips `accessToken` before the write,
+ *    so this should only ever hold `profile`. null if nothing persisted yet.
  */
-async function readPersistedAuth(
-  page: Page
-): Promise<{ accessToken?: string; profile?: unknown } | null> {
+async function readWebSession(page: Page): Promise<{
+  token: string | null;
+  persisted: Record<string, unknown> | null;
+}> {
   return page.evaluate(() => {
+    const token = window.sessionStorage.getItem("accessToken");
     const raw = window.localStorage.getItem("persist:root");
-    if (!raw) return null;
-    const root = JSON.parse(raw) as Record<string, string>;
-    if (!root.authentication) return null;
-    return JSON.parse(root.authentication);
+    const root = raw ? (JSON.parse(raw) as Record<string, string>) : null;
+    const persisted = root?.authentication
+      ? (JSON.parse(root.authentication) as Record<string, unknown>)
+      : null;
+    return { token, persisted };
   });
 }
 
@@ -864,13 +883,17 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
     await page.locator('[data-testid="tab-profile"]').click();
 
     // Sanity check, not the regression assertion itself: confirms this
-    // session actually persisted a real token before logout, so the
-    // post-logout check below (accessToken === '') cannot pass vacuously
-    // against a session that was never written to persist:root in the
-    // first place.
-    const before = await readPersistedAuth(page);
-    expect(typeof before?.accessToken).toBe("string");
-    expect(before!.accessToken!.length).toBeGreaterThan(0);
+    // session really stored a token and a profile before logout, so the
+    // post-logout checks below cannot pass vacuously against a session that
+    // was never written in the first place. The token is a JWT (the app
+    // decodes its payload into `profile` at login), so assert its shape
+    // rather than just a non-empty string.
+    const before = await readWebSession(page);
+    expect(before.token).toMatch(/^[\w-]+\.[\w-]+\.[\w-]+$/);
+    expect(before.persisted?.profile).toBeTruthy();
+    // Store.ts's authTransform keeps the token out of localStorage. A
+    // regression that drops the transform writes it back to persist:root.
+    expect(before.persisted).not.toHaveProperty("accessToken");
 
     await page.getByRole("button", { name: KM.logout }).click();
 
@@ -886,16 +909,21 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
     // See header comment (g): the URL/password-input assertions above would
     // have passed even under the pre-fix bug, since router.replace('/login')
     // ran regardless of whether the auth slice actually cleared. This is the
-    // assertion that actually catches that bug. redux-persist's write-back
-    // to localStorage isn't synchronous with the URL change, so poll rather
-    // than reading persist:root exactly once.
+    // assertions that actually catch that bug. Both halves of the session
+    // must go: the token (useAuth.logout's clearAccessToken) and the
+    // persisted profile (AuthenticationSlice's clearAllData case). If
+    // either survives, handleCheckAuth hands the next learner on this tab
+    // the previous learner's session. redux-persist's write-back to
+    // localStorage isn't synchronous with the URL change, so poll.
     await expect
-      .poll(async () => (await readPersistedAuth(page))?.accessToken, {
+      .poll(async () => (await readWebSession(page)).persisted?.profile, {
         timeout: 10_000,
       })
-      .toBe("");
-    const after = await readPersistedAuth(page);
-    expect(after?.profile).toBeUndefined();
+      .toBeUndefined();
+    const after = await readWebSession(page);
+    expect(after.persisted).not.toBeNull();
+    expect(after.persisted).not.toHaveProperty("accessToken");
+    expect(after.token).toBeNull();
 
     // See header comment (g)'s WCAG-target-size paragraph: this corporate
     // account's theme survives logout (settingSlice isn't cleared by
