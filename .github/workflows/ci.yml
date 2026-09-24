@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Build checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      # TODO(docs/ci-cd-plan.md #0.2): plain `npm ci` fails on an
+      # @angular-eslint/schematics vs @angular/cli peer conflict. Drop
+      # --legacy-peer-deps once that conflict is resolved.
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      # Default `ng build` configuration is "development" (angular.json),
+      # which reads the committed placeholder src/environments/environment.dev.ts.
+      # It does not touch the hand-edited droplet environment.prod.ts.
+      - name: Build
+        run: npm run build
+
+  audit:
+    name: Dependency audit (report only)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: npm audit (critical only, non-blocking)
+        run: npm audit --audit-level=critical
