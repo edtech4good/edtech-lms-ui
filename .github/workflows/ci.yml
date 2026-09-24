@@ -10,13 +10,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   ci:
-    name: Build checks
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -33,15 +33,19 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
-      # Default `ng build` configuration is "development" (angular.json),
-      # which reads the committed placeholder src/environments/environment.dev.ts.
-      # It does not touch the hand-edited droplet environment.prod.ts.
+      # Build the shipped configuration. src/environments/environment.prod.ts
+      # IS committed, with placeholder values (workspace#63 confirmed the
+      # prod build passes: 3.11 MB initial bundle, a budget warning, not an
+      # error). The droplet's hand-edited environment.prod.ts is a runtime
+      # deploy-time edit to that same tracked file, not a build input this
+      # check depends on.
       - name: Build
-        run: npm run build
+        run: npm run build -- --configuration production
 
   audit:
     name: Dependency audit (report only)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -58,4 +62,7 @@ jobs:
       # Report only: never fails the job or the workflow. Advisory counts
       # are too high across the org today (docs/ci-cd-plan.md) to gate a PR.
       - name: npm audit (critical only, non-blocking)
-        run: npm audit --audit-level=critical || true
+        run: |
+          npm audit --audit-level=critical > audit.txt 2>&1 || true
+          cat audit.txt
+          { echo "### npm audit (report only)"; echo '```'; tail -n 80 audit.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
