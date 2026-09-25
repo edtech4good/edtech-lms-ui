@@ -62,17 +62,29 @@
  *     into a persisted `activityProgress` store, so reusing a context could
  *     keep an earlier case's "done" around instead of reverting.
  *
- * App-side mutation proof (each edit below was run once against this spec,
- * observed to turn the intercepted-`/steps` tests red, then reverted and
- * re-observed to turn them back green — no run log is kept elsewhere):
- * `src/screens/LevelSelection/LevelSelectionScreen.tsx`'s
- * `lessonStatusFor` was temporarily edited in the INTEGRATION worktree
- * (.worktrees/expo-integration, which the running localhost:8096 build hot-
- * reloads from) to always return the server-fallback status, and separately
- * `LessonStepDots.tsx` was edited to stop filtering empty-total step types —
- * each edit was confirmed to turn the intercepted-`/steps` tests (describe
- * block 2) red, then reverted (`git checkout --`) and confirmed to turn them
- * back green, with `git status` confirmed clean before and after.
+ * App-side mutation proof for THIS revision of the spec (the one that
+ * scopes the `/level` baseline to the opened level and zeroes every lesson):
+ * one footer-only edit, run against case (a) alone. In the INTEGRATION
+ * worktree (.worktrees/expo-integration, which the running localhost:8096
+ * build hot-reloads from), `LevelSelectionScreen.tsx`'s `footerCtaLabel`
+ * was edited to always take the `cta.startLesson` branch, leaving
+ * `upNextIsStarted` and the up-next pill untouched. Case (a) went red on
+ * a footer assertion: `assertLevelDetailMatchesDerivation`'s own
+ * `toBeVisible()` on the button named exactly "បន្តមេរៀនទី 2" (element not
+ * found). Every row's status icon, cta-pill (including the up-next row's
+ * Continue pill text) and exact aria-label assertion runs before that
+ * check in the helper and passed, so the footer is watched independently
+ * of the pill. Because the helper's footer check fires first, case (a)'s
+ * own later footer/no-"Start"-button assertions were not reached in that
+ * run. The line was then restored by editing it back to its exact original
+ * text (not `git checkout`), and the integration worktree's
+ * `git diff --stat` was confirmed empty. Only case (a) was run mutated.
+ *
+ * Earlier revisions of this spec were separately proven by mutating
+ * `lessonStatusFor` (always return the server-fallback status) and
+ * `LessonStepDots.tsx` (stop filtering empty-total step types); both turned
+ * describe block 2 red and back green. Those two proofs were NOT re-run for
+ * this revision.
  *
  * NOT exercised by the seed data (real-data test only): the "every lesson
  * done, no up-next" branch (no pill, no sticky footer). miv.verify's DCRS
@@ -82,7 +94,7 @@
  * This is not a gap in proof coverage: the intercepted tests below exercise
  * the status-derivation logic directly regardless of seed state.
  */
-import { test, expect, Page, Route } from "@playwright/test";
+import { test, expect, Page, Response, Route } from "@playwright/test";
 import { CORPORATE_STUDENT, KM, loginViaExpoUi } from "./fixtures";
 
 // km.json's screen.level.lessonRowStatus (copied verbatim — cross-checked
@@ -139,8 +151,9 @@ const PRIMARY_BORDER_RGB = "rgb(11, 95, 255)";
 const DIVIDER_BORDER_RGB = "rgb(227, 232, 239)";
 
 // GET .../lesson/level/<levelId> — Api.fetchLevels's own path
-// (`lesson/level/${unitId}`), no trailing segment.
-const LEVEL_RESPONSE_URL_RE = /\/lesson\/level\/[^/?]+(?:\?|$)/;
+// (`lesson/level/${unitId}`), no trailing segment. The id is captured so the
+// case (a) baseline interception can confirm it fired for the opened level.
+const LEVEL_RESPONSE_URL_RE = /\/lesson\/level\/([^/?]+)(?:\?|$)/;
 
 // GET .../lesson/level/:levelid/steps — Api.fetchLevelSteps's own path
 // (`lesson/level/${levelId}/steps`), with the level id captured so tests can
@@ -819,40 +832,53 @@ function interceptSteps(
 
 /**
  * Intercepts the level's own `GET /lesson/level/:levelid` response (the
- * plain lesson list, not `/steps`) and zeroes `progress`/`completed` for
- * every lesson that isn't already done under the plain old rule
- * (`isLessonDone`). Case (a) needs this: this corporate seed's real
- * account has genuine server-side progress on a lesson that hasn't been
- * touched via `/steps` at all (`studentlessonsprogresses` points on the
- * lesson row itself), so the raw fallback rule can already read
- * "inProgress" for a lesson before any mutation runs. Without neutralizing
- * that here, asserting "the OLD fallback rule would have said todo" would
- * fail on real account state regardless of this spec's own logic — not
- * because the app is wrong. Zeroing the non-done lessons' raw
- * progress/completed here establishes the same "freshly todo" baseline for
- * the fallback rule that case (a)'s `/steps` mutator already establishes
- * for the steps-derived rule, so the observed Start -> Continue flip is
- * attributable only to the single `/steps` item this test flips.
+ * plain lesson list, not `/steps`) and zeroes `progress`/`completed` on
+ * EVERY lesson. Case (a) needs this: this corporate seed's real account has
+ * genuine server-side progress on lessons that `/steps` alone doesn't
+ * explain, so the raw fallback rule can already read "inProgress" (or
+ * "done") for a lesson before any mutation runs. Zeroing only the lessons
+ * that weren't already `isLessonDone` left a hidden seed precondition: a
+ * lesson that is `completed` server-side but has unfinished `/steps` items
+ * would be picked as case (a)'s target (its steps-derived status isn't
+ * done), keep `oldStatus === "done"`, and fail the "OLD fallback rule would
+ * have said todo" assertion with a message blaming the app. Zeroing every
+ * lesson makes the fallback rule read "todo" everywhere, so the observed
+ * Start -> Continue flip is attributable only to the single `/steps` item
+ * case (a) flips. Every expectation in the spec (including the
+ * `approximateSteps(progress, ...)` fallback derivation) reads this same
+ * served body, because Playwright's `waitForResponse` returns the fulfilled
+ * body, not the upstream one.
+ *
+ * Like `interceptSteps`, the handler captures the level id from
+ * `route.request().url()` and resolves the returned promise with it the
+ * first time it fires, so the caller can assert the baseline was applied to
+ * the level actually opened, not some other `/lesson/level/:id` request.
  */
-function interceptLevelProgressBaseline(page: Page): void {
+function interceptLevelProgressBaseline(page: Page): Promise<{ levelId: string | undefined }> {
+  let resolveFired: (result: { levelId: string | undefined }) => void;
+  const firedPromise = new Promise<{ levelId: string | undefined }>((resolve) => {
+    resolveFired = resolve;
+  });
+
   page.route(
     (url) => LEVEL_RESPONSE_URL_RE.test(url.toString()),
     async (route: Route) => {
+      const requestUrl = route.request().url();
+      const levelId = LEVEL_RESPONSE_URL_RE.exec(requestUrl)?.[1];
       const response = await route.fetch();
       const json = await response.json();
       const lessons: ApiLesson[] = json?.data?.lesson ?? [];
-      const zeroed = lessons.map((l) =>
-        isLessonDone(l)
-          ? l
-          : { ...l, progress: 0, completed: false, studentlessonsprogresses: [] }
-      );
+      const zeroed = lessons.map((l) => ({ ...l, progress: 0, completed: false }));
       const mutatedJson =
         json?.data?.lesson !== undefined
           ? { ...json, data: { ...json.data, lesson: zeroed } }
           : json;
+      resolveFired({ levelId });
       await route.fulfill({ response, json: mutatedJson });
     }
   );
+
+  return firedPromise;
 }
 
 test.describe("expo web lesson status icons — intercepted /steps (#97 proof)", () => {
@@ -874,28 +900,31 @@ test.describe("expo web lesson status icons — intercepted /steps (#97 proof)",
     try {
       let mutatedLessonId: string | undefined;
 
-      // See interceptLevelProgressBaseline's own comment: neutralizes real
-      // leftover server-side progress on non-done lessons so the "OLD
-      // fallback rule would have said todo" assertion below is actually
-      // about this mutation, not about whatever the live account happens
-      // to carry. Registered before login so it's in place for the very
-      // first /level request the Level Detail screen makes.
-      interceptLevelProgressBaseline(page);
+      // See interceptLevelProgressBaseline's own comment: zeroes the raw
+      // progress/completed of every lesson so the "OLD fallback rule would
+      // have said todo" assertion below is actually about this mutation,
+      // not about whatever the live account happens to carry. Registered
+      // before login so it's in place for the very first /level request the
+      // Level Detail screen makes.
+      const baselinePromise = interceptLevelProgressBaseline(page);
 
       // Captured independently of openModule1AndCaptureResponses so the
       // mutator (which runs inside the /steps route handler, before that
       // helper returns) can read the same (already-baselined) /level
-      // payload to pick its target deterministically.
-      const levelResponsePromise = page.waitForResponse(
-        (res) =>
-          res.request().method() === "GET" &&
-          LEVEL_RESPONSE_URL_RE.test(res.url()) &&
-          res.ok(),
-        { timeout: 10_000 }
-      );
+      // payload to pick its target deterministically. Assigned only after
+      // login (below), so its 10s timeout covers the navigation to Module 1
+      // rather than login plus navigation, and so it waits for the same
+      // /level response openModule1AndCaptureResponses captures. The /steps
+      // handler can't fire before then: /steps is only requested once
+      // Module 1 is opened.
+      let levelResponsePromise: Promise<Response> | undefined;
 
       const mutatedPromise = interceptSteps(page, async (real) => {
-        const levelBody = await (await levelResponsePromise).json();
+        expect(
+          levelResponsePromise,
+          "the /level waiter must be registered before the /steps handler fires"
+        ).toBeDefined();
+        const levelBody = await (await levelResponsePromise!).json();
         const apiLessonsForPick: ApiLesson[] = levelBody?.data?.lesson ?? [];
         const stepsByLessonId = new Map<string, StepsApiLesson>(
           (real.lessons ?? []).map((l) => [l.lessonid, l])
@@ -959,11 +988,23 @@ test.describe("expo web lesson status icons — intercepted /steps (#97 proof)",
       });
 
       await loginViaExpoUi(page, CORPORATE_STUDENT.username, CORPORATE_STUDENT.password);
+      levelResponsePromise = page.waitForResponse(
+        (res) =>
+          res.request().method() === "GET" &&
+          LEVEL_RESPONSE_URL_RE.test(res.url()) &&
+          res.ok(),
+        { timeout: 10_000 }
+      );
       const { apiLessons, openedLevelId } = await openModule1AndCaptureResponses(page);
       const { levelId: mutatedLevelId, body: mutatedStepsBody } = await mutatedPromise;
       expect(
         mutatedLevelId,
         "the intercepted /steps request's level id should equal the level actually opened"
+      ).toBe(openedLevelId);
+      const { levelId: baselineLevelId } = await baselinePromise;
+      expect(
+        baselineLevelId,
+        "the /level progress baseline should have been applied to the level actually opened"
       ).toBe(openedLevelId);
 
       // eslint-disable-next-line no-console
