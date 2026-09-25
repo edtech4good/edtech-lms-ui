@@ -14,7 +14,8 @@
  * `GET .../lesson/level/<levelId>` and `GET .../lesson/level/<levelId>/steps`
  * responses the Level Detail screen itself loads (edtech-expo #97, source
  * read directly in edtech-expo's read-only worktree at
- * .worktrees/expo-level-step-dots — src/screens/LevelSelection/
+ * .worktrees/expo-integration (this spec is run against that worktree's
+ * build; the app logic it documents is identical) — src/screens/LevelSelection/
  * LevelSelectionScreen.tsx `lessonStatusFor`/`approximateSteps`,
  * src/services/hooks/useLevelSteps.ts `stepInfoFor`,
  * src/components/ui/LessonStepDots.tsx `describeSteps`/`toStepInfo`, and
@@ -61,8 +62,10 @@
  *     into a persisted `activityProgress` store, so reusing a context could
  *     keep an earlier case's "done" around instead of reverting.
  *
- * App-side mutation proof (see this change's commit/PR description for the
- * actual run log): `src/screens/LevelSelection/LevelSelectionScreen.tsx`'s
+ * App-side mutation proof (each edit below was run once against this spec,
+ * observed to turn the intercepted-`/steps` tests red, then reverted and
+ * re-observed to turn them back green — no run log is kept elsewhere):
+ * `src/screens/LevelSelection/LevelSelectionScreen.tsx`'s
  * `lessonStatusFor` was temporarily edited in the INTEGRATION worktree
  * (.worktrees/expo-integration, which the running localhost:8096 build hot-
  * reloads from) to always return the server-fallback status, and separately
@@ -350,7 +353,11 @@ async function assertNoBoxShadow(
  */
 async function openModule1AndCaptureResponses(
   page: Page
-): Promise<{ apiLessons: ApiLesson[]; stepsBody: StepsApiResponse }> {
+): Promise<{
+  apiLessons: ApiLesson[];
+  stepsBody: StepsApiResponse;
+  openedLevelId: string | undefined;
+}> {
   const levelResponsePromise = page.waitForResponse(
     (res) =>
       res.request().method() === "GET" &&
@@ -401,7 +408,7 @@ async function openModule1AndCaptureResponses(
     "expected at least one lesson in the captured API response"
   ).toBeGreaterThan(0);
 
-  return { apiLessons, stepsBody };
+  return { apiLessons, stepsBody, openedLevelId };
 }
 
 type DerivedLesson = {
@@ -768,37 +775,84 @@ test.describe("expo web lesson status icons — against real data (corporate / D
 });
 
 /**
- * Intercepts the `/steps` request for whichever level id it targets and
- * fulfills it with a body produced by `mutate(realBody)`. `route.fetch()`
- * gets the true response so the mutation is applied on top of real data,
- * not a hand-built fixture. Returns a promise that resolves with the
- * mutated body once the interception has actually fired, so the caller can
- * derive its expectations from exactly what was served.
+ * Intercepts the `/steps` request and fulfills it with a body produced by
+ * `mutate(realBody)`. `route.fetch()` gets the true response so the
+ * mutation is applied on top of real data, not a hand-built fixture. The
+ * route handler is scoped to the level it actually fires for: it captures
+ * that level id straight from `route.request().url()` (the same regex the
+ * rest of this spec uses to read a level id out of a `/steps` URL) and
+ * resolves it alongside the mutated body, so the caller can assert it
+ * equals the level id the test actually opened — not just that some
+ * `/steps` request was intercepted. Returns a promise that resolves once
+ * the interception has actually fired, so the caller can derive its
+ * expectations from exactly what was served.
  */
 function interceptSteps(
   page: Page,
-  mutate: (real: StepsApiResponse) => StepsApiResponse
-): Promise<StepsApiResponse> {
-  let resolveMutated: (body: StepsApiResponse) => void;
-  const mutatedPromise = new Promise<StepsApiResponse>((resolve) => {
-    resolveMutated = resolve;
-  });
+  mutate: (real: StepsApiResponse) => StepsApiResponse | Promise<StepsApiResponse>
+): Promise<{ levelId: string | undefined; body: StepsApiResponse }> {
+  let resolveMutated: (result: { levelId: string | undefined; body: StepsApiResponse }) => void;
+  const mutatedPromise = new Promise<{ levelId: string | undefined; body: StepsApiResponse }>(
+    (resolve) => {
+      resolveMutated = resolve;
+    }
+  );
 
   page.route(
     (url) => LEVEL_STEPS_RESPONSE_URL_RE.test(url.toString()),
     async (route: Route) => {
+      const requestUrl = route.request().url();
+      const levelId = LEVEL_STEPS_RESPONSE_URL_RE.exec(requestUrl)?.[1];
       const response = await route.fetch();
       const realJson = await response.json();
       const realBody: StepsApiResponse = realJson?.data ?? realJson;
-      const mutatedBody = mutate(realBody);
+      const mutatedBody = await mutate(realBody);
       const fulfilledJson =
         realJson?.data !== undefined ? { ...realJson, data: mutatedBody } : mutatedBody;
-      resolveMutated(mutatedBody);
+      resolveMutated({ levelId, body: mutatedBody });
       await route.fulfill({ response, json: fulfilledJson });
     }
   );
 
   return mutatedPromise;
+}
+
+/**
+ * Intercepts the level's own `GET /lesson/level/:levelid` response (the
+ * plain lesson list, not `/steps`) and zeroes `progress`/`completed` for
+ * every lesson that isn't already done under the plain old rule
+ * (`isLessonDone`). Case (a) needs this: this corporate seed's real
+ * account has genuine server-side progress on a lesson that hasn't been
+ * touched via `/steps` at all (`studentlessonsprogresses` points on the
+ * lesson row itself), so the raw fallback rule can already read
+ * "inProgress" for a lesson before any mutation runs. Without neutralizing
+ * that here, asserting "the OLD fallback rule would have said todo" would
+ * fail on real account state regardless of this spec's own logic — not
+ * because the app is wrong. Zeroing the non-done lessons' raw
+ * progress/completed here establishes the same "freshly todo" baseline for
+ * the fallback rule that case (a)'s `/steps` mutator already establishes
+ * for the steps-derived rule, so the observed Start -> Continue flip is
+ * attributable only to the single `/steps` item this test flips.
+ */
+function interceptLevelProgressBaseline(page: Page): void {
+  page.route(
+    (url) => LEVEL_RESPONSE_URL_RE.test(url.toString()),
+    async (route: Route) => {
+      const response = await route.fetch();
+      const json = await response.json();
+      const lessons: ApiLesson[] = json?.data?.lesson ?? [];
+      const zeroed = lessons.map((l) =>
+        isLessonDone(l)
+          ? l
+          : { ...l, progress: 0, completed: false, studentlessonsprogresses: [] }
+      );
+      const mutatedJson =
+        json?.data?.lesson !== undefined
+          ? { ...json, data: { ...json.data, lesson: zeroed } }
+          : json;
+      await route.fulfill({ response, json: mutatedJson });
+    }
+  );
 }
 
 test.describe("expo web lesson status icons — intercepted /steps (#97 proof)", () => {
@@ -819,54 +873,109 @@ test.describe("expo web lesson status icons — intercepted /steps (#97 proof)",
     const page = await context.newPage();
     try {
       let mutatedLessonId: string | undefined;
-      const mutatedPromise = interceptSteps(page, (real) => {
-        // Pick, purely from the real /steps payload, a lesson that is
-        // entirely untouched (every learning/practice/quiz item todo) —
-        // its steps-derived status is "todo" before mutation.
-        const candidate = (real.lessons ?? []).find((l) => {
-          const allItems = [
-            ...(l.learnings ?? []),
-            ...(l.practices ?? []),
-            ...(l.quizzes ?? []),
-          ];
-          return (
-            allItems.length > 0 &&
-            allItems.every((i) => i.status === "todo") &&
-            (l.learnings?.length ?? 0) > 0
-          );
-        });
-        expect(
-          candidate,
-          "case (a) needs at least one lesson in /steps with a learning item and every item todo"
-        ).toBeTruthy();
-        mutatedLessonId = candidate!.lessonid;
-        const mutatedLessons = (real.lessons ?? []).map((l) =>
-          l.lessonid === candidate!.lessonid
-            ? {
-                ...l,
-                learnings: [
-                  { ...l.learnings![0], status: "inProgress" as const },
-                  ...l.learnings!.slice(1),
-                ],
-              }
-            : l
+
+      // See interceptLevelProgressBaseline's own comment: neutralizes real
+      // leftover server-side progress on non-done lessons so the "OLD
+      // fallback rule would have said todo" assertion below is actually
+      // about this mutation, not about whatever the live account happens
+      // to carry. Registered before login so it's in place for the very
+      // first /level request the Level Detail screen makes.
+      interceptLevelProgressBaseline(page);
+
+      // Captured independently of openModule1AndCaptureResponses so the
+      // mutator (which runs inside the /steps route handler, before that
+      // helper returns) can read the same (already-baselined) /level
+      // payload to pick its target deterministically.
+      const levelResponsePromise = page.waitForResponse(
+        (res) =>
+          res.request().method() === "GET" &&
+          LEVEL_RESPONSE_URL_RE.test(res.url()) &&
+          res.ok(),
+        { timeout: 10_000 }
+      );
+
+      const mutatedPromise = interceptSteps(page, async (real) => {
+        const levelBody = await (await levelResponsePromise).json();
+        const apiLessonsForPick: ApiLesson[] = levelBody?.data?.lesson ?? [];
+        const stepsByLessonId = new Map<string, StepsApiLesson>(
+          (real.lessons ?? []).map((l) => [l.lessonid, l])
         );
+
+        // "done" here uses the SAME derivedStatusFor the rest of this spec
+        // asserts against (steps-derived, falling back to the old
+        // completed/progress rule only when a lesson has no known
+        // structure) — not the raw `completed`/`progress` fields — so a
+        // lesson the screen would already show as done from real /steps
+        // data is correctly left alone rather than reset to todo.
+        const statusFor = (lesson: ApiLesson) =>
+          derivedStatusFor(lesson, stepsByLessonId.get(lesson.lessonid)).status;
+
+        const sortedNonDone = apiLessonsForPick
+          .slice()
+          .sort((x, y) => (x.lessonorder ?? 0) - (y.lessonorder ?? 0))
+          .filter((lesson) => statusFor(lesson) !== "done");
+
+        expect(
+          sortedNonDone.length,
+          "case (a) needs at least one non-done lesson in the real /level payload"
+        ).toBeGreaterThan(0);
+
+        const target = sortedNonDone[0];
+        mutatedLessonId = target.lessonid;
+
+        // Reset every item of every non-done lesson to todo, so the target
+        // (the first non-done lesson by lessonorder) starts this mutation
+        // from a clean todo state and no OTHER non-done lesson could
+        // out-rank it for up-next once its first learning item flips.
+        const resetItems = (items: StepsApiItem[] | undefined) =>
+          items?.map((i) => ({ ...i, status: "todo" as const }));
+
+        const mutatedLessons = (real.lessons ?? []).map((l) => {
+          if (statusFor(l) === "done") return l;
+          const reset: StepsApiLesson = {
+            ...l,
+            learnings: resetItems(l.learnings),
+            practices: resetItems(l.practices),
+            quizzes: resetItems(l.quizzes),
+          };
+          if (l.lessonid !== target.lessonid) return reset;
+
+          const learnings = reset.learnings ?? [];
+          expect(
+            learnings.length,
+            `case (a)'s target lesson (${target.lessonid}, the first non-done lesson by ` +
+              "lessonorder) needs a learnings array in /steps to flip to inProgress"
+          ).toBeGreaterThan(0);
+          return {
+            ...reset,
+            learnings: [
+              { ...learnings[0], status: "inProgress" as const },
+              ...learnings.slice(1),
+            ],
+          };
+        });
+
         return { ...real, lessons: mutatedLessons };
       });
 
       await loginViaExpoUi(page, CORPORATE_STUDENT.username, CORPORATE_STUDENT.password);
-      const { apiLessons } = await openModule1AndCaptureResponses(page);
-      const mutatedStepsBody = await mutatedPromise;
+      const { apiLessons, openedLevelId } = await openModule1AndCaptureResponses(page);
+      const { levelId: mutatedLevelId, body: mutatedStepsBody } = await mutatedPromise;
+      expect(
+        mutatedLevelId,
+        "the intercepted /steps request's level id should equal the level actually opened"
+      ).toBe(openedLevelId);
 
       // eslint-disable-next-line no-console
       console.log(`[lesson-status:case-a] mutated lesson: ${mutatedLessonId}`);
 
-      const { derived, expectedUpNext } = await assertLevelDetailMatchesDerivation(
-        page,
-        apiLessons,
-        mutatedStepsBody.lessons ?? [],
-        "case-a"
-      );
+      const { derived, expectedUpNext, expectedPillText, expectedFooterText } =
+        await assertLevelDetailMatchesDerivation(
+          page,
+          apiLessons,
+          mutatedStepsBody.lessons ?? [],
+          "case-a"
+        );
 
       const mutatedEntry = derived.find((d) => d.lesson.lessonid === mutatedLessonId)!;
       expect(
@@ -875,25 +984,41 @@ test.describe("expo web lesson status icons — intercepted /steps (#97 proof)",
       ).toBe("inProgress");
       expect(
         mutatedEntry.oldStatus,
-        "the OLD fallback rule (completed/progress, untouched by this mutation) should still say todo " +
-          "— proving the app is reading the NEW /steps-derived rule, not the old one"
+        'the OLD fallback rule (completed/progress, untouched by this mutation) should still say ' +
+          'todo (i.e. would render the "Start" pill/footer) — proving the app is reading the NEW ' +
+          "/steps-derived rule, not the old one"
       ).toBe("todo");
 
-      const isUpNext = expectedUpNext?.lessonid === mutatedLessonId;
-      // eslint-disable-next-line no-console
-      console.log(
-        `[lesson-status:case-a] mutated lesson is up-next: ${isUpNext} (up-next=${expectedUpNext?.lessonid})`
-      );
-      if (isUpNext) {
-        await expect(
-          page.getByRole("button", { name: /^ចាប់ផ្ដើម/ })
-        ).toHaveCount(0);
-        // Pill/footer text assertions already happened inside
-        // assertLevelDetailMatchesDerivation, computed against the
-        // MUTATED status (inProgress) — this just confirms the OLD "Start"
-        // text is gone, i.e. it really did flip to Continue, not just
-        // "some valid text".
-      }
+      // By construction (case (a)'s mutator resets every OTHER non-done
+      // lesson to fully todo and only starts the first non-done lesson's
+      // first learning item), the mutated lesson must be up-next — asserted
+      // unconditionally, not behind an `if`.
+      expect(
+        expectedUpNext?.lessonid,
+        "the mutated lesson (the first non-done lesson by lessonorder) should be the up-next lesson"
+      ).toBe(mutatedLessonId);
+      expect(
+        expectedPillText,
+        "the up-next pill text should be cta.continue, not cta.start"
+      ).toBe(PILL_CONTINUE_KM);
+      expect(
+        expectedFooterText,
+        "the sticky footer should read the exact cta.continueLesson string with the mutated lesson's N"
+      ).toBe(formatFooterLesson(FOOTER_CONTINUE_TEMPLATE, expectedUpNext!.lessonorder!));
+
+      const mutatedRow = page.locator(`[data-testid="lesson-row-${mutatedLessonId}"]`);
+      await expect(
+        mutatedRow.getByText(PILL_CONTINUE_KM, { exact: true }),
+        `up-next lesson-row-${mutatedLessonId} should show the Continue pill exactly once`
+      ).toHaveCount(1);
+      await expect(
+        page.getByRole("button", { name: expectedFooterText, exact: true }),
+        `the sticky footer button should read exactly "${expectedFooterText}"`
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /^ចាប់ផ្ដើម/ }),
+        'no "Start"-prefixed button should remain once the up-next lesson has flipped to Continue'
+      ).toHaveCount(0);
 
       await page.screenshot({ path: test.info().outputPath("case-a.png"), fullPage: true });
     } finally {
@@ -941,8 +1066,12 @@ test.describe("expo web lesson status icons — intercepted /steps (#97 proof)",
       });
 
       await loginViaExpoUi(page, CORPORATE_STUDENT.username, CORPORATE_STUDENT.password);
-      const { apiLessons } = await openModule1AndCaptureResponses(page);
-      const mutatedStepsBody = await mutatedPromise;
+      const { apiLessons, openedLevelId } = await openModule1AndCaptureResponses(page);
+      const { levelId: mutatedLevelId, body: mutatedStepsBody } = await mutatedPromise;
+      expect(
+        mutatedLevelId,
+        "the intercepted /steps request's level id should equal the level actually opened"
+      ).toBe(openedLevelId);
 
       // eslint-disable-next-line no-console
       console.log(`[lesson-status:case-b] mutated lesson: ${mutatedLessonId}`);
@@ -1002,8 +1131,12 @@ test.describe("expo web lesson status icons — intercepted /steps (#97 proof)",
       });
 
       await loginViaExpoUi(page, CORPORATE_STUDENT.username, CORPORATE_STUDENT.password);
-      const { apiLessons } = await openModule1AndCaptureResponses(page);
-      const mutatedStepsBody = await mutatedPromise;
+      const { apiLessons, openedLevelId } = await openModule1AndCaptureResponses(page);
+      const { levelId: mutatedLevelId, body: mutatedStepsBody } = await mutatedPromise;
+      expect(
+        mutatedLevelId,
+        "the intercepted /steps request's level id should equal the level actually opened"
+      ).toBe(openedLevelId);
 
       // eslint-disable-next-line no-console
       console.log(`[lesson-status:case-c] mutated lesson: ${mutatedLessonId}`);
