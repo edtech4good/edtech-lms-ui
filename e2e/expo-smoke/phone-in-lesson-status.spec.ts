@@ -82,6 +82,7 @@
 import { test, expect, Page, Locator } from '@playwright/test';
 import {
   CORPORATE_STUDENT,
+  KM,
   goToFirstDcrsLessonActivities,
   loginViaExpoUi,
 } from './fixtures';
@@ -397,7 +398,7 @@ async function assertActivityListMatches(
   await expect(page.getByText(metaLineKm(data), { exact: true })).toBeVisible();
 
   // "In this lesson" heading.
-  await expect(page.getByText('នៅក្នុងមេរៀននេះ', { exact: true })).toBeVisible();
+  await expect(page.getByText(KM.inThisLesson, { exact: true })).toBeVisible();
 
   // Footer: only rendered while something isn't done, targeting nextStep.
   if (nextStep) {
@@ -476,7 +477,7 @@ test.describe('expo web in-lesson activity status (corporate / DCRS)', () => {
     // lesson" heading text (screen.lesson.inThisLesson, a plain Text with no
     // accessibilityRole) that assertActivityListMatches also checks below,
     // instead of the removed KM.lessonHeader app-bar heading.
-    await expect(page.getByText('នៅក្នុងមេរៀននេះ', { exact: true })).toBeVisible();
+    await expect(page.getByText(KM.inThisLesson, { exact: true })).toBeVisible();
     await assertActivityListMatches(page, data);
 
     await page.screenshot({
@@ -569,7 +570,7 @@ test.describe('expo web in-lesson activity status (corporate / DCRS)', () => {
       // Same v2.1 substitution as the test above — no app-bar title to wait
       // on, so assert the "In this lesson" heading text reappeared from
       // persisted state instead.
-      await expect(page.getByText('នៅក្នុងមេរៀននេះ', { exact: true })).toBeVisible({
+      await expect(page.getByText(KM.inThisLesson, { exact: true })).toBeVisible({
         timeout: 15_000,
       });
       await assertActivityListMatches(page, capturedData);

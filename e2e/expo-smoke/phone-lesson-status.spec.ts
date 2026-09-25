@@ -533,7 +533,18 @@ test.describe("expo web lesson status icons (corporate / DCRS)", () => {
       // accessibilityRole) instead, confirming the navigation actually
       // landed on the Lesson screen.
       await expect(
-        page.getByText("នៅក្នុងមេរៀននេះ", { exact: true })
+        page.getByText(KM.inThisLesson, { exact: true })
+      ).toBeVisible();
+      // Prove it's the RIGHT lesson, not just any lesson: the v2.1 Lesson
+      // screen renders lesson.lessonname as its title (LessonSelectionScreen.tsx
+      // ~line 427, a plain Text with no accessibilityRole) — the up-next row's
+      // own lesson, not one a stale click or a wrong id happened to land on.
+      // `.last()`: the Level screen's own row for this lesson (same text)
+      // stays mounted underneath the pushed Lesson screen — confirmed live
+      // by phone-learner-path.spec.ts hitting the same strict-mode double
+      // match — so the newly pushed screen's title is the later DOM node.
+      await expect(
+        page.getByText(expectedUpNext.lessonname, { exact: true }).last()
       ).toBeVisible();
     } else {
       // Every lesson is already done per the API — no incomplete lesson,
@@ -567,7 +578,7 @@ test.describe("expo web lesson status icons (corporate / DCRS)", () => {
       // v2.1 drops the Lesson screen's app-bar title — see the up-next
       // branch's own comment above for the full explanation.
       await expect(
-        page.getByText("នៅក្នុងមេរៀននេះ", { exact: true })
+        page.getByText(KM.inThisLesson, { exact: true })
       ).toBeVisible();
     }
 

@@ -590,7 +590,18 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
     // lesson" heading text instead (see phone-in-lesson-status.spec.ts's
     // and goToFirstDcrsLessonActivities's own comments on the same change).
     await expect(
-      page.getByText("នៅក្នុងមេរៀននេះ", { exact: true })
+      page.getByText(KM.inThisLesson, { exact: true })
+    ).toBeVisible();
+    // Prove it's the RIGHT lesson: the v2.1 Lesson screen renders
+    // lesson.lessonname as its title (LessonSelectionScreen.tsx ~line 427,
+    // a plain Text with no accessibilityRole) — confirms the click actually
+    // landed on "Why direction matters", not some other row. `.last()`
+    // because the Level Detail screen's own lesson row — same text — stays
+    // mounted underneath the pushed Lesson screen (confirmed live: a bare
+    // getByText match here resolves to both nodes in strict mode); the
+    // newly pushed screen's title is the later one in DOM order.
+    await expect(
+      page.getByText("Why direction matters", { exact: true }).last()
     ).toBeVisible();
     await page.locator('[data-testid="tab-home"]').click();
     await expect(
