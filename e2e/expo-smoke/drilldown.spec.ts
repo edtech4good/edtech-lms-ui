@@ -59,14 +59,25 @@ test.describe('expo web drilldown (corporate / DCRS)', () => {
     // named after (see header comment) — every title rendered while every
     // row silently didn't. Assert a real, known row under each section too:
     // fixed seed:dcrs content, lesson 1's one item per activity type.
+    //
+    // v2.1 (edtech-expo #93/#94): LessonSelectionScreen no longer titles
+    // practice/quiz rows with "<lesson name> practice"/"<lesson name> quiz"
+    // — LessonStepRow's title is now pre-composed from question_count alone
+    // (e.g. "1 question · unscored"), and the row itself carries a stable
+    // `activity-row-<type>-<id>` testID (confirmed in
+    // LessonSelectionScreen.tsx line ~478). Only the learning row still
+    // titles itself from the content's own name, so that assertion is kept
+    // as-is; the practice/quiz rows are now located by their fixed
+    // seed:dcrs ids (ID.practice1 / ID.quiz1 in both APIs'
+    // scripts/seed-dcrs-content.js, kept in lockstep) instead.
     await expect(
       page.getByRole('button').filter({ hasText: 'Animation: No plan vs clear vision' }),
     ).toBeVisible();
     await expect(
-      page.getByRole('button').filter({ hasText: 'Why direction matters practice' }),
+      page.locator('[data-testid="activity-row-practice-c0000000-0000-4000-8000-000000000014"]'),
     ).toBeVisible();
     await expect(
-      page.getByRole('button').filter({ hasText: 'Why direction matters quiz' }),
+      page.locator('[data-testid="activity-row-quiz-c0000000-0000-4000-8000-000000000018"]'),
     ).toBeVisible();
   });
 });

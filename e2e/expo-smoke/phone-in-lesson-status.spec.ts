@@ -82,7 +82,6 @@
 import { test, expect, Page, Locator } from '@playwright/test';
 import {
   CORPORATE_STUDENT,
-  KM,
   goToFirstDcrsLessonActivities,
   loginViaExpoUi,
 } from './fixtures';
@@ -472,7 +471,12 @@ test.describe('expo web in-lesson activity status (corporate / DCRS)', () => {
       PINNED_LESSON_ID,
     );
 
-    await expect(page.getByRole('heading', { name: KM.lessonHeader })).toBeVisible();
+    // v2.1 drops the corporate Lesson screen's app-bar title (see
+    // goToFirstDcrsLessonActivities's own comment) — assert the "In this
+    // lesson" heading text (screen.lesson.inThisLesson, a plain Text with no
+    // accessibilityRole) that assertActivityListMatches also checks below,
+    // instead of the removed KM.lessonHeader app-bar heading.
+    await expect(page.getByText('នៅក្នុងមេរៀននេះ', { exact: true })).toBeVisible();
     await assertActivityListMatches(page, data);
 
     await page.screenshot({
@@ -562,7 +566,10 @@ test.describe('expo web in-lesson activity status (corporate / DCRS)', () => {
       // the correct expected behaviour (the lesson screen reappearing from
       // persisted state) so it fails loudly and reports that finding
       // precisely, rather than being papered over.
-      await expect(page.getByRole('heading', { name: KM.lessonHeader })).toBeVisible({
+      // Same v2.1 substitution as the test above — no app-bar title to wait
+      // on, so assert the "In this lesson" heading text reappeared from
+      // persisted state instead.
+      await expect(page.getByText('នៅក្នុងមេរៀននេះ', { exact: true })).toBeVisible({
         timeout: 15_000,
       });
       await assertActivityListMatches(page, capturedData);

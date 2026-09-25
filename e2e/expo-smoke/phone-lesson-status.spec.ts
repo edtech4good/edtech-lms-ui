@@ -524,8 +524,16 @@ test.describe("expo web lesson status icons (corporate / DCRS)", () => {
         `[data-testid="lesson-row-${expectedUpNext.lessonid}"]`
       );
       await upNextRow.click();
+      // v2.1 (edtech-expo #93/#94, localhost:8091) drops the Lesson
+      // screen's own app-bar title (screen.lesson.header / KM.lessonHeader)
+      // — the app-bar shows only a back chevron now (see
+      // goToFirstDcrsLessonActivities's and phone-in-lesson-status.spec.ts's
+      // own comments on the same change). Assert the "In this lesson"
+      // heading text (screen.lesson.inThisLesson, a plain Text with no
+      // accessibilityRole) instead, confirming the navigation actually
+      // landed on the Lesson screen.
       await expect(
-        page.getByRole("heading", { name: KM.lessonHeader })
+        page.getByText("នៅក្នុងមេរៀននេះ", { exact: true })
       ).toBeVisible();
     } else {
       // Every lesson is already done per the API — no incomplete lesson,
@@ -556,8 +564,10 @@ test.describe("expo web lesson status icons (corporate / DCRS)", () => {
       await page
         .locator(`[data-testid="lesson-row-${sortedApiLessons[0].lessonid}"]`)
         .click();
+      // v2.1 drops the Lesson screen's app-bar title — see the up-next
+      // branch's own comment above for the full explanation.
       await expect(
-        page.getByRole("heading", { name: KM.lessonHeader })
+        page.getByText("នៅក្នុងមេរៀននេះ", { exact: true })
       ).toBeVisible();
     }
 
