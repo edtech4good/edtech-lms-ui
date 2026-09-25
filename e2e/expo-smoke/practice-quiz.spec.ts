@@ -49,11 +49,17 @@ test.describe("expo web practice & quiz (corporate / DCRS)", () => {
     );
     await goToFirstDcrsLessonActivities(page);
 
-    // Fixed seed:dcrs content: lesson 1's single practice.
+    // Fixed seed:dcrs content: lesson 1's single practice. v2.1
+    // (edtech-expo #93/#94) no longer titles the row "<lesson name>
+    // practice" — LessonStepRow's title is pre-composed from question_count
+    // alone — so it's located by its stable `activity-row-practice-<id>`
+    // testID instead (ID.practice1, c0000000-0000-4000-8000-000000000014,
+    // from both API repos' scripts/seed-dcrs-content.js, kept in lockstep;
+    // see drilldown.spec.ts's own comment on the same change).
     await page
-      .getByRole("button")
-      .filter({ hasText: "Why direction matters practice" })
-      .first()
+      .locator(
+        '[data-testid="activity-row-practice-c0000000-0000-4000-8000-000000000014"]'
+      )
       .click();
 
     // Deliberately pick the known-WRONG seeded option, not
@@ -143,10 +149,13 @@ test.describe("expo web practice & quiz (corporate / DCRS)", () => {
     );
     await goToFirstDcrsLessonActivities(page, "Your business vision");
 
+    // v2.1: located by testID, not the retired "<lesson name> practice"
+    // row title — see the practice test above's own comment.
+    // ID.practice2, c0000000-0000-4000-8000-000000000015.
     await page
-      .getByRole("button")
-      .filter({ hasText: "Your business vision practice" })
-      .first()
+      .locator(
+        '[data-testid="activity-row-practice-c0000000-0000-4000-8000-000000000015"]'
+      )
       .click();
 
     // "We ran out of ice this morning." is q2's seeded incorrect option (see
@@ -180,11 +189,14 @@ test.describe("expo web practice & quiz (corporate / DCRS)", () => {
     );
     await goToFirstDcrsLessonActivities(page);
 
-    // Fixed seed:dcrs content: lesson 1's single quiz.
+    // Fixed seed:dcrs content: lesson 1's single quiz. v2.1: located by
+    // testID, not the retired "<lesson name> quiz" row title — see the
+    // practice test above's own comment. ID.quiz1,
+    // c0000000-0000-4000-8000-000000000018.
     await page
-      .getByRole("button")
-      .filter({ hasText: "Why direction matters quiz" })
-      .first()
+      .locator(
+        '[data-testid="activity-row-quiz-c0000000-0000-4000-8000-000000000018"]'
+      )
       .click();
 
     // Guards QuizScreen.tsx's navigation.setOptions title spread

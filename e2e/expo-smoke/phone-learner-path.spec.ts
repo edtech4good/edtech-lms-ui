@@ -60,15 +60,17 @@
  *     (`EyebrowText size={theme.fontSizes.caption}`, now 12 not 9), and
  *     ProgressBar.tsx's default-variant track
  *     (`backgroundColor: theme.colors.progressTrack`, now the slate
- *     `#4A5A6E` not the `#E3E8EF` hairline). Live-confirmed against the
- *     running dev build at 390x844, logged in as miv.verify: the title
- *     renders at exactly 20px in family `NotoSansKhmerBold`; the caption
- *     renders at 14px, not 12 — EyebrowText additionally bumps Khmer
- *     captions to `Math.max(caption, size + 2)` for legibility, so the
- *     assertion is a >=12 floor on the token, not an equality on the
- *     rendered value; the progress bar (`role="progressbar"`, confirmed
- *     react-native-web emits that attribute literally) has computed
- *     `backgroundColor: rgb(74, 90, 110)` (#4A5A6E). Title and caption are
+ *     `#5A6B80` not the `#E3E8EF` hairline — v2.1 retired the original
+ *     `#4A5A6E` slate for this token too, see corporate.ts's own comment on
+ *     `progressTrack`). Live-confirmed against the running dev build at
+ *     390x844, logged in as miv.verify: the title renders at exactly 20px
+ *     in family `NotoSansKhmerBold`; the caption renders at 14px, not 12 —
+ *     EyebrowText additionally bumps Khmer captions to
+ *     `Math.max(caption, size + 2)` for legibility, so the assertion is a
+ *     >=12 floor on the token, not an equality on the rendered value; the
+ *     progress bar (`role="progressbar"`, confirmed react-native-web emits
+ *     that attribute literally) has computed
+ *     `backgroundColor: rgb(90, 107, 128)` (#5A6B80). Title and caption are
  *     located by exact-text match scoped to the card's own button locator
  *     — CurriculumCard.tsx renders both as bare DIVs with no distinguishing
  *     role, and the card button's own aggregate text (title + caption +
@@ -201,16 +203,18 @@
  *
  *     Extended for the U-11 corporate-portrait canvas fix: LessonScreen.tsx's
  *     `isCorporatePortrait` branch now paints the canvas
- *     `theme.colors.background` (#F3F5FF, `rgb(243, 245, 255)`) and
- *     top-aligns the 16:9 box (`canvasJustify: 'flex-start'`) instead of the
- *     black, vertically-centred canvas every other combination (landscape,
- *     kids) still gets. Two things are asserted: the box's own `y`, and the
+ *     `theme.colors.background` (v2.1: `#FFFFFF`, `rgb(255, 255, 255)` —
+ *     the "white page" rework, edtech-expo #93/#94) and top-aligns the
+ *     16:9 box (`canvasJustify: 'flex-start'`) instead of the black,
+ *     vertically-centred canvas every other combination (landscape, kids)
+ *     still gets. Two things are asserted: the box's own `y`, and the
  *     colour of its nearest non-transparent ancestor. box.y is 0, confirmed
  *     live at 390x844 (this route runs with `headerShown: false`, so
  *     there's no header offset above the box); the colour is
- *     `rgb(243, 245, 255)`, re-pinned to the cool paper on 22 Sep 2026 and
- *     not yet re-confirmed live (the cream value it replaced was confirmed
- *     live at 390x844) — it lives on
+ *     `rgb(255, 255, 255)`, confirmed against the running localhost:8091
+ *     v2.1 build (theme.colors.background is `#FFFFFF` in corporate.ts —
+ *     re-pinned from the `#F3F5FF` cool paper it was set to on 22 Sep 2026,
+ *     as part of the v2.1 "white page" rework) — it lives on
  *     LayoutScrollView's `StyledSafeArea` (LayoutScrollView.tsx:
  *     `styled(SafeAreaView)`, binding `background-color` to
  *     `backgroundColor ?? theme.colors.background`), not on the video
@@ -500,7 +504,9 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
     const trackColor = await progressBar.evaluate(
       (el) => getComputedStyle(el).backgroundColor
     );
-    expect(trackColor).toBe("rgb(74, 90, 110)");
+    // v2.1 retired the #4A5A6E slate for theme.colors.progressTrack in
+    // favor of #5A6B80 (corporate.ts) — rgb(90, 107, 128).
+    expect(trackColor).toBe("rgb(90, 107, 128)");
 
     // U-03 corporate contrast fix (see header comment's extension to this
     // test): AppTextField.tsx's placeholderTextColor now binds to
@@ -579,8 +585,23 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
       .filter({ hasText: "Why direction matters" })
       .first()
       .click();
+    // v2.1 drops the Lesson screen's own app-bar title
+    // (screen.lesson.header / KM.lessonHeader) — assert the "In this
+    // lesson" heading text instead (see phone-in-lesson-status.spec.ts's
+    // and goToFirstDcrsLessonActivities's own comments on the same change).
     await expect(
-      page.getByRole("heading", { name: KM.lessonHeader })
+      page.getByText(KM.inThisLesson, { exact: true })
+    ).toBeVisible();
+    // Prove it's the RIGHT lesson: the v2.1 Lesson screen renders
+    // lesson.lessonname as its title (LessonSelectionScreen.tsx ~line 427,
+    // a plain Text with no accessibilityRole) — confirms the click actually
+    // landed on "Why direction matters", not some other row. `.last()`
+    // because the Level Detail screen's own lesson row — same text — stays
+    // mounted underneath the pushed Lesson screen (confirmed live: a bare
+    // getByText match here resolves to both nodes in strict mode); the
+    // newly pushed screen's title is the later one in DOM order.
+    await expect(
+      page.getByText("Why direction matters", { exact: true }).last()
     ).toBeVisible();
     await page.locator('[data-testid="tab-home"]').click();
     await expect(
@@ -591,11 +612,14 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
   test("MCQ options stack full-width above the tab bar", async () => {
     await goToFirstDcrsLessonActivities(page);
 
-    // Fixed seed:dcrs content: lesson 1's single practice.
+    // Fixed seed:dcrs content: lesson 1's single practice. v2.1: located by
+    // testID, not the retired "<lesson name> practice" row title — see
+    // drilldown.spec.ts's and practice-quiz.spec.ts's own comments on the
+    // same change. ID.practice1, c0000000-0000-4000-8000-000000000014.
     await page
-      .getByRole("button")
-      .filter({ hasText: "Why direction matters practice" })
-      .first()
+      .locator(
+        '[data-testid="activity-row-practice-c0000000-0000-4000-8000-000000000014"]'
+      )
       .click();
 
     const radios = page.getByRole("radio");
@@ -844,20 +868,23 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
     expect(box!.y).toBeLessThanOrEqual(120);
 
     // Second half of the same fix: canvasColor swaps from 'black' to
-    // theme.colors.background (#F3F5FF) in corporate portrait.
-    // LessonScreen's <Video> itself paints no background of its own
-    // (confirmed live: its immediate parent DIV computes fully transparent
-    // — `rgba(0, 0, 0, 0)`) — the colour lives on LayoutScrollView's
-    // StyledSafeArea (LayoutScrollView.tsx wraps children in a
-    // `styled(SafeAreaView)` with `background-color:
-    // ${props.backgroundColor ?? props.theme.colors.background}`), one level
-    // further up. Walk up from the video element to the first ancestor
-    // whose computed backgroundColor isn't transparent, rather than
-    // asserting on a specific DOM depth, so this survives an unrelated
-    // wrapper being added or removed between them. Confirmed live on the
-    // old cream paper: that walk stops two ancestors up. The value was
-    // re-pinned to the cool paper `rgb(243, 245, 255)` on 22 Sep 2026 and
-    // is not yet re-confirmed live.
+    // theme.colors.background in corporate portrait. LessonScreen's <Video>
+    // itself paints no background of its own (confirmed live: its
+    // immediate parent DIV computes fully transparent — `rgba(0, 0, 0,
+    // 0)`) — the colour lives on LayoutScrollView's StyledSafeArea
+    // (LayoutScrollView.tsx wraps children in a `styled(SafeAreaView)` with
+    // `background-color: ${props.backgroundColor ??
+    // props.theme.colors.background}`), one level further up. Walk up from
+    // the video element to the first ancestor whose computed backgroundColor
+    // isn't transparent, rather than asserting on a specific DOM depth, so
+    // this survives an unrelated wrapper being added or removed between
+    // them. Confirmed live on the old cream paper: that walk stops two
+    // ancestors up. theme.colors.background was re-pinned twice: to the
+    // cool paper `#F3F5FF` on 22 Sep 2026, then to plain white `#FFFFFF`
+    // for the v2.1 "white page" rework (edtech-expo #93/#94, corporate.ts's
+    // own `background: '#FFFFFF'`) — confirmed against the running
+    // localhost:8091 build, not yet re-confirmed against a landed source
+    // comment beyond that token.
     const canvasBackgroundColor = await video.evaluate((el) => {
       let node: Element | null = el.parentElement;
       while (node) {
@@ -867,7 +894,7 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
       }
       return null;
     });
-    expect(canvasBackgroundColor).toBe("rgb(243, 245, 255)");
+    expect(canvasBackgroundColor).toBe("rgb(255, 255, 255)");
   });
 
   test("logout signs the learner out", async () => {
@@ -981,11 +1008,14 @@ test.describe("expo web phone learner path (corporate / DCRS)", () => {
     });
     // Confirmed live: 12px, the caption token floor — pre-fix this rendered
     // at the raw size={9}, i.e. 9px, with no floor applied at all.
-    // letterSpacing is EyebrowText's own non-Khmer formula, fontSize * 0.16
-    // = 12 * 0.16 = 1.92px, confirmed live at exactly that value.
+    // letterSpacing is EyebrowText's own non-Khmer formula
+    // (src/components/ui/EyebrowText.tsx: `letterSpacing: isKhmer ? 0 :
+    // fontSize * 0.1`) — v2.1 tightened this from `fontSize * 0.16` to
+    // `fontSize * 0.1`, so 12 * 0.1 = 1.2px, confirmed against the running
+    // localhost:8091 build at exactly that value (not the pre-v2.1 1.92px).
     // Mutation-proved: see this branch's mutation-proof notes (lever B).
     expect(footerStyle.fontSize).toBe("12px");
-    expect(footerStyle.letterSpacing).toBe("1.92px");
+    expect(footerStyle.letterSpacing).toBe("1.2px");
 
     // Put the app back in Khmer. Confirmed this doesn't matter for
     // isolation between spec files: this describe block's beforeAll opens

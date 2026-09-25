@@ -65,6 +65,7 @@ export const KM = {
   subjectGreeting: "អរុណសួស្តី", // screen.subject.greeting
   searchPlaceholder: "ស្វែងរកកម្មវិធីសិក្សា", // screen.subject.searchPlaceholder
   lessonHeader: "លំហាត់", // screen.lesson.header
+  inThisLesson: "នៅក្នុងមេរៀននេះ", // screen.lesson.inThisLesson
   learningTitle: "សិក្សា", // screen.lesson.learningTitle
   practiceTitle: "អនុវត្ត", // screen.lesson.practiceTitle
   quizTitle: "តេស្ត", // screen.lesson.quizTitle
@@ -167,8 +168,53 @@ export async function goToFirstDcrsLessonActivities(
     .filter({ hasText: lessonTitle })
     .first()
     .click();
+  // v2.1 (edtech-expo #93/#94, localhost:8091) drops the corporate Lesson
+  // screen's app-bar title (screen.lesson.header / KM.lessonHeader) — the
+  // app-bar shows only a back chevron now — so a heading assertion here
+  // breaks against that build while this helper is also shared by specs
+  // that still run against the pre-v2.1 build (e.g. the default
+  // EXPO_WEB_URL/localhost:8081). Wait instead for the URL actually
+  // reaching the lessons route, then for the lesson data itself to have
+  // loaded.
+  //
+  // The wait below used to be:
+  //   page.locator('[data-testid^="activity-row-"]')
+  //     .or(page.getByRole('button').filter({ hasNotText: ANY_BACK }))
+  // which was vacuous: `hasNotText` filters on an element's own *visible
+  // text*, but the back IconButton's label is only an accessibilityLabel
+  // (button.back, ANY_BACK) — it has no visible text at all — so
+  // `hasNotText: ANY_BACK` never excludes it, and `.or(...).first()` just
+  // resolved to whichever button (often the back chevron itself) painted
+  // first. The wait could pass before the lesson finished loading, or even
+  // on a route with an empty activity list, as long as SOME button was on
+  // the page.
+  //
+  // Wait instead for a string that only renders after the lesson data has
+  // actually loaded, in either build:
+  //  - v2.1 (localhost:8091): LessonSelectionScreen.tsx's corporate branch
+  //    sits behind the `_.isEmpty(lesson)` early return (~line 253) — the
+  //    screen renders only a bare background View until `lesson` has
+  //    loaded. The first text that branch renders is the "In this lesson"
+  //    header (~line 446, `t('screen.lesson.inThisLesson')`, KM.inThisLesson
+  //    — a plain Text with no accessibilityRole), directly above the
+  //    activity rows this helper exists to reach.
+  //  - pre-v2.1 (e.g. origin/main, the default EXPO_WEB_URL/localhost:8081):
+  //    confirmed by reading
+  //    `git show origin/main:src/screens/LessonSelection/LessonSelectionScreen.tsx`
+  //    — that build has no "In this lesson" string at all, but shares the
+  //    same `_.isEmpty(lesson)` early return (~line 238) gating the
+  //    corporate branch, and sets the nav header's title to
+  //    `t('screen.lesson.header')` (KM.lessonHeader) via
+  //    `navigation.setOptions`, which react-navigation's web header renders
+  //    with an accessible `role="heading"`. Match on that as the fallback.
+  //  Either way, `.first()` picks whichever of the two actually rendered —
+  //  never a button that says nothing about whether the lesson loaded.
+  await page.waitForURL(/\/home\/lessons(?:[/?]|$)/, { timeout: 15_000 });
   await expect(
-    page.getByRole("heading", { name: KM.lessonHeader })
+    page
+      .getByText(KM.inThisLesson, { exact: true })
+      .or(page.getByRole("heading", { name: KM.lessonHeader }))
+      .first()
   ).toBeVisible();
 }
 
