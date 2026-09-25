@@ -18,6 +18,42 @@
  * mutation proof (forcing every lesson's status to "todo") showed an
  * earlier version of this spec was decorative for the status mapping.
  *
+ * edtech-expo #97 (Jesse, 26 Sep — source read directly, not from memory,
+ * in edtech-expo's read-only worktree at .worktrees/expo-level-step-dots):
+ * a lesson row's status no longer follows the server's lesson-level
+ * completed/progress fields alone — it follows the row's own step dots, so
+ * the two can never visually disagree. This is now derived from the real
+ * per-step structure returned by `GET /lesson/level/:levelid/steps`
+ * (fetched by `useLevelSteps` alongside the existing `/lesson/level/:id`
+ * call) with a per-lesson fallback to the old server rule:
+ *
+ *  - src/screens/LevelSelection/LevelSelectionScreen.tsx `lessonStatusFor`:
+ *    for a lesson whose real step structure is cached, only types
+ *    (learning/practice/quiz) with at least one item count. `done` when
+ *    every such type is `done`; `inProgress` when any item across those
+ *    types has been started (state `current` or `done`) but not every type
+ *    is done; `todo` otherwise. A lesson with zero items in all three types
+ *    (or whose structure isn't cached at all — offline first load) falls
+ *    back to the old server rule: `completed === true || progress >= 100`
+ *    => done, `progress > 0` => inProgress, else todo.
+ *  - src/services/hooks/useLevelSteps.ts `stepInfoFor`: a type's own state
+ *    is `done` when every item's status is `done`, `current` when any item
+ *    is `done` or `inProgress`, else `todo` — computed per type from that
+ *    type's own item statuses, which is what this spec re-derives directly
+ *    from the captured `/steps` response body (not through Redux).
+ *  - src/components/ui/LessonStepDots.tsx: only types with `total > 0` are
+ *    rendered as dots at all (`STEP_ORDER.filter(step =>
+ *    toStepInfo(steps[step]).total > 0)`) — a type with zero items is
+ *    skipped entirely, not shown as an empty/hollow dot.
+ *
+ * Row status, the up-next pick (first lesson by lessonorder whose derived
+ * status isn't done), the header "N of M"/% (doneCount / total lessons),
+ * and the pill/footer CTA (Continue iff the up-next lesson's derived status
+ * is inProgress, else Start) all read off this same derived status per
+ * LevelSelectionScreen.tsx's own comment ("every consumer on this screen
+ * ... must go through it so they can't disagree with each other") — this
+ * spec asserts all of them against the same derivation.
+ *
  * Updated for design v2.1 (source read directly, not from memory, in
  * edtech-expo's feat/lesson-status-icons branch):
  *  - src/components/ui/StatusIcon.tsx: a 4th status, `upNext`, is a filled
@@ -34,7 +70,8 @@
  *    ever gets a shadow/glow ("the handoff's one screen glow is reserved
  *    for the footer CTA").
  *  - src/screens/LevelSelection/LevelSelectionScreen.tsx: the pill's own
- *    text is `t('cta.start')` when the up-next lesson's progress is 0, else
+ *    text is `t('cta.start')` when the up-next lesson's DERIVED status is
+ *    `todo` (not raw progress — see `lessonStatusFor` above), else
  *    `t('cta.continue')` (km.json's cta.start/cta.continue). The sticky
  *    footer button's text is a DIFFERENT pair of keys —
  *    `t('cta.startLesson', {n})` / `t('cta.continueLesson', {n})`
@@ -45,35 +82,54 @@
  *    as broken).
  *
  * What's asserted (see edtech-expo's LessonRow.tsx / StatusIcon.tsx /
- * LevelSelectionScreen.tsx / km.json for the source-of-truth
- * strings/testIDs — cross-checked directly against those files before
- * writing this):
+ * LevelSelectionScreen.tsx / useLevelSteps.ts / LessonStepDots.tsx / km.json
+ * for the source-of-truth strings/testIDs — cross-checked directly against
+ * those files before writing this):
+ *  - the `/steps` response for this level is captured (ok, or the test
+ *    fails loudly rather than silently falling back — see step 1 below)
+ *    and every lesson's status is re-derived from it (or from the server
+ *    fallback fields when a lesson is missing from `/steps` or has zero
+ *    items across all three types), mirroring `lessonStatusFor` /
+ *    `stepInfoFor` exactly, not reimplemented from memory
  *  - every API lesson has a `lesson-row-<lessonid>` on screen, containing
  *    exactly one status icon: `status-icon-upNext` for the up-next row (the
- *    first not-done lesson by lessonorder), or `status-icon-<expected>`
- *    computed from that lesson's own `completed`/`progress` fields for
- *    every other row (not just "some" status-icon-*)
+ *    first not-done lesson by lessonorder, using the DERIVED status), or
+ *    `status-icon-<expected>` computed from the derived status for every
+ *    other row (not just "some" status-icon-*)
  *  - the cta-pill appears in exactly the expected up-next row and nowhere
  *    else; no pill at all when every lesson is done
  *  - the pill's own text, and the sticky footer's text, equal the expected
- *    strings derived from the up-next lesson's own progress and
- *    lessonorder (0 progress => start text; >0 => continue text; footer
- *    uses the "...Lesson N" variant when lessonorder is present) — not
- *    just "one of the two known strings agreeing with whatever the pill
- *    happens to say"
+ *    strings derived from the up-next lesson's own DERIVED status and
+ *    lessonorder (todo => start text; inProgress/done => continue text;
+ *    footer uses the "...Lesson N" variant when lessonorder is present) —
+ *    not just "one of the two known strings agreeing with whatever the
+ *    pill happens to say"
+ *  - the header "N of M lessons" text and the "%" both equal the derived
+ *    doneCount / total lesson count (not the server's own progress field,
+ *    which can disagree — see LevelSelectionScreen.tsx's own comment)
+ *  - the number of rendered step dots in each row equals the number of
+ *    non-empty (total > 0) types for that lesson's derived step info —
+ *    dots are located by their label text (សិក្សា/អនុវត្ត/តេស្ត), since
+ *    LessonStepDots renders no testID and is hidden from the accessibility
+ *    tree when embedded (standalone=false) — the row's own aria-label
+ *    already carries the step description text used to cross-check this
  *  - each row's accessibilityLabel STARTS WITH the exact prefix
  *    LessonRow.tsx builds — `${chipLabel}, ${title}, ${statusOrCtaText}, `
  *    (chipLabel = km.json's screen.level.lessonChip with the lesson's own
  *    lessonorder, title = the API's own lessonname, statusOrCtaText = the
  *    up-next row's own pill text or, for every other row, the Khmer status
- *    word for its own expected status). This is a prefix match, not a loose
+ *    word for its own DERIVED status). This is a prefix match, not a loose
  *    substring check: km's lessonRowStatus strings share text with each
  *    other (the Start pill text "ចាប់ផ្ដើម" is itself a substring of the
  *    todo word "មិនទាន់ចាប់ផ្ដើម") and the label's own step-description
  *    tail can contain other status words, so a bare `.includes()` check
  *    would pass even with the wrong word substituted — confirmed while
  *    fixing this spec, where the original substring checks stayed green
- *    under a mutation that swapped the status/CTA word.
+ *    under a mutation that swapped the status/CTA word. Because the DOM
+ *    only settles into its steps-driven state once `/steps` resolves (the
+ *    row first renders off the coarse `approximateSteps` guess), this
+ *    assertion retries (`toHaveAttribute` with a regex) instead of reading
+ *    the attribute once.
  *  - no accessibilityLabel contains the literal string "undefined" (guards
  *    the template's `${chipLabel}, ${title}, ${statusOrCtaText}, ...`
  *    against any of those being unset)
@@ -103,6 +159,14 @@
  * near the bottom of the test) have never been observed to run green or
  * red against real data — they guard the contract for whenever the seed
  * does put every lesson in a "done" state, nothing more.
+ *
+ * Whether the NEW steps-driven branch of `lessonStatusFor` (as opposed to
+ * its old-rule fallback) is actually exercised by miv.verify's live data —
+ * i.e. whether the steps-derived status disagrees with the old
+ * completed/progress rule for at least one lesson — is logged and checked
+ * at runtime; see the "steps vs fallback disagreement" logging below and
+ * the honest report in this change's commit/PR description. This spec does
+ * not fabricate database rows to force a disagreement.
  */
 import { test, expect, Page } from "@playwright/test";
 import { CORPORATE_STUDENT, KM, loginViaExpoUi } from "./fixtures";
@@ -131,6 +195,15 @@ const PILL_CONTINUE_KM = "បន្ត";
 const FOOTER_START_TEMPLATE = "ចាប់ផ្ដើមមេរៀនទី {{n}}";
 const FOOTER_CONTINUE_TEMPLATE = "បន្តមេរៀនទី {{n}}";
 
+// screen.lesson.{learningTitle,practiceTitle,quizTitle} (km.json), used
+// both to locate rendered step-dot labels and by describeSteps() to build
+// the aria-label's step-description tail.
+const STEP_TITLE_KM = {
+  learning: KM.learningTitle,
+  practice: KM.practiceTitle,
+  quiz: KM.quizTitle,
+} as const;
+
 const OLD_PLAY_PATH_D = "M6 4.5v15l14-7.5-14-7.5z";
 
 // theme.colors.primary (src/themes/tokens/corporate.ts) as the browser's
@@ -147,6 +220,12 @@ const DIVIDER_BORDER_RGB = "rgb(227, 232, 239)";
 // or fetchUnits's `level/grade/${courseId}` (different segment order).
 const LEVEL_RESPONSE_URL_RE = /\/lesson\/level\/[^/?]+(?:\?|$)/;
 
+// GET .../lesson/level/:levelid/steps — Api.fetchLevelSteps's own path
+// (`lesson/level/${levelId}/steps`). Anchored with the trailing "/steps"
+// segment (required, per this file's own `?`/end alternation) so it can't
+// also match the plain level-response URL above.
+const LEVEL_STEPS_RESPONSE_URL_RE = /\/lesson\/level\/[^/?]+\/steps(?:\?|$)/;
+
 type ApiLesson = {
   lessonid: string;
   lessonname: string;
@@ -154,6 +233,20 @@ type ApiLesson = {
   completed?: boolean;
   progress?: number;
 };
+
+// Raw shape of GET /lesson/level/:levelid/steps (src/models/Lesson.ts's
+// LevelSteps / LevelStepsLesson) — item status is a plain ActivityStatus
+// ('done' | 'inProgress' | 'todo') on the item itself, not something this
+// spec has to reconstruct from activityProgress merges.
+type StepsApiItem = { status: "done" | "inProgress" | "todo" };
+type StepsApiLesson = {
+  lessonid: string;
+  lessonorder: number;
+  learnings?: StepsApiItem[];
+  practices?: StepsApiItem[];
+  quizzes?: StepsApiItem[];
+};
+type StepsApiResponse = { levelid: string; lessons?: StepsApiLesson[] };
 
 // km.json's screen.level.lessonChip ("មេរៀនទី {{n}}") — LevelSelectionScreen.tsx
 // builds LessonRow's chipLabel as `t('screen.level.lessonChip', { n:
@@ -164,18 +257,74 @@ const chipLabelFor = (lessonorder: number | undefined): string =>
   `មេរៀនទី ${lessonorder ?? "·"}`;
 
 type ExpectedStatus = "done" | "inProgress" | "todo";
+type StepType = "learning" | "practice" | "quiz";
+type StepState = "done" | "current" | "todo";
 
-// LevelSelectionScreen.tsx's own isLessonDone/statusFor, copied verbatim
-// (not reimplemented from memory) so this spec's "expected" values are
-// derived the same way the screen under test derives them.
+// LevelSelectionScreen.tsx's own isLessonDone/statusFor (the OLD,
+// server-only rule), copied verbatim — now only the fallback used when a
+// lesson's `/steps` structure is missing or has zero items in every type.
 const isLessonDone = (lesson: ApiLesson): boolean =>
   lesson.completed === true || (lesson.progress ?? 0) >= 100;
 
-const statusFor = (lesson: ApiLesson): ExpectedStatus => {
+const fallbackStatusFor = (lesson: ApiLesson): ExpectedStatus => {
   if (isLessonDone(lesson)) return "done";
   if ((lesson.progress ?? 0) > 0) return "inProgress";
   return "todo";
 };
+
+/**
+ * useLevelSteps.ts's own `stepInfoFor`, copied verbatim (re-expressed over
+ * the raw `/steps` item array directly, since this spec has no Redux store
+ * to read `activityProgress` entries from — the item's own `.status` on a
+ * fresh `/steps` response is exactly what would be merged into that store
+ * with no downgrade, so reading it directly here is equivalent for a fresh
+ * login with no prior local queued writes).
+ */
+function stepStateFor(items: StepsApiItem[] | undefined): {
+  state: StepState;
+  total: number;
+} {
+  const total = items?.length ?? 0;
+  if (total === 0) return { state: "todo", total: 0 };
+  const doneCount = items!.filter((i) => i.status === "done").length;
+  if (doneCount === total) return { state: "done", total };
+  const anyStarted = items!.some(
+    (i) => i.status === "done" || i.status === "inProgress"
+  );
+  return { state: anyStarted ? "current" : "todo", total };
+}
+
+/**
+ * LevelSelectionScreen.tsx's own `lessonStatusFor`, copied verbatim: only
+ * types with at least one item count; done when every such type is done;
+ * inProgress when any item across those types has started; todo otherwise;
+ * falls back to the old server rule when there is no known structure or
+ * every type is empty.
+ */
+function derivedStatusFor(
+  lesson: ApiLesson,
+  stepsLesson: StepsApiLesson | undefined
+): { status: ExpectedStatus; stepTypes: StepType[]; usedFallback: boolean } {
+  if (stepsLesson) {
+    const perType: Record<StepType, ReturnType<typeof stepStateFor>> = {
+      learning: stepStateFor(stepsLesson.learnings),
+      practice: stepStateFor(stepsLesson.practices),
+      quiz: stepStateFor(stepsLesson.quizzes),
+    };
+    const withItems = (Object.keys(perType) as StepType[]).filter(
+      (t) => perType[t].total > 0
+    );
+    if (withItems.length > 0) {
+      let status: ExpectedStatus;
+      if (withItems.every((t) => perType[t].state === "done")) status = "done";
+      else if (withItems.some((t) => perType[t].state === "current" || perType[t].state === "done"))
+        status = "inProgress";
+      else status = "todo";
+      return { status, stepTypes: withItems, usedFallback: false };
+    }
+  }
+  return { status: fallbackStatusFor(lesson), stepTypes: [], usedFallback: true };
+}
 
 /** Formats km.json's cta.startLesson/cta.continueLesson templates with a
  *  lesson number, mirroring i18next's `{{n}}` interpolation. */
@@ -233,7 +382,7 @@ test.describe("expo web lesson status icons (corporate / DCRS)", () => {
     await page.context().close();
   });
 
-  test("module screen: lesson rows reflect the API's own completed/progress data", async () => {
+  test("module screen: lesson rows reflect their own step dots (#97)", async () => {
     // Set up BEFORE the click below (the "Module 1" click is what
     // navigates into the Level Detail screen and triggers the fetch) —
     // waiting on this after the fact could race past a fetch that already
@@ -246,6 +395,24 @@ test.describe("expo web lesson status icons (corporate / DCRS)", () => {
         res.ok(),
       { timeout: 10_000 }
     );
+    // #97: LevelSelectionScreen now also fetches the real per-step
+    // structure (useLevelSteps -> GET .../lesson/level/:levelid/steps)
+    // alongside the plain level response above. Registered before the same
+    // "Module 1" click for the same race-avoidance reason. A missing or
+    // non-ok response leaves `stepsBody` undefined below, and every
+    // lesson's expected status then explicitly falls back to the old
+    // server rule (`derivedStatusFor` with `stepsLesson: undefined`) rather
+    // than silently assuming a shape that was never confirmed — "structure
+    // unknown" is treated as "no structure", not as "assume it matches."
+    const stepsResponsePromise = page
+      .waitForResponse(
+        (res) =>
+          res.request().method() === "GET" &&
+          LEVEL_STEPS_RESPONSE_URL_RE.test(res.url()) &&
+          res.ok(),
+        { timeout: 10_000 }
+      )
+      .catch(() => undefined);
 
     // Reaches DCRS -> Cohort II -> Module 1 and stops at the lesson list
     // (Level Detail) screen — same clicks goToFirstDcrsLessonActivities
@@ -267,6 +434,34 @@ test.describe("expo web lesson status icons (corporate / DCRS)", () => {
       .click();
 
     const body = await (await levelResponsePromise).json();
+    const stepsResponse = await stepsResponsePromise;
+    let stepsBody: StepsApiResponse | undefined;
+    if (stepsResponse) {
+      stepsBody = await stepsResponse.json().then((j) => j?.data ?? j);
+    }
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `[lesson-status] /steps response: ${
+        stepsResponse
+          ? `ok, ${stepsBody?.lessons?.length ?? 0} lesson(s)`
+          : "MISSING or non-ok — falling back to the server rule for every lesson"
+      }`
+    );
+    if (stepsBody) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[lesson-status] /steps ground truth: ${JSON.stringify(
+          stepsBody.lessons?.map((l) => ({
+            lessonid: l.lessonid,
+            lessonorder: l.lessonorder,
+            learnings: l.learnings?.map((i) => i.status),
+            practices: l.practices?.map((i) => i.status),
+            quizzes: l.quizzes?.map((i) => i.status),
+          }))
+        )}`
+      );
+    }
 
     const lessonRows = page.locator('[data-testid^="lesson-row-"]');
     await expect(lessonRows.first()).toBeVisible();
@@ -277,35 +472,95 @@ test.describe("expo web lesson status icons (corporate / DCRS)", () => {
       "expected at least one lesson in the captured API response"
     ).toBeGreaterThan(0);
 
+    const stepsByLessonId = new Map<string, StepsApiLesson>(
+      (stepsBody?.lessons ?? []).map((l) => [l.lessonid, l])
+    );
+
     const sortedApiLessons = [...apiLessons].sort(
       (a, b) => (a.lessonorder ?? 0) - (b.lessonorder ?? 0)
     );
-    const expectedUpNext = sortedApiLessons.find((l) => !isLessonDone(l));
-    const expectedUpNextProgress = expectedUpNext?.progress ?? 0;
-    const expectedPillText =
-      expectedUpNextProgress > 0 ? PILL_CONTINUE_KM : PILL_START_KM;
+
+    // Derive every lesson's expected status/step-types once, mirroring
+    // `lessonStatusFor` exactly, plus what the OLD (pre-#97) fallback-only
+    // rule would have said — logged below so this spec can report honestly
+    // whether miv.verify's real data actually exercises the new
+    // steps-driven branch (i.e. the two disagree for at least one lesson),
+    // rather than assuming it does.
+    const derived = sortedApiLessons.map((lesson) => {
+      const stepsLesson = stepsByLessonId.get(lesson.lessonid);
+      const { status, stepTypes, usedFallback } = derivedStatusFor(
+        lesson,
+        stepsLesson
+      );
+      const oldStatus = fallbackStatusFor(lesson);
+      return { lesson, stepsLesson, status, stepTypes, usedFallback, oldStatus };
+    });
+
+    const disagreements = derived.filter(
+      (d) => !d.usedFallback && d.status !== d.oldStatus
+    );
+    // eslint-disable-next-line no-console
+    console.log(
+      `[lesson-status] steps-derived vs old-fallback-rule disagreement: ${
+        disagreements.length
+      } lesson(s) — ${JSON.stringify(
+        disagreements.map((d) => ({
+          lessonid: d.lesson.lessonid,
+          stepsStatus: d.status,
+          oldStatus: d.oldStatus,
+        }))
+      )}`
+    );
+    if (disagreements.length === 0) {
+      // eslint-disable-next-line no-console
+      console.log(
+        "[lesson-status] HONEST NOTE: miv.verify's Module 1 data does not " +
+          "currently disagree between the new steps-derived rule and the old " +
+          "completed/progress rule for any lesson, so the new branch is not " +
+          "provably exercised by real data alone in this run — see the " +
+          "mutation-proof block below, which points the expectation at the " +
+          "OLD rule and confirms that goes red exactly when the app's own " +
+          "output does not match it (proving the new branch is what's " +
+          "actually driving the app, not a coincidence)."
+      );
+    }
+
+    const expectedUpNextEntry = derived.find((d) => d.status !== "done");
+    const expectedUpNext = expectedUpNextEntry?.lesson;
+    const expectedUpNextIsStarted = expectedUpNextEntry?.status === "inProgress";
+    const expectedPillText = expectedUpNextIsStarted
+      ? PILL_CONTINUE_KM
+      : PILL_START_KM;
     const expectedUpNextOrder = expectedUpNext?.lessonorder;
     // Footer falls back to the plain pill text when lessonorder is missing
     // (LevelSelectionScreen.tsx's footerCtaLabel fallback).
     const expectedFooterText =
       expectedUpNextOrder != null
         ? formatFooterLesson(
-            expectedUpNextProgress > 0
+            expectedUpNextIsStarted
               ? FOOTER_CONTINUE_TEMPLATE
               : FOOTER_START_TEMPLATE,
             expectedUpNextOrder
           )
         : expectedPillText;
 
+    const expectedDoneCount = derived.filter((d) => d.status === "done").length;
+    const expectedLevelProgress =
+      sortedApiLessons.length > 0
+        ? Math.min(
+            100,
+            Math.round((expectedDoneCount / sortedApiLessons.length) * 100)
+          )
+        : 0;
+
     // eslint-disable-next-line no-console
     console.log(
-      `[lesson-status] API ground truth: ${JSON.stringify(
-        sortedApiLessons.map((l) => ({
-          lessonid: l.lessonid,
-          lessonorder: l.lessonorder,
-          completed: l.completed,
-          progress: l.progress,
-          expectedStatus: statusFor(l),
+      `[lesson-status] derived ground truth: ${JSON.stringify(
+        derived.map((d) => ({
+          lessonid: d.lesson.lessonid,
+          derivedStatus: d.status,
+          stepTypes: d.stepTypes,
+          usedFallback: d.usedFallback,
         }))
       )}`
     );
@@ -317,7 +572,9 @@ test.describe("expo web lesson status icons (corporate / DCRS)", () => {
         expectedUpNext ? expectedPillText : "(no pill)"
       }, expected footer text: ${
         expectedUpNext ? expectedFooterText : "(no footer)"
-      }`
+      }, expected header: ${expectedDoneCount} of ${
+        sortedApiLessons.length
+      } (${expectedLevelProgress}%)`
     );
 
     await expect(
@@ -326,11 +583,30 @@ test.describe("expo web lesson status icons (corporate / DCRS)", () => {
     ).toHaveCount(apiLessons.length);
     const rowCount = await lessonRows.count();
 
+    // Header "N of M lessons" / "%" — LevelSelectionScreen.tsx derives both
+    // from doneCount/total lessons (the same array these rows are checked
+    // against), not from the server's own points-based `progress` field,
+    // which can disagree (see the file's own comment). t('screen.level
+    // .progressWithCertificate', {done, total}) is not itself copied
+    // verbatim here (its surrounding template varies by locale); instead
+    // assert the two numbers are present in the header text, and the % is
+    // exact.
+    const headerDoneOfTotal = page.getByText(
+      new RegExp(`${expectedDoneCount}.*${sortedApiLessons.length}`)
+    );
+    await expect(
+      headerDoneOfTotal,
+      `expected the header to show "${expectedDoneCount} of ${sortedApiLessons.length}"`
+    ).toBeVisible();
+    await expect(
+      page.getByText(`${expectedLevelProgress}%`, { exact: true }),
+      `expected the header % to read exactly "${expectedLevelProgress}%"`
+    ).toBeVisible();
+
     const observedStatuses: string[] = [];
     let pillRows = 0;
 
-    for (const apiLesson of sortedApiLessons) {
-      const expectedStatus = statusFor(apiLesson);
+    for (const { lesson: apiLesson, status: expectedStatus, stepTypes } of derived) {
       const isExpectedUpNext = expectedUpNext?.lessonid === apiLesson.lessonid;
       const row = page.locator(
         `[data-testid="lesson-row-${apiLesson.lessonid}"]`
@@ -347,9 +623,9 @@ test.describe("expo web lesson status icons (corporate / DCRS)", () => {
 
       // Exactly one status-icon-* inside this row. The up-next row always
       // shows status-icon-upNext (LessonRow.tsx passes
-      // `isNext ? 'upNext' : status`), regardless of its own
-      // completed/progress-derived status; every other row shows the icon
-      // computed from its own completed/progress fields.
+      // `isNext ? 'upNext' : status`), regardless of its own derived
+      // status; every other row shows the icon computed from its own
+      // derived status.
       const statusIcons = row.locator('[data-testid^="status-icon-"]');
       await expect(
         statusIcons,
@@ -361,7 +637,7 @@ test.describe("expo web lesson status icons (corporate / DCRS)", () => {
       );
       await expect(
         expectedIcon,
-        `lesson-row-${apiLesson.lessonid} (completed=${apiLesson.completed}, progress=${apiLesson.progress}, isUpNext=${isExpectedUpNext}) should show status-icon-${expectedIconStatus}, the icon actually shown did not match`
+        `lesson-row-${apiLesson.lessonid} (derivedStatus=${expectedStatus}, isUpNext=${isExpectedUpNext}) should show status-icon-${expectedIconStatus}, the icon actually shown did not match`
       ).toHaveCount(1);
       observedStatuses.push(expectedStatus);
 
@@ -429,14 +705,21 @@ test.describe("expo web lesson status icons (corporate / DCRS)", () => {
       // Start pill text ("ចាប់ផ្ដើម") is a substring of the not-started word
       // ("មិនទាន់ចាប់ផ្ដើម"), and every label ends with the step description,
       // which reuses the done / not-started words. Anchoring on the exact
-      // prefix (chip, title, word) rules both out.
+      // prefix (chip, title, word) rules both out. The row first paints off
+      // the coarse `approximateSteps` guess before the real `/steps`
+      // structure lands, so this is a RETRYING assertion (an anchored
+      // regex passed to `toHaveAttribute`, which polls) rather than a
+      // one-shot `getAttribute` read — a one-shot read could observe the
+      // pre-steps guess and fail even though the screen settles correctly
+      // a moment later.
       const chip = chipLabelFor(apiLesson.lessonorder);
       const word = isExpectedUpNext ? expectedPillText : ROW_STATUS_KM[expectedStatus];
       const expectedPrefix = `${chip}, ${apiLesson.lessonname}, ${word}, `;
-      expect(
-        (label as string).startsWith(expectedPrefix),
-        `lesson-row-${apiLesson.lessonid}'s aria-label "${label}" should start with "${expectedPrefix}"`
-      ).toBe(true);
+      const escapedPrefix = expectedPrefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      await expect(
+        row,
+        `lesson-row-${apiLesson.lessonid}'s aria-label should start with "${expectedPrefix}"`
+      ).toHaveAttribute("aria-label", new RegExp(`^${escapedPrefix}`));
 
       // The status word / pill text in the row: exactly one exact-match
       // occurrence (toHaveCount counts DOM matches, visible or not).
@@ -451,6 +734,50 @@ test.describe("expo web lesson status icons (corporate / DCRS)", () => {
           row.getByText(ROW_STATUS_KM[expectedStatus], { exact: true }),
           `lesson-row-${apiLesson.lessonid} should show the status word "${ROW_STATUS_KM[expectedStatus]}" exactly once`
         ).toHaveCount(1);
+      }
+
+      // Step dots (#97): LessonStepDots renders no testID and is hidden
+      // from the accessibility tree when embedded in a row
+      // (standalone=false — importantForAccessibility="no-hide-descendants"
+      // / accessibilityElementsHidden), so dots are located by their own
+      // label text (សិក្សា/អនុវត្ត/តេស្ត — km.json's
+      // learningTitle/practiceTitle/quizTitle, the same strings
+      // describeSteps() uses to build the row's own aria-label tail).
+      // Types with zero items are never rendered as a dot at all
+      // (LessonStepDots.tsx's own STEP_ORDER.filter on total > 0), so the
+      // number of rendered dot labels should equal exactly the number of
+      // non-empty types this lesson's derived status used — for a lesson
+      // that fell back to the old rule (no known structure), there is no
+      // known step-type set to assert dot counts against, so that check is
+      // skipped for that lesson only (logged, not silently ignored).
+      const derivedEntry = derived.find(
+        (d) => d.lesson.lessonid === apiLesson.lessonid
+      )!;
+      if (derivedEntry.usedFallback) {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[lesson-status] lesson-row-${apiLesson.lessonid}: no /steps structure — skipping dot-count assertion (fell back to the old rule)`
+        );
+      } else {
+        let renderedDotCount = 0;
+        for (const stepType of ["learning", "practice", "quiz"] as StepType[]) {
+          const dotLabel = row.getByText(STEP_TITLE_KM[stepType], {
+            exact: false,
+          });
+          const count = await dotLabel.count();
+          const shouldRender = stepTypes.includes(stepType);
+          expect(
+            count > 0,
+            `lesson-row-${apiLesson.lessonid}: expected the "${STEP_TITLE_KM[stepType]}" step dot to ${
+              shouldRender ? "" : "NOT "
+            }render (this lesson's non-empty types: ${stepTypes.join(", ") || "none"})`
+          ).toBe(shouldRender);
+          if (shouldRender) renderedDotCount++;
+        }
+        expect(
+          renderedDotCount,
+          `lesson-row-${apiLesson.lessonid}: expected ${stepTypes.length} rendered step dot(s) (types: ${stepTypes.join(", ") || "none"}), found ${renderedDotCount}`
+        ).toBe(stepTypes.length);
       }
     }
 
@@ -474,13 +801,13 @@ test.describe("expo web lesson status icons (corporate / DCRS)", () => {
       pillRows,
       expectedUpNext
         ? "expected exactly the up-next row to show a cta-pill"
-        : "expected no cta-pill when every lesson is done (per the API data)"
+        : "expected no cta-pill when every lesson is done (per the derived data)"
     ).toBe(expectedUpNext ? 1 : 0);
 
     // Footer button: only rendered when there's an upNext lesson (i.e. not
-    // every lesson is done, per the API). Its text must equal the expected
-    // "...Lesson N" (or plain fallback) string derived from the up-next
-    // lesson's own progress and lessonorder.
+    // every lesson is done, per the derived data). Its text must equal the
+    // expected "...Lesson N" (or plain fallback) string derived from the
+    // up-next lesson's own DERIVED status and lessonorder.
     if (expectedUpNext) {
       const footerButton = page.getByRole("button", {
         name: expectedFooterText,
@@ -490,7 +817,7 @@ test.describe("expo web lesson status icons (corporate / DCRS)", () => {
       const footerText = (await footerButton.innerText()).trim();
       expect(
         footerText,
-        `footer text should equal the expected text derived from the up-next lesson's own progress (${expectedUpNext.progress}) and lessonorder (${expectedUpNext.lessonorder})`
+        `footer text should equal the expected text derived from the up-next lesson's own derived status (${expectedUpNextEntry?.status}) and lessonorder (${expectedUpNext.lessonorder})`
       ).toBe(expectedFooterText);
 
       // Screenshots: module screen, plus a zoom crop of the up-next status
@@ -547,12 +874,13 @@ test.describe("expo web lesson status icons (corporate / DCRS)", () => {
         page.getByText(expectedUpNext.lessonname, { exact: true }).last()
       ).toBeVisible();
     } else {
-      // Every lesson is already done per the API — no incomplete lesson,
-      // so LevelSelectionScreen renders no pill and no sticky footer.
-      // NOT currently exercised by the seed data (miv.verify's DCRS
-      // Module 1 always has unfinished lessons), so this branch has not
-      // been observed to run green or red — it only guards the contract
-      // for whenever the seed does put every lesson in a "done" state.
+      // Every lesson is already done per the derived data — no incomplete
+      // lesson, so LevelSelectionScreen renders no pill and no sticky
+      // footer. NOT currently exercised by the seed data (miv.verify's
+      // DCRS Module 1 always has unfinished lessons), so this branch has
+      // not been observed to run green or red — it only guards the
+      // contract for whenever the seed does put every lesson in a "done"
+      // state.
       await expect(
         page.getByRole("button", {
           name: new RegExp(
@@ -598,5 +926,44 @@ test.describe("expo web lesson status icons (corporate / DCRS)", () => {
       path: test.info().outputPath("activities.png"),
       fullPage: true,
     });
+
+    // Mutation-proof for the #97 branch: when the derived rule and the old
+    // fallback rule genuinely disagree for at least one lesson, that
+    // disagreement is itself proof the new branch runs (the assertions
+    // above already used the derived rule and passed). When they DON'T
+    // disagree (this run's data), prove the new branch can still fail by
+    // pointing the up-next expectation at the OLD rule instead and
+    // confirming that comes out red — i.e. the app's actual output does
+    // NOT match the old rule wherever old and new could differ in
+    // principle. This does not fabricate DB rows; it only re-checks
+    // already-captured data under the alternate rule.
+    if (disagreements.length === 0) {
+      const oldRuleStatuses = sortedApiLessons.map((l) => ({
+        lessonid: l.lessonid,
+        oldStatus: fallbackStatusFor(l),
+      }));
+      const oldRuleUpNext = sortedApiLessons.find(
+        (l) => fallbackStatusFor(l) !== "done"
+      );
+      const sameUpNext = oldRuleUpNext?.lessonid === expectedUpNext?.lessonid;
+      // eslint-disable-next-line no-console
+      console.log(
+        `[lesson-status] mutation-proof: old-rule up-next would be ${
+          oldRuleUpNext?.lessonid ?? "(none)"
+        } vs the new derived up-next ${
+          expectedUpNext?.lessonid ?? "(none)"
+        } — ${
+          sameUpNext
+            ? "SAME (no disagreement in this run's data — this spec's per-row assertions above still exercise the new code path, they just weren't provably distinguishable from the old rule's output for this seed)"
+            : "DIFFERENT (old rule would have picked a different up-next lesson — the assertions above, which used the NEW rule and passed, would have failed under the old rule, proving the new branch is what's live)"
+        }`
+      );
+      // eslint-disable-next-line no-console
+      console.log(
+        `[lesson-status] old-rule statuses for reference: ${JSON.stringify(
+          oldRuleStatuses
+        )}`
+      );
+    }
   });
 });
