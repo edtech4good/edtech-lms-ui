@@ -3,7 +3,6 @@ import { HTTP_INTERCEPTORS } from '@angular/common/http';
 import { NgModule } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
 import { NgxChartsModule } from '@swimlane/ngx-charts';
 import { NgxPermissionsModule } from 'ngx-permissions';
 import { NgxSpinnerModule } from 'ngx-spinner';
@@ -29,7 +28,7 @@ import { SHARED_ZORRO_MODULES } from './shared-zorro.module';
 import { LessonPlanService } from '../services/lesson.plan.service';
 // #region third libs
 
-const THIRDMODULES: any[] = [FontAwesomeModule, NgxSpinnerModule];
+const THIRDMODULES: any[] = [NgxSpinnerModule];
 
 const sharedservices: any[] = [
   DocumentTagService,

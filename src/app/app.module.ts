@@ -6,7 +6,6 @@ import { FormsModule } from '@angular/forms';
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { JwtModule, JWT_OPTIONS } from '@auth0/angular-jwt';
-import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
 import { EffectsModule } from '@ngrx/effects';
 import { StoreModule } from '@ngrx/store';
 import { StoreDevtoolsModule } from '@ngrx/store-devtools';
@@ -71,6 +70,5 @@ export const jwtoptionsfactory = (
                 connectInZone: true
             })
             : [],
-        FontAwesomeModule,
         NgxPermissionsModule.forRoot()], providers: [{ provide: NZ_I18N, useValue: en_US }, provideHttpClient(withInterceptorsFromDi())] })
 export class AppModule {}
