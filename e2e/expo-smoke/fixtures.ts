@@ -167,9 +167,30 @@ export async function goToFirstDcrsLessonActivities(
     .filter({ hasText: lessonTitle })
     .first()
     .click();
-  await expect(
-    page.getByRole("heading", { name: KM.lessonHeader })
-  ).toBeVisible();
+  // v2.1 (edtech-expo #93/#94, localhost:8091) drops the corporate Lesson
+  // screen's app-bar title (screen.lesson.header / KM.lessonHeader) — the
+  // app-bar shows only a back chevron now — so a heading assertion here
+  // breaks against that build while this helper is also shared by specs
+  // that still run against the pre-v2.1 build (e.g. the default
+  // EXPO_WEB_URL/localhost:8081). Wait instead for the URL actually
+  // reaching the lessons route, then for the activity list itself.
+  //
+  // v2.1 tags every row with a stable `activity-row-<type>-<id>` testID
+  // (LessonStepRow.tsx), but — confirmed against origin/main of edtech-expo
+  // — that testID does not exist pre-v2.1: LessonSelectionScreen's
+  // ContinueLearningRow/LessonItem rows there carry no testID at all. What
+  // both builds' rows DO share is accessibilityRole="button" on every
+  // pressable row (ContinueLearningRow and LessonItem, same as
+  // LessonStepRow) — the same signal drilldown.spec.ts's own row
+  // assertions already rely on. So match on the testID where it exists and
+  // fall back to any row-shaped button otherwise, filtered to exclude the
+  // header's own back-navigation control (ANY_BACK) so an empty activity
+  // list can't pass by matching only the chevron.
+  await page.waitForURL(/\/home\/lessons(?:[/?]|$)/, { timeout: 15_000 });
+  const activityRow = page
+    .locator('[data-testid^="activity-row-"]')
+    .or(page.getByRole("button").filter({ hasNotText: ANY_BACK }));
+  await expect(activityRow.first()).toBeVisible();
 }
 
 /**

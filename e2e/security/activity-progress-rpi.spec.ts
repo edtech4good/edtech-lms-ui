@@ -16,9 +16,14 @@ import { CORPORATE_STUDENT } from '../expo-smoke/fixtures';
  *   { data: { lessonid, pass_percentage, learnings: [...], practices: [...],
  *     quizzes: [...] }, error: false }
  *   - learnings: { lessonlearningid, status, progress_percentage }
- *   - practices: { lessonpracticeid, status, attempts, best_percentage|null }
- *   - quizzes:   { lessonquizid, status, attempts, best_percentage|null }
+ *   - practices: { lessonpracticeid, status, attempts, best_percentage|null, question_count }
+ *   - quizzes:   { lessonquizid, status, attempts, best_percentage|null, question_count }
  *   - status is one of 'done' | 'inProgress' | 'todo'
+ *   - question_count (added for edtech-expo's v2.1 Lesson screen rework,
+ *     which builds each practice/quiz row's title from it —
+ *     src/screens/LessonSelection/LessonSelectionScreen.tsx's `titleFor` /
+ *     src/locales/km.json's practiceQuestions/quizQuestions) is a
+ *     non-negative integer on every practice/quiz item.
  *
  * Logs in as miv.verify (CORPORATE_STUDENT, credentials from
  * ../expo-smoke/fixtures — this suite runs under playwright.config.ts, not
@@ -34,7 +39,12 @@ import { CORPORATE_STUDENT } from '../expo-smoke/fixtures';
  *   c0000000-0000-4000-8000-000000000008  "Why direction matters"
  *   c0000000-0000-4000-8000-000000000009  "Your business vision" — mixed
  *     (learning done, practice/quiz todo with attempts 0, best_percentage
- *     null) — the up-next lesson for the phone spec.
+ *     null) — the up-next lesson for the phone spec. Confirmed live on
+ *     25 Sep 2026 (browsing localhost:8091 as miv.verify): its practice
+ *     has question_count 1, its quiz has question_count 2 — the DCRS
+ *     seed's question fixtures for this lesson, not runtime-computed, so
+ *     these two counts are pinned below as a stable-seed fact rather than
+ *     re-derived.
  *
  * Neither lesson's exact per-activity status is asserted as a hard-coded
  * "every status is done" fact: `npm run seed:dcrs` (seed-dcrs-content.js)
@@ -89,8 +99,8 @@ function assertActivityProgressConsistency(
   data: {
     pass_percentage: number;
     learnings: Array<{ lessonlearningid: string; status: string; progress_percentage: number }>;
-    practices: Array<{ lessonpracticeid: string; status: string; attempts: number; best_percentage: number | null }>;
-    quizzes: Array<{ lessonquizid: string; status: string; attempts: number; best_percentage: number | null }>;
+    practices: Array<{ lessonpracticeid: string; status: string; attempts: number; best_percentage: number | null; question_count: number }>;
+    quizzes: Array<{ lessonquizid: string; status: string; attempts: number; best_percentage: number | null; question_count: number }>;
   },
   label: string,
 ): void {
@@ -119,6 +129,10 @@ function assertActivityProgressConsistency(
     expect(STATUS_ENUM, `${label}: practice status "${p.status}" not in enum`).toContain(p.status);
     expect(typeof p.attempts).toBe('number');
     expect(
+      Number.isInteger(p.question_count) && p.question_count >= 0,
+      `${label}: practice question_count should be a non-negative integer, got ${JSON.stringify(p.question_count)}`,
+    ).toBe(true);
+    expect(
       p.best_percentage === null || typeof p.best_percentage === 'number',
       `${label}: practice best_percentage should be null or a number, got ${JSON.stringify(p.best_percentage)}`,
     ).toBe(true);
@@ -136,6 +150,10 @@ function assertActivityProgressConsistency(
     expect(typeof q.lessonquizid).toBe('string');
     expect(STATUS_ENUM, `${label}: quiz status "${q.status}" not in enum`).toContain(q.status);
     expect(typeof q.attempts).toBe('number');
+    expect(
+      Number.isInteger(q.question_count) && q.question_count >= 0,
+      `${label}: quiz question_count should be a non-negative integer, got ${JSON.stringify(q.question_count)}`,
+    ).toBe(true);
     expect(
       q.best_percentage === null || typeof q.best_percentage === 'number',
       `${label}: quiz best_percentage should be null or a number, got ${JSON.stringify(q.best_percentage)}`,
@@ -234,6 +252,22 @@ test('response shape/types for a real DCRS lesson (mixed statuses)', async () =>
   expect(data.pass_percentage).toBe(80);
 
   assertActivityProgressConsistency(data, 'mixed lesson (009)');
+});
+
+test('question_count matches the DCRS seed for the mixed lesson (practice 1, quiz 2)', async () => {
+  // Pinned per this file's header comment (confirmed live 25 Sep 2026):
+  // lesson 009's question fixtures are a stable part of the DCRS seed
+  // (seed-dcrs-content.js), not runtime-computed progress state, so this
+  // is safe to assert as an exact fact rather than a relational rule.
+  const res = await student.get(`/lesson/${MIXED_LESSON_ID}/activities/progress`);
+  expect(res.ok(), `expected 2xx, got ${res.status()}`).toBeTruthy();
+  const body = await res.json();
+  const data = body.data;
+
+  expect(data.practices, 'expected exactly one practice on the mixed lesson').toHaveLength(1);
+  expect(data.practices[0].question_count, 'mixed lesson practice question_count').toBe(1);
+  expect(data.quizzes, 'expected exactly one quiz on the mixed lesson').toHaveLength(1);
+  expect(data.quizzes[0].question_count, 'mixed lesson quiz question_count').toBe(2);
 });
 
 test('response for the other DCRS seed lesson: relational consistency holds', async () => {
