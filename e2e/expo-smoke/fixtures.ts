@@ -82,6 +82,11 @@ export const KM = {
   resultHeader: "លទ្ធផល", // screen.result.header
   finishButton: "រួចរាល់", // screen.result.finishButton
   back: "ត្រឡប់ក្រោយ", // button.back
+  // edtech-expo/src/locales/km.json's screen.library.unavailable — what
+  // LibraryScreen renders (testID library-unavailable) when useLibrary has
+  // no cached entry for this user and the level/library fetch fails.
+  libraryUnavailable:
+    "បណ្ណាល័យរបស់អ្នកនឹងបង្ហាញនៅពេលអ្នកភ្ជាប់អ៊ីនធឺណិត។", // screen.library.unavailable
 } as const;
 
 /**
