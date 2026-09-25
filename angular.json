@@ -174,24 +174,12 @@
             ],
             "scripts": []
           }
-        },
-        "lint": {
-          "builder": "@angular-eslint/builder:lint",
-          "options": {
-            "lintFilePatterns": [
-              "src/**/*.ts",
-              "src/**/*.html"
-            ]
-          }
         }
       }
     }
   },
   "cli": {
-    "analytics": "dfc92776-052e-4164-b276-08b40445f0e0",
-    "schematicCollections": [
-      "@angular-eslint/schematics"
-    ]
+    "analytics": "dfc92776-052e-4164-b276-08b40445f0e0"
   },
   "schematics": {
     "@schematics/angular:component": {
