@@ -4,7 +4,7 @@ Thank you for your interest in contributing. This document explains the workflow
 
 How to get the code and run it locally
 
-See the README. It covers installation with --legacy-peer-deps, configuration, how to run the dev server, and how to run the Playwright test suites.
+See the README. It covers installation, configuration, how to run the dev server, and how to run the Playwright test suites.
 
 Branch and pull request workflow
 
@@ -12,11 +12,7 @@ Branch from main with a descriptive name. Make your changes in that branch. When
 
 What to verify before opening a PR
 
-Run the linter:
-
-```bash
-npm run lint
-```
+There is no lint script yet — no ESLint config exists in this repo (see docs/ci-cd-plan.md Phase 0). Run the build and the relevant tests instead.
 
 If you changed a Playwright assertion, prove it can fail. Break the thing it watches once and confirm the test goes red. A test that passes without the code it watches is decorative and reduces confidence in the suite.
 

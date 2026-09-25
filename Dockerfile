@@ -4,10 +4,7 @@
 FROM node:22 as build
 WORKDIR /app
 COPY package*.json /app/
-# --legacy-peer-deps: the ladder upgrade moved @angular/cli to 21 while
-# @angular-eslint/schematics is still 16 (peer-wants cli 16), so strict npm (v7+)
-# fails to resolve. eslint is dev-only tooling and unused in the prod build.
-RUN npm install --legacy-peer-deps
+RUN npm ci
 COPY . /app
 ARG configuration=production
 # --output-path (kebab): Angular 21's CLI rejects the old camelCase --outputPath

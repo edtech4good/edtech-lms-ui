@@ -20,11 +20,11 @@ This repo also holds the Playwright suites for the whole stack, including the on
 ## Running it locally
 
 ```bash
-npm install --legacy-peer-deps
+npm ci
 npm start
 ```
 
-Open http://localhost:4200. The `--legacy-peer-deps` is needed because `@angular-eslint/schematics` is still on 16 and its peer range does not include the current CLI. It is dev-only tooling and does not affect the build.
+Open http://localhost:4200.
 
 `src/environments/environment.ts` is checked in and already points at `http://localhost:3000`, so there is nothing to copy for local work. For another host, edit it or copy `environment.example.ts` over it. The keys named `PAYLOAD_KEY`, `ALG_KEY`, `HASH_KEY` and the `REFRESH_*` set are sessionStorage key names for the three JWT segments. They are not secrets and they do not need to match anything on the API.
 
@@ -58,7 +58,7 @@ Where the suites point is set with environment variables, all with local default
 
 Two cautions from experience. The API issues one access token per user, so running a suite or a `curl` login while you are signed in to the same account in a browser logs the browser out. And a test that only uses ASCII data cannot catch a Khmer bug.
 
-`npm test` runs the Karma unit tests via `ng test`. `npm run lint` runs ESLint via `ng lint`.
+`npm test` runs the Karma unit tests via `ng test`. There is no lint script yet — no ESLint config exists in this repo (see docs/ci-cd-plan.md Phase 0).
 
 ## Building
 

@@ -27,11 +27,8 @@ jobs:
           node-version: 22
           cache: npm
 
-      # TODO(docs/ci-cd-plan.md #0.2): plain `npm ci` fails on an
-      # @angular-eslint/schematics vs @angular/cli peer conflict. Drop
-      # --legacy-peer-deps once that conflict is resolved.
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm ci
 
       # Build the shipped configuration. src/environments/environment.prod.ts
       # IS committed, with placeholder values (workspace#63 confirmed the
@@ -57,7 +54,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm ci
 
       # Report only: never fails the job or the workflow. Advisory counts
       # are too high across the org today (docs/ci-cd-plan.md) to gate a PR.
