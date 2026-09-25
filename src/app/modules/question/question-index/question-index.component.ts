@@ -8,7 +8,6 @@ import {
 } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
-import { faCircle, faSlash } from '@fortawesome/free-solid-svg-icons';
 import { delay, xor } from 'lodash';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
@@ -71,7 +70,6 @@ export class QuestionIndexComponent implements OnInit, AfterContentInit {
   }
 
   selectedTag: any;
-  faCoffee = faCircle;
   searchquestionIdentifierValue = '';
   searchquestionTypeValue = '';
   searchquestionTagValue = '';
