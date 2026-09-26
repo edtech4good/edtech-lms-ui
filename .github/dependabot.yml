@@ -32,6 +32,17 @@ updates:
         update-types:
           - version-update:semver-major
       - dependency-name: "karma*"
+      # jasmine-core 7 is real but karma-jasmine (^5.1.0, the newest release)
+      # still hard-depends on jasmine-core ^4.1.0 and resolves its own nested
+      # copy at runtime, so bumping the top-level version here has no effect
+      # on the test framework Karma actually loads. Revisit if karma-jasmine
+      # ever relaxes that pin. See #79.
+      - dependency-name: "jasmine-core"
+        update-types:
+          - version-update:semver-major
+      - dependency-name: "@types/jasmine"
+        update-types:
+          - version-update:semver-major
       # eslint 9+ needs flat config and a matching @typescript-eslint (we're on
       # 5.x); moving the lint toolchain is its own task, not a bump. See #80.
       - dependency-name: "eslint"
