@@ -22,6 +22,10 @@ updates:
       - dependency-name: "@ngrx/*"
         update-types:
           - version-update:semver-major
+      # ng-zorro-antd's majors require the matching Angular major; bump it with the Angular upgrade.
+      - dependency-name: "ng-zorro-antd"
+        update-types:
+          - version-update:semver-major
       - dependency-name: "zone.js"
         update-types:
           - version-update:semver-major
