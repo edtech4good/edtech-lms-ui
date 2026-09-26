@@ -32,3 +32,11 @@ updates:
         update-types:
           - version-update:semver-major
       - dependency-name: "karma*"
+      # eslint 9+ needs flat config and a matching @typescript-eslint (we're on
+      # 5.x); moving the lint toolchain is its own task, not a bump. See #80.
+      - dependency-name: "eslint"
+        update-types:
+          - version-update:semver-major
+      - dependency-name: "@typescript-eslint/*"
+        update-types:
+          - version-update:semver-major
