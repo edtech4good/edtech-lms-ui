@@ -8,144 +8,157 @@
  * phone-*.spec.ts — see playwright.expo.config.ts's own header comment),
  * whose 390x844-by-default viewport comes from
  * EXPO_E2E_PHONE_WIDTH/EXPO_E2E_PHONE_HEIGHT rather than a hard-coded
- * viewport here — LessonRow's 2px border/CTA pill and the footer button are
- * the phone/tablet corporate Level Detail per the handoff, so this file
- * relies on the project's own viewport instead of pinning one itself.
+ * viewport here.
  *
  * This spec compares the on-screen lesson rows against the same
- * `GET .../lesson/level/<levelId>` response the Level Detail screen itself
- * loads, rather than checking each row is merely self-consistent — a
- * mutation proof (forcing every lesson's status to "todo") showed an
- * earlier version of this spec was decorative for the status mapping.
+ * `GET .../lesson/level/<levelId>` and `GET .../lesson/level/<levelId>/steps`
+ * responses the Level Detail screen itself loads (edtech-expo #97, source
+ * read directly in edtech-expo's read-only worktree at
+ * .worktrees/expo-integration (this spec is run against that worktree's
+ * build; the app logic it documents is identical) — src/screens/LevelSelection/
+ * LevelSelectionScreen.tsx `lessonStatusFor`/`approximateSteps`,
+ * src/services/hooks/useLevelSteps.ts `stepInfoFor`,
+ * src/components/ui/LessonStepDots.tsx `describeSteps`/`toStepInfo`, and
+ * src/locales/km.json — cross-checked directly against those files, not
+ * from memory):
  *
- * Updated for design v2.1 (source read directly, not from memory, in
- * edtech-expo's feat/lesson-status-icons branch):
- *  - src/components/ui/StatusIcon.tsx: a 4th status, `upNext`, is a filled
- *    primary disc with a white forward arrow (not a play triangle). It is
- *    used ONLY for the up-next row: LessonRow.tsx renders
- *    `<StatusIcon status={isNext ? 'upNext' : status} />`, so the up-next
- *    row's testID is always `status-icon-upNext` regardless of its own
- *    completed/progress-derived status.
- *  - src/components/ui/LessonRow.tsx: the up-next row shows a `cta-pill`
- *    (isNext && ctaLabel) instead of the plain status word; every other row
- *    shows the plain status word (screen.level.lessonRowStatus.<status>).
- *    The row border is 2px theme.colors.primary when isNext, else 1px
- *    theme.colors.divider — and the component's own comment states no row
- *    ever gets a shadow/glow ("the handoff's one screen glow is reserved
- *    for the footer CTA").
- *  - src/screens/LevelSelection/LevelSelectionScreen.tsx: the pill's own
- *    text is `t('cta.start')` when the up-next lesson's progress is 0, else
- *    `t('cta.continue')` (km.json's cta.start/cta.continue). The sticky
- *    footer button's text is a DIFFERENT pair of keys —
- *    `t('cta.startLesson', {n})` / `t('cta.continueLesson', {n})`
- *    (km.json's cta.startLesson/cta.continueLesson, each with a `{{n}}`
- *    lesson-number placeholder) — falling back to the plain
- *    cta.start/cta.continue text when the up-next lesson's `lessonorder`
- *    is null/undefined ("Continue Lesson " with a blank number would read
- *    as broken).
+ *  - a lesson row's status follows the row's own step dots, derived from
+ *    `GET /lesson/level/:levelid/steps` (learnings/practices/quizzes, each
+ *    item's own `status`), with a per-lesson fallback to the old server
+ *    rule (`completed === true || progress >= 100` => done, `progress > 0`
+ *    => inProgress, else todo) when that lesson's real structure isn't
+ *    known at all (offline first load).
+ *  - `stepInfoFor`/`stepStateFor`: a type's state is `done` when every item
+ *    is done, `current` when any item is done/inProgress, else `todo` —
+ *    computed per type from that type's own items.
+ *  - `LessonStepDots`: only types with `total > 0` render a dot at all.
+ *  - When a lesson's structure isn't cached, the screen instead renders
+ *    `approximateSteps(progress, isNext, done)` — a small, PURE, and fully
+ *    reproducible function of already-known values (copied verbatim below
+ *    as `approximateSteps`), so even the fallback branch's dots/aria-label
+ *    tail can be asserted exactly, not skipped.
+ *  - Row status, the up-next pick, the header "N of M"/%, and the
+ *    pill/footer CTA all read off the same derived status per
+ *    LevelSelectionScreen.tsx's own comment ("every consumer on this screen
+ *    ... must go through it so they can't disagree with each other") —
+ *    this spec asserts all of them against the same derivation.
  *
- * What's asserted (see edtech-expo's LessonRow.tsx / StatusIcon.tsx /
- * LevelSelectionScreen.tsx / km.json for the source-of-truth
- * strings/testIDs — cross-checked directly against those files before
- * writing this):
- *  - every API lesson has a `lesson-row-<lessonid>` on screen, containing
- *    exactly one status icon: `status-icon-upNext` for the up-next row (the
- *    first not-done lesson by lessonorder), or `status-icon-<expected>`
- *    computed from that lesson's own `completed`/`progress` fields for
- *    every other row (not just "some" status-icon-*)
- *  - the cta-pill appears in exactly the expected up-next row and nowhere
- *    else; no pill at all when every lesson is done
- *  - the pill's own text, and the sticky footer's text, equal the expected
- *    strings derived from the up-next lesson's own progress and
- *    lessonorder (0 progress => start text; >0 => continue text; footer
- *    uses the "...Lesson N" variant when lessonorder is present) — not
- *    just "one of the two known strings agreeing with whatever the pill
- *    happens to say"
- *  - each row's accessibilityLabel STARTS WITH the exact prefix
- *    LessonRow.tsx builds — `${chipLabel}, ${title}, ${statusOrCtaText}, `
- *    (chipLabel = km.json's screen.level.lessonChip with the lesson's own
- *    lessonorder, title = the API's own lessonname, statusOrCtaText = the
- *    up-next row's own pill text or, for every other row, the Khmer status
- *    word for its own expected status). This is a prefix match, not a loose
- *    substring check: km's lessonRowStatus strings share text with each
- *    other (the Start pill text "ចាប់ផ្ដើម" is itself a substring of the
- *    todo word "មិនទាន់ចាប់ផ្ដើម") and the label's own step-description
- *    tail can contain other status words, so a bare `.includes()` check
- *    would pass even with the wrong word substituted — confirmed while
- *    fixing this spec, where the original substring checks stayed green
- *    under a mutation that swapped the status/CTA word.
- *  - no accessibilityLabel contains the literal string "undefined" (guards
- *    the template's `${chipLabel}, ${title}, ${statusOrCtaText}, ...`
- *    against any of those being unset)
- *  - the actual on-screen text: the up-next row shows its own expected pill
- *    text exactly once (`getByText(..., { exact: true })`), and every other
- *    row shows its own expected Khmer status word exactly once — not just
- *    that the aria-label mentions it
- *  - no lesson row (up-next or not) has any box-shadow/glow: computed via
- *    getComputedStyle in-page, not just a visual check
- *  - each row's borderTopWidth/borderTopColor longhand (not the border
- *    shorthand, which some browsers report inconsistently for a uniform
- *    4-side border): 2px primary blue (theme.colors.primary, #0B5FFF ->
- *    rgb(11, 95, 255)) for the up-next row, 1px divider grey
- *    (theme.colors.divider, #E3E8EF -> rgb(227, 232, 239)) for every other
- *    row — both confirmed directly against
- *    src/themes/tokens/corporate.ts
- *  - no leftover play-triangle SVG (`<polygon>`, or the specific old
- *    `<path d="M6 4.5v15l14-7.5-14-7.5z">`) inside any lesson-row-* or
- *    activity-row-* — StatusIcon.tsx is Circle/Path-only, no Polygon,
- *    confirmed by reading the file directly
- *  - opening the up-next lesson reaches the activity list (activity-row-*)
- *    with no play-triangle glyph there either
+ * Two describe blocks:
+ *  1. "against real data" — drives the real corporate DCRS Module 1 seed
+ *     data (miv.verify) and checks the screen against whatever `/steps` and
+ *     `/level` actually return. This is real-world coverage, but whether it
+ *     can fail depends on today's seed state (see the "steps vs
+ *     fallback-rule disagreement" logging in that test).
+ *  2. "intercepted /steps (#97 proof)" — the REAL proof. `page.route`
+ *     intercepts the level's `/steps` response, fetches the true payload
+ *     (`route.fetch()`), mutates specific item statuses, and fulfills with
+ *     the modified body. Every expectation below is then derived from that
+ *     MODIFIED body, not the real one — so these cases fail if
+ *     `lessonStatusFor`/the dot rendering ever stops actually reading
+ *     `/steps`, regardless of what today's seed data happens to contain.
+ *     Each case uses its own fresh browser context (no shared
+ *     localStorage/cookies) so no persisted progress leaks between cases —
+ *     LevelSelectionScreen/useLevelSteps merge server statuses monotonically
+ *     into a persisted `activityProgress` store, so reusing a context could
+ *     keep an earlier case's "done" around instead of reverting.
  *
- * NOT exercised by the seed data: the "every lesson done, no up-next" branch
- * (no pill, no sticky footer). miv.verify's DCRS Module 1 always has at
- * least one unfinished lesson, so that branch's assertions (see the `else`
- * near the bottom of the test) have never been observed to run green or
- * red against real data — they guard the contract for whenever the seed
- * does put every lesson in a "done" state, nothing more.
+ * App-side mutation proof for THIS revision of the spec (the one that
+ * scopes the `/level` baseline to the opened level and zeroes every lesson):
+ * one footer-only edit, run against case (a) alone. In the INTEGRATION
+ * worktree (.worktrees/expo-integration, which the running localhost:8096
+ * build hot-reloads from), `LevelSelectionScreen.tsx`'s `footerCtaLabel`
+ * was edited to always take the `cta.startLesson` branch, leaving
+ * `upNextIsStarted` and the up-next pill untouched. Case (a) went red on
+ * a footer assertion: `assertLevelDetailMatchesDerivation`'s own
+ * `toBeVisible()` on the button named exactly "បន្តមេរៀនទី 2" (element not
+ * found). Every row's status icon, cta-pill (including the up-next row's
+ * Continue pill text) and exact aria-label assertion runs before that
+ * check in the helper and passed, so the footer is watched independently
+ * of the pill. Because the helper's footer check fires first, case (a)'s
+ * own later footer/no-"Start"-button assertions were not reached in that
+ * run. The line was then restored by editing it back to its exact original
+ * text (not `git checkout`), and the integration worktree's
+ * `git diff --stat` was confirmed empty. Only case (a) was run mutated.
+ *
+ * Earlier revisions of this spec were separately proven by mutating
+ * `lessonStatusFor` (always return the server-fallback status) and
+ * `LessonStepDots.tsx` (stop filtering empty-total step types); both turned
+ * describe block 2 red and back green. Those two proofs were NOT re-run for
+ * this revision.
+ *
+ * NOT exercised by the seed data (real-data test only): the "every lesson
+ * done, no up-next" branch (no pill, no sticky footer). miv.verify's DCRS
+ * Module 1 always has at least one unfinished lesson, so that branch has
+ * never been observed to run green or red against real data — it guards the
+ * contract for whenever the seed does put every lesson in a "done" state.
+ * This is not a gap in proof coverage: the intercepted tests below exercise
+ * the status-derivation logic directly regardless of seed state.
  */
-import { test, expect, Page } from "@playwright/test";
+import { test, expect, Page, Response, Route } from "@playwright/test";
 import { CORPORATE_STUDENT, KM, loginViaExpoUi } from "./fixtures";
 
-// km.json's screen.level.lessonRowStatus (copied verbatim, not hand-typed a
-// second time — cross-checked directly against edtech-expo's km.json around
-// line 81-85). Only used for non-up-next rows: the up-next row's status
-// word is replaced by the cta-pill text, not this map.
+// km.json's screen.level.lessonRowStatus (copied verbatim — cross-checked
+// directly against edtech-expo's km.json). Only used for non-up-next rows:
+// the up-next row's status word is replaced by the cta-pill text.
 const ROW_STATUS_KM: Record<string, string> = {
   done: "បានបញ្ចប់",
   inProgress: "កំពុងសិក្សា",
   todo: "មិនទាន់ចាប់ផ្ដើម",
 };
 
-// cta.start / cta.continue (LessonRow's cta-pill label) — km.json line
-// 124-125.
+// screen.level.stepState.* — copied verbatim. `current`/`inProgress` and
+// `todo` happen to share their exact Khmer text with lessonRowStatus above
+// (and the Start pill text is itself a substring of the "todo" word) — this
+// spec never relies on substring/loose matching for that reason; every
+// aria-label check below is an exact full-string match.
+const STEP_STATE_KM: Record<"done" | "current" | "todo", string> = {
+  done: "បានបញ្ចប់",
+  current: "កំពុងសិក្សា",
+  todo: "មិនទាន់ចាប់ផ្ដើម",
+};
+
+// screen.level.stepFormat / stepFormatWithCount — copied verbatim.
+const STEP_FORMAT = "{{step}} ({{state}})";
+const STEP_FORMAT_WITH_COUNT =
+  "{{step}} ({{state}}, {{done}} ក្នុងចំណោម {{total}})";
+
+// screen.level.progressWithCertificate — copied verbatim.
+const PROGRESS_WITH_CERTIFICATE_TEMPLATE =
+  "មេរៀន {{done}} ក្នុងចំណោម {{total}} · ទទួលវិញ្ញាបនបត្រពេលបញ្ចប់";
+
+// cta.start / cta.continue (LessonRow's cta-pill label).
 const PILL_START_KM = "ចាប់ផ្ដើម";
 const PILL_CONTINUE_KM = "បន្ត";
 
 // cta.startLesson / cta.continueLesson (the sticky footer AppButton's own
-// label, with the up-next lesson's own lessonorder interpolated in place
-// of "{{n}}") — km.json line 127-128. These are DIFFERENT i18n keys (and
-// different Khmer strings) than the pill's cta.start/cta.continue —
-// LevelSelectionScreen.tsx uses the "...Lesson N" variant for the footer
-// and the plain variant for the pill.
+// label) — DIFFERENT i18n keys/strings than the pill's cta.start/continue.
 const FOOTER_START_TEMPLATE = "ចាប់ផ្ដើមមេរៀនទី {{n}}";
 const FOOTER_CONTINUE_TEMPLATE = "បន្តមេរៀនទី {{n}}";
 
+// screen.lesson.{learningTitle,practiceTitle,quizTitle} (km.json), used to
+// build describeSteps()'s step-description text.
+const STEP_TITLE_KM = {
+  learning: KM.learningTitle,
+  practice: KM.practiceTitle,
+  quiz: KM.quizTitle,
+} as const;
+
 const OLD_PLAY_PATH_D = "M6 4.5v15l14-7.5-14-7.5z";
 
-// theme.colors.primary (src/themes/tokens/corporate.ts) as the browser's
-// computed rgb() — the up-next row's 2px border colour.
+// theme.colors.primary / theme.colors.divider (src/themes/tokens/corporate.ts)
+// as the browser's computed rgb().
 const PRIMARY_BORDER_RGB = "rgb(11, 95, 255)";
-
-// theme.colors.divider (src/themes/tokens/corporate.ts, #E3E8EF) as the
-// browser's computed rgb() — every non-up-next row's 1px border colour.
 const DIVIDER_BORDER_RGB = "rgb(227, 232, 239)";
 
 // GET .../lesson/level/<levelId> — Api.fetchLevels's own path
-// (`lesson/level/${unitId}`), no trailing segment. Deliberately does not
-// match fetchChapters's `lesson/${lessonId}/learning` (no "level" segment)
-// or fetchUnits's `level/grade/${courseId}` (different segment order).
-const LEVEL_RESPONSE_URL_RE = /\/lesson\/level\/[^/?]+(?:\?|$)/;
+// (`lesson/level/${unitId}`), no trailing segment. The id is captured so the
+// case (a) baseline interception can confirm it fired for the opened level.
+const LEVEL_RESPONSE_URL_RE = /\/lesson\/level\/([^/?]+)(?:\?|$)/;
+
+// GET .../lesson/level/:levelid/steps — Api.fetchLevelSteps's own path
+// (`lesson/level/${levelId}/steps`), with the level id captured so tests can
+// confirm the response actually belongs to the level that was opened.
+const LEVEL_STEPS_RESPONSE_URL_RE = /\/lesson\/level\/([^/?]+)\/steps(?:\?|$)/;
 
 type ApiLesson = {
   lessonid: string;
@@ -155,34 +168,164 @@ type ApiLesson = {
   progress?: number;
 };
 
-// km.json's screen.level.lessonChip ("មេរៀនទី {{n}}") — LevelSelectionScreen.tsx
-// builds LessonRow's chipLabel as `t('screen.level.lessonChip', { n:
-// item.lessonorder ?? '·' })`, copied verbatim here to build the exact
-// accessibilityLabel prefix LessonRow.tsx assembles
-// (`${chipLabel}, ${title}, ${statusOrCtaText}, ...`).
+// Raw shape of GET /lesson/level/:levelid/steps (src/models/Lesson.ts's
+// LevelSteps / LevelStepsLesson) — item status is a plain ActivityStatus
+// ('done' | 'inProgress' | 'todo') on the item itself.
+type StepsApiItem = { status: "done" | "inProgress" | "todo" };
+type StepsApiLesson = {
+  lessonid: string;
+  lessonorder: number;
+  learnings?: StepsApiItem[];
+  practices?: StepsApiItem[];
+  quizzes?: StepsApiItem[];
+};
+type StepsApiResponse = { levelid: string; lessons?: StepsApiLesson[] };
+
+// km.json's screen.level.lessonChip ("មេរៀនទី {{n}}").
 const chipLabelFor = (lessonorder: number | undefined): string =>
   `មេរៀនទី ${lessonorder ?? "·"}`;
 
 type ExpectedStatus = "done" | "inProgress" | "todo";
+type StepType = "learning" | "practice" | "quiz";
+type StepState = "done" | "current" | "todo";
+type StepInfoFull = { state: StepState; done: number; total: number };
 
-// LevelSelectionScreen.tsx's own isLessonDone/statusFor, copied verbatim
-// (not reimplemented from memory) so this spec's "expected" values are
-// derived the same way the screen under test derives them.
+// LevelSelectionScreen.tsx's own isLessonDone/fallback rule, copied
+// verbatim — the fallback used when a lesson's `/steps` structure is
+// entirely missing (never merely empty — see stepStateFor below).
 const isLessonDone = (lesson: ApiLesson): boolean =>
   lesson.completed === true || (lesson.progress ?? 0) >= 100;
 
-const statusFor = (lesson: ApiLesson): ExpectedStatus => {
+const fallbackStatusFor = (lesson: ApiLesson): ExpectedStatus => {
   if (isLessonDone(lesson)) return "done";
   if ((lesson.progress ?? 0) > 0) return "inProgress";
   return "todo";
 };
 
-/** Formats km.json's cta.startLesson/cta.continueLesson templates with a
- *  lesson number, mirroring i18next's `{{n}}` interpolation. */
-const formatFooterLesson = (template: string, n: number): string =>
-  template.replace("{{n}}", String(n));
+/**
+ * useLevelSteps.ts's own `stepInfoFor`, copied verbatim (re-expressed over
+ * the raw `/steps` item array directly — this spec has no Redux store to
+ * read `activityProgress` from, but a fresh login's `/steps` items are
+ * exactly what would be merged into that store with no downgrade).
+ */
+function stepStateFor(items: StepsApiItem[] | undefined): StepInfoFull {
+  const total = items?.length ?? 0;
+  if (total === 0) return { state: "todo", done: 0, total: 0 };
+  const doneCount = items!.filter((i) => i.status === "done").length;
+  if (doneCount === total) return { state: "done", done: doneCount, total };
+  const anyStarted = items!.some(
+    (i) => i.status === "done" || i.status === "inProgress"
+  );
+  return { state: anyStarted ? "current" : "todo", done: doneCount, total };
+}
 
-/** Asserts no old play-triangle glyph (Polygon, or the specific play Path
+/**
+ * LevelSelectionScreen.tsx's own `approximateSteps`, copied verbatim — a
+ * PURE function of already-known values, so the fallback branch (no known
+ * `/steps` structure for a lesson) can still be asserted exactly instead of
+ * skipped. `toStepInfo`'s bare-string branch (LessonStepDots.tsx) sets
+ * `done: 0, total: 1` for every bare state regardless of what the state
+ * actually is — reproduced by `toFullFromApprox` below.
+ */
+function approximateSteps(
+  progress: number,
+  isNext: boolean,
+  done: boolean
+): Record<StepType, StepState> {
+  if (done) return { learning: "done", practice: "done", quiz: "done" };
+  if (progress > 0)
+    return { learning: "done", practice: "current", quiz: "todo" };
+  if (isNext) return { learning: "current", practice: "todo", quiz: "todo" };
+  return { learning: "todo", practice: "todo", quiz: "todo" };
+}
+
+const toFullFromApprox = (state: StepState): StepInfoFull => ({
+  state,
+  done: 0,
+  total: 1,
+});
+
+/**
+ * LevelSelectionScreen.tsx's own `lessonStatusFor`, copied verbatim: only
+ * types with at least one item count; done when every such type is done;
+ * inProgress when any item across those types has started; todo otherwise;
+ * falls back to the old server rule when there is no known structure at all
+ * or every known type is empty.
+ */
+function derivedStatusFor(
+  lesson: ApiLesson,
+  stepsLesson: StepsApiLesson | undefined
+): {
+  status: ExpectedStatus;
+  usedFallback: boolean;
+  perType?: Record<StepType, StepInfoFull>;
+} {
+  if (stepsLesson) {
+    const perType: Record<StepType, StepInfoFull> = {
+      learning: stepStateFor(stepsLesson.learnings),
+      practice: stepStateFor(stepsLesson.practices),
+      quiz: stepStateFor(stepsLesson.quizzes),
+    };
+    const withItems = (Object.keys(perType) as StepType[]).filter(
+      (t) => perType[t].total > 0
+    );
+    if (withItems.length > 0) {
+      let status: ExpectedStatus;
+      if (withItems.every((t) => perType[t].state === "done")) status = "done";
+      else if (
+        withItems.some(
+          (t) => perType[t].state === "current" || perType[t].state === "done"
+        )
+      )
+        status = "inProgress";
+      else status = "todo";
+      return { status, usedFallback: false, perType };
+    }
+  }
+  return { status: fallbackStatusFor(lesson), usedFallback: true };
+}
+
+/** Formats a `{{n}}`-style i18next template with a single substitution. */
+const format1 = (template: string, key: string, value: string | number): string =>
+  template.replace(`{{${key}}}`, String(value));
+
+/**
+ * LessonStepDots.tsx's own `describeSteps`, re-expressed over the already-
+ * derived per-type StepInfoFull map (works uniformly for both the real
+ * `/steps`-derived branch and the `approximateSteps` fallback branch, since
+ * both produce the same `{state, done, total}` shape).
+ */
+function describeStepsExpected(perType: Record<StepType, StepInfoFull>): string {
+  return (["learning", "practice", "quiz"] as StepType[])
+    .filter((t) => perType[t].total > 0)
+    .map((t) => {
+      const stepName = STEP_TITLE_KM[t];
+      const { state, done, total } = perType[t];
+      const stateText = STEP_STATE_KM[state];
+      return total > 1
+        ? format1(
+            format1(
+              format1(
+                format1(STEP_FORMAT_WITH_COUNT, "step", stepName),
+                "state",
+                stateText
+              ),
+              "done",
+              done
+            ),
+            "total",
+            total
+          )
+        : format1(format1(STEP_FORMAT, "step", stepName), "state", stateText);
+    })
+    .join(", ");
+}
+
+/** Formats km.json's cta.startLesson/cta.continueLesson templates. */
+const formatFooterLesson = (template: string, n: number): string =>
+  format1(template, "n", n);
+
+/** Asserts no old play-triangle glyph (Polygon, or the specific old Path
  *  string) is present inside `scope`. */
 async function assertNoPlayGlyph(scope: ReturnType<Page["locator"]>) {
   const polygonCount = await scope.locator("svg polygon").count();
@@ -197,9 +340,7 @@ async function assertNoPlayGlyph(scope: ReturnType<Page["locator"]>) {
   ).toBe(0);
 }
 
-/** Asserts `locator` has no non-`none` computed box-shadow (a real glow, not
- *  merely a visual absence) — used to confirm the handoff's "no glow on any
- *  lesson row" rule holds for both the up-next row and plain rows. */
+/** Asserts `locator` has no non-`none` computed box-shadow. */
 async function assertNoBoxShadow(
   locator: ReturnType<Page["locator"]>,
   description: string
@@ -213,296 +354,390 @@ async function assertNoBoxShadow(
   ).toBe("none");
 }
 
-test.describe("expo web lesson status icons (corporate / DCRS)", () => {
+/**
+ * Navigates from an already-logged-in home screen to the Level Detail
+ * screen (DCRS -> Cohort II -> Module 1), capturing the `/level` and
+ * `/steps` responses the screen itself triggers. `/steps` is REQUIRED (no
+ * `.catch()`): a missing or non-ok response fails this helper loudly rather
+ * than silently letting every lesson fall back to the old server rule.
+ * Asserts the captured `/steps` payload's own `levelid` equals the id
+ * embedded in the request URL (i.e. the level actually opened), not just
+ * that *some* `/steps` response arrived.
+ */
+async function openModule1AndCaptureResponses(
+  page: Page
+): Promise<{
+  apiLessons: ApiLesson[];
+  stepsBody: StepsApiResponse;
+  openedLevelId: string | undefined;
+}> {
+  const levelResponsePromise = page.waitForResponse(
+    (res) =>
+      res.request().method() === "GET" &&
+      LEVEL_RESPONSE_URL_RE.test(res.url()) &&
+      res.ok(),
+    { timeout: 10_000 }
+  );
+  const stepsResponsePromise = page.waitForResponse(
+    (res) =>
+      res.request().method() === "GET" &&
+      LEVEL_STEPS_RESPONSE_URL_RE.test(res.url()) &&
+      res.ok(),
+    { timeout: 10_000 }
+  );
+
+  await page.getByRole("button").filter({ hasText: "DCRS" }).first().click();
+  await page
+    .getByRole("button")
+    .filter({ hasText: "Cohort II" })
+    .first()
+    .click();
+  await page
+    .getByRole("button")
+    .filter({ hasText: /\bModule 1\b/ })
+    .first()
+    .click();
+
+  const levelBody = await (await levelResponsePromise).json();
+  const stepsResponse = await stepsResponsePromise;
+  const stepsJson = await stepsResponse.json();
+  const stepsBody: StepsApiResponse = stepsJson?.data ?? stepsJson;
+
+  const urlMatch = LEVEL_STEPS_RESPONSE_URL_RE.exec(stepsResponse.url());
+  const openedLevelId = urlMatch?.[1];
+  expect(
+    openedLevelId,
+    `could not extract a level id from the /steps request URL "${stepsResponse.url()}"`
+  ).toBeTruthy();
+  expect(
+    stepsBody?.levelid,
+    `/steps response body's levelid ("${stepsBody?.levelid}") should equal the ` +
+      `opened level's id ("${openedLevelId}", taken from the request URL)`
+  ).toBe(openedLevelId);
+
+  const apiLessons: ApiLesson[] = levelBody?.data?.lesson ?? [];
+  expect(
+    apiLessons.length,
+    "expected at least one lesson in the captured API response"
+  ).toBeGreaterThan(0);
+
+  return { apiLessons, stepsBody, openedLevelId };
+}
+
+type DerivedLesson = {
+  lesson: ApiLesson;
+  status: ExpectedStatus;
+  usedFallback: boolean;
+  oldStatus: ExpectedStatus;
+};
+
+/**
+ * Runs every Level Detail screen assertion (row count, header, per-row
+ * status icon/border/aria-label/pill, footer) against the DERIVED
+ * expectations built from `apiLessons`/`stepsLessons` — the caller decides
+ * whether those came from the real `/level`+`/steps` responses or from a
+ * `page.route`-mutated `/steps` body. Every expectation is computed here,
+ * not asserted loosely, so this function is exactly what the app-side
+ * mutation proof (see this file's header comment) needs to go red against.
+ */
+async function assertLevelDetailMatchesDerivation(
+  page: Page,
+  apiLessons: ApiLesson[],
+  stepsLessons: StepsApiLesson[],
+  logPrefix: string
+): Promise<{
+  derived: DerivedLesson[];
+  expectedUpNext: ApiLesson | undefined;
+  expectedUpNextEntry: DerivedLesson | undefined;
+  expectedPillText: string;
+  expectedFooterText: string;
+  expectedDoneCount: number;
+  expectedLevelProgress: number;
+}> {
+  const stepsByLessonId = new Map<string, StepsApiLesson>(
+    stepsLessons.map((l) => [l.lessonid, l])
+  );
+  const sortedApiLessons = [...apiLessons].sort(
+    (a, b) => (a.lessonorder ?? 0) - (b.lessonorder ?? 0)
+  );
+
+  // Pass 1: status + usedFallback per lesson (independent of up-next).
+  const statusOnly = sortedApiLessons.map((lesson) => {
+    const stepsLesson = stepsByLessonId.get(lesson.lessonid);
+    const { status, usedFallback, perType } = derivedStatusFor(
+      lesson,
+      stepsLesson
+    );
+    return {
+      lesson,
+      stepsLesson,
+      status,
+      usedFallback,
+      perType,
+      oldStatus: fallbackStatusFor(lesson),
+    };
+  });
+
+  const disagreements = statusOnly.filter(
+    (d) => !d.usedFallback && d.status !== d.oldStatus
+  );
+  // eslint-disable-next-line no-console
+  console.log(
+    `[lesson-status:${logPrefix}] steps-derived vs old-fallback-rule ` +
+      `disagreement: ${disagreements.length} lesson(s) — ${JSON.stringify(
+        disagreements.map((d) => ({
+          lessonid: d.lesson.lessonid,
+          stepsStatus: d.status,
+          oldStatus: d.oldStatus,
+        }))
+      )}`
+  );
+
+  const expectedUpNextEntry = statusOnly.find((d) => d.status !== "done");
+  const expectedUpNext = expectedUpNextEntry?.lesson;
+
+  // Pass 2: now that up-next is known, compute the exact expected per-type
+  // step info (and its describeSteps() tail) for every lesson, including
+  // fallback lessons via the pure `approximateSteps`.
+  const derived: DerivedLesson[] = statusOnly.map((d) => ({
+    lesson: d.lesson,
+    status: d.status,
+    usedFallback: d.usedFallback,
+    oldStatus: d.oldStatus,
+  }));
+
+  const expectedStepsFor = new Map<string, Record<StepType, StepInfoFull>>();
+  for (const d of statusOnly) {
+    const isNext = expectedUpNext?.lessonid === d.lesson.lessonid;
+    if (!d.usedFallback && d.perType) {
+      expectedStepsFor.set(d.lesson.lessonid, d.perType);
+    } else {
+      const approx = approximateSteps(
+        d.lesson.progress ?? 0,
+        isNext,
+        d.status === "done"
+      );
+      expectedStepsFor.set(d.lesson.lessonid, {
+        learning: toFullFromApprox(approx.learning),
+        practice: toFullFromApprox(approx.practice),
+        quiz: toFullFromApprox(approx.quiz),
+      });
+    }
+  }
+
+  const expectedUpNextIsStarted = expectedUpNextEntry?.status === "inProgress";
+  const expectedPillText = expectedUpNextIsStarted
+    ? PILL_CONTINUE_KM
+    : PILL_START_KM;
+  const expectedUpNextOrder = expectedUpNext?.lessonorder;
+  const expectedFooterText =
+    expectedUpNextOrder != null
+      ? formatFooterLesson(
+          expectedUpNextIsStarted ? FOOTER_CONTINUE_TEMPLATE : FOOTER_START_TEMPLATE,
+          expectedUpNextOrder
+        )
+      : expectedPillText;
+
+  const expectedDoneCount = derived.filter((d) => d.status === "done").length;
+  const expectedLevelProgress =
+    sortedApiLessons.length > 0
+      ? Math.min(100, Math.round((expectedDoneCount / sortedApiLessons.length) * 100))
+      : 0;
+
+  // eslint-disable-next-line no-console
+  console.log(
+    `[lesson-status:${logPrefix}] derived ground truth: ${JSON.stringify(
+      derived.map((d) => ({
+        lessonid: d.lesson.lessonid,
+        derivedStatus: d.status,
+        usedFallback: d.usedFallback,
+      }))
+    )}; expected up-next: ${
+      expectedUpNext?.lessonid ?? "(none — all done)"
+    }; expected header: ${expectedDoneCount} of ${
+      sortedApiLessons.length
+    } (${expectedLevelProgress}%)`
+  );
+
+  const lessonRows = page.locator('[data-testid^="lesson-row-"]');
+  await expect(lessonRows.first()).toBeVisible();
+  await expect(
+    lessonRows,
+    `DOM row count should equal the API lesson count (${apiLessons.length})`
+  ).toHaveCount(apiLessons.length);
+
+  // Header "N of M lessons · get a certificate" / "%" — exact strings from
+  // km.json's screen.level.progressWithCertificate, not a loose substring
+  // match.
+  const expectedHeaderText = format1(
+    format1(PROGRESS_WITH_CERTIFICATE_TEMPLATE, "done", expectedDoneCount),
+    "total",
+    sortedApiLessons.length
+  );
+  await expect(
+    page.getByText(expectedHeaderText, { exact: true }),
+    `expected the header to read exactly "${expectedHeaderText}"`
+  ).toBeVisible();
+  await expect(
+    page.getByText(`${expectedLevelProgress}%`, { exact: true }),
+    `expected the header % to read exactly "${expectedLevelProgress}%"`
+  ).toBeVisible();
+
+  let pillRows = 0;
+
+  for (const { lesson: apiLesson, status: expectedStatus } of derived) {
+    const isExpectedUpNext = expectedUpNext?.lessonid === apiLesson.lessonid;
+    const row = page.locator(`[data-testid="lesson-row-${apiLesson.lessonid}"]`);
+    await expect(
+      row,
+      `expected a lesson-row-${apiLesson.lessonid} on screen for this API lesson`
+    ).toHaveCount(1);
+
+    await assertNoBoxShadow(row, `lesson-row-${apiLesson.lessonid}`);
+
+    const statusIcons = row.locator('[data-testid^="status-icon-"]');
+    await expect(
+      statusIcons,
+      `lesson-row-${apiLesson.lessonid} should have exactly one status icon`
+    ).toHaveCount(1);
+    const expectedIconStatus = isExpectedUpNext ? "upNext" : expectedStatus;
+    await expect(
+      row.locator(`[data-testid="status-icon-${expectedIconStatus}"]`),
+      `lesson-row-${apiLesson.lessonid} (derivedStatus=${expectedStatus}, isUpNext=${isExpectedUpNext}) should show status-icon-${expectedIconStatus}`
+    ).toHaveCount(1);
+
+    const { borderTopWidth, borderTopColor } = await row.evaluate((el) => {
+      const style = getComputedStyle(el);
+      return { borderTopWidth: style.borderTopWidth, borderTopColor: style.borderTopColor };
+    });
+    if (isExpectedUpNext) {
+      expect(borderTopWidth, `up-next row borderTopWidth`).toBe("2px");
+      expect(borderTopColor, `up-next row borderTopColor`).toBe(PRIMARY_BORDER_RGB);
+    } else {
+      expect(borderTopWidth, `row borderTopWidth`).toBe("1px");
+      expect(borderTopColor, `row borderTopColor`).toBe(DIVIDER_BORDER_RGB);
+    }
+
+    await assertNoPlayGlyph(row);
+
+    const pill = row.locator('[data-testid="cta-pill"]');
+    const pillCount = await pill.count();
+    expect(
+      pillCount,
+      `lesson-row-${apiLesson.lessonid} cta-pill presence should match up-next expectation`
+    ).toBe(isExpectedUpNext ? 1 : 0);
+    if (isExpectedUpNext) pillRows++;
+
+    // aria-label: EXACT full-string match, built precisely as LessonRow.tsx
+    // assembles it (`${chipLabel}, ${title}, ${statusOrCtaText}, ${stepsDescription}`),
+    // including the step-description tail from describeSteps()/`toStepInfo`
+    // — not a loose substring/prefix check (the pill/status Khmer words
+    // overlap textually with each other and with the tail's own state
+    // words, which made a substring check pass under a mutated word in an
+    // earlier version of this spec). This is a RETRYING assertion
+    // (`toHaveAttribute`, which polls) because the row first paints off the
+    // coarse pre-`/steps` guess before settling into its final state.
+    const perType = expectedStepsFor.get(apiLesson.lessonid)!;
+    const stepsDescription = describeStepsExpected(perType);
+    const chip = chipLabelFor(apiLesson.lessonorder);
+    const word = isExpectedUpNext ? expectedPillText : ROW_STATUS_KM[expectedStatus];
+    const expectedLabel = `${chip}, ${apiLesson.lessonname}, ${word}, ${stepsDescription}`;
+    await expect(
+      row,
+      `lesson-row-${apiLesson.lessonid}'s aria-label should equal exactly "${expectedLabel}"`
+    ).toHaveAttribute("aria-label", expectedLabel);
+
+    if (isExpectedUpNext) {
+      await expect(
+        row.getByText(expectedPillText, { exact: true }),
+        `up-next lesson-row-${apiLesson.lessonid} should show the pill text exactly once`
+      ).toHaveCount(1);
+    } else {
+      await expect(
+        row.getByText(ROW_STATUS_KM[expectedStatus], { exact: true }),
+        `lesson-row-${apiLesson.lessonid} should show the status word exactly once`
+      ).toHaveCount(1);
+    }
+  }
+
+  expect(
+    pillRows,
+    expectedUpNext
+      ? "expected exactly the up-next row to show a cta-pill"
+      : "expected no cta-pill when every lesson is done"
+  ).toBe(expectedUpNext ? 1 : 0);
+
+  if (expectedUpNext) {
+    const footerButton = page.getByRole("button", {
+      name: expectedFooterText,
+      exact: true,
+    });
+    await expect(footerButton).toBeVisible();
+    const footerText = (await footerButton.innerText()).trim();
+    expect(
+      footerText,
+      `footer text should equal the expected text derived from the up-next ` +
+        `lesson's derived status (${expectedUpNextEntry?.status}) and lessonorder`
+    ).toBe(expectedFooterText);
+  } else {
+    await expect(
+      page.getByRole("button", {
+        name: new RegExp(
+          `^(${PILL_START_KM}|${PILL_CONTINUE_KM}|${FOOTER_START_TEMPLATE.replace(
+            "{{n}}",
+            "\\d+"
+          )}|${FOOTER_CONTINUE_TEMPLATE.replace("{{n}}", "\\d+")})$`
+        ),
+      })
+    ).toHaveCount(0);
+  }
+
+  return {
+    derived,
+    expectedUpNext,
+    expectedUpNextEntry,
+    expectedPillText,
+    expectedFooterText,
+    expectedDoneCount,
+    expectedLevelProgress,
+  };
+}
+
+test.describe("expo web lesson status icons — against real data (corporate / DCRS)", () => {
   let page: Page;
 
   test.beforeAll(async ({ browser }) => {
-    // No hard-coded viewport — the `phone` project's own use.viewport
-    // (EXPO_E2E_PHONE_WIDTH/HEIGHT, default 390x844) applies, the same way
-    // phone-learner-path.spec.ts's beforeAll does.
     const context = await browser.newContext();
     page = await context.newPage();
-    await loginViaExpoUi(
-      page,
-      CORPORATE_STUDENT.username,
-      CORPORATE_STUDENT.password
-    );
+    await loginViaExpoUi(page, CORPORATE_STUDENT.username, CORPORATE_STUDENT.password);
   });
 
   test.afterAll(async () => {
     await page.context().close();
   });
 
-  test("module screen: lesson rows reflect the API's own completed/progress data", async () => {
-    // Set up BEFORE the click below (the "Module 1" click is what
-    // navigates into the Level Detail screen and triggers the fetch) —
-    // waiting on this after the fact could race past a fetch that already
-    // completed. res.ok() is required so a failed request (e.g. a 401 mid
-    // re-login) can't be mistaken for the real payload.
-    const levelResponsePromise = page.waitForResponse(
-      (res) =>
-        res.request().method() === "GET" &&
-        LEVEL_RESPONSE_URL_RE.test(res.url()) &&
-        res.ok(),
-      { timeout: 10_000 }
+  test("module screen: lesson rows reflect their own step dots (#97)", async () => {
+    const { apiLessons, stepsBody } = await openModule1AndCaptureResponses(page);
+
+    const { derived, expectedUpNext } = await assertLevelDetailMatchesDerivation(
+      page,
+      apiLessons,
+      stepsBody.lessons ?? [],
+      "real-data"
     );
 
-    // Reaches DCRS -> Cohort II -> Module 1 and stops at the lesson list
-    // (Level Detail) screen — same clicks goToFirstDcrsLessonActivities
-    // makes, minus the final lesson-row click (mirrors
-    // phone-learner-path.spec.ts's "lesson chip uses the contrast token"
-    // test, which stops at this same screen the same way). "Module 1" is
-    // matched with a word-boundary regex, not a bare substring, so it can't
-    // also match a future "Module 10" card.
-    await page.getByRole("button").filter({ hasText: "DCRS" }).first().click();
-    await page
-      .getByRole("button")
-      .filter({ hasText: "Cohort II" })
-      .first()
-      .click();
-    await page
-      .getByRole("button")
-      .filter({ hasText: /\bModule 1\b/ })
-      .first()
-      .click();
+    // Whether the NEW steps-driven branch is provably exercised by
+    // miv.verify's live data (i.e. whether it disagrees with the old
+    // completed/progress rule for at least one lesson) is honest, logged
+    // information, not a fabricated pass — see
+    // assertLevelDetailMatchesDerivation's own "disagreement" log above.
+    // The intercepted-`/steps` tests below are what actually PROVE the
+    // branch is live, independent of today's seed state.
 
-    const body = await (await levelResponsePromise).json();
-
-    const lessonRows = page.locator('[data-testid^="lesson-row-"]');
-    await expect(lessonRows.first()).toBeVisible();
-
-    const apiLessons: ApiLesson[] = body?.data?.lesson ?? [];
-    expect(
-      apiLessons.length,
-      "expected at least one lesson in the captured API response"
-    ).toBeGreaterThan(0);
-
-    const sortedApiLessons = [...apiLessons].sort(
-      (a, b) => (a.lessonorder ?? 0) - (b.lessonorder ?? 0)
-    );
-    const expectedUpNext = sortedApiLessons.find((l) => !isLessonDone(l));
-    const expectedUpNextProgress = expectedUpNext?.progress ?? 0;
-    const expectedPillText =
-      expectedUpNextProgress > 0 ? PILL_CONTINUE_KM : PILL_START_KM;
-    const expectedUpNextOrder = expectedUpNext?.lessonorder;
-    // Footer falls back to the plain pill text when lessonorder is missing
-    // (LevelSelectionScreen.tsx's footerCtaLabel fallback).
-    const expectedFooterText =
-      expectedUpNextOrder != null
-        ? formatFooterLesson(
-            expectedUpNextProgress > 0
-              ? FOOTER_CONTINUE_TEMPLATE
-              : FOOTER_START_TEMPLATE,
-            expectedUpNextOrder
-          )
-        : expectedPillText;
-
-    // eslint-disable-next-line no-console
-    console.log(
-      `[lesson-status] API ground truth: ${JSON.stringify(
-        sortedApiLessons.map((l) => ({
-          lessonid: l.lessonid,
-          lessonorder: l.lessonorder,
-          completed: l.completed,
-          progress: l.progress,
-          expectedStatus: statusFor(l),
-        }))
-      )}`
-    );
-    // eslint-disable-next-line no-console
-    console.log(
-      `[lesson-status] expected up-next: ${
-        expectedUpNext?.lessonid ?? "(none — all done)"
-      }, expected pill text: ${
-        expectedUpNext ? expectedPillText : "(no pill)"
-      }, expected footer text: ${
-        expectedUpNext ? expectedFooterText : "(no footer)"
-      }`
-    );
-
-    await expect(
-      lessonRows,
-      `DOM row count should equal the API lesson count (${apiLessons.length})`
-    ).toHaveCount(apiLessons.length);
-    const rowCount = await lessonRows.count();
-
-    const observedStatuses: string[] = [];
-    let pillRows = 0;
-
-    for (const apiLesson of sortedApiLessons) {
-      const expectedStatus = statusFor(apiLesson);
-      const isExpectedUpNext = expectedUpNext?.lessonid === apiLesson.lessonid;
-      const row = page.locator(
-        `[data-testid="lesson-row-${apiLesson.lessonid}"]`
-      );
-      await expect(
-        row,
-        `expected a lesson-row-${apiLesson.lessonid} on screen for this API lesson`
-      ).toHaveCount(1);
-
-      // No row — up-next or not — gets a box-shadow/glow (LessonRow.tsx's
-      // own comment: "the handoff's one screen glow is reserved for the
-      // footer CTA").
-      await assertNoBoxShadow(row, `lesson-row-${apiLesson.lessonid}`);
-
-      // Exactly one status-icon-* inside this row. The up-next row always
-      // shows status-icon-upNext (LessonRow.tsx passes
-      // `isNext ? 'upNext' : status`), regardless of its own
-      // completed/progress-derived status; every other row shows the icon
-      // computed from its own completed/progress fields.
-      const statusIcons = row.locator('[data-testid^="status-icon-"]');
-      await expect(
-        statusIcons,
-        `lesson-row-${apiLesson.lessonid} should have exactly one status icon`
-      ).toHaveCount(1);
-      const expectedIconStatus = isExpectedUpNext ? "upNext" : expectedStatus;
-      const expectedIcon = row.locator(
-        `[data-testid="status-icon-${expectedIconStatus}"]`
-      );
-      await expect(
-        expectedIcon,
-        `lesson-row-${apiLesson.lessonid} (completed=${apiLesson.completed}, progress=${apiLesson.progress}, isUpNext=${isExpectedUpNext}) should show status-icon-${expectedIconStatus}, the icon actually shown did not match`
-      ).toHaveCount(1);
-      observedStatuses.push(expectedStatus);
-
-      // Border: LessonRow.tsx sets borderWidth/borderColor on all four
-      // sides; the top edge is checked as a representative longhand, which
-      // browsers report consistently where the shorthands may not.
-      const { borderTopWidth, borderTopColor } = await row.evaluate((el) => {
-        const style = getComputedStyle(el);
-        return {
-          borderTopWidth: style.borderTopWidth,
-          borderTopColor: style.borderTopColor,
-        };
-      });
-      if (isExpectedUpNext) {
-        // The up-next row's border is 2px, primary blue.
-        expect(
-          borderTopWidth,
-          `up-next lesson-row-${apiLesson.lessonid}'s borderTopWidth should be 2px, found "${borderTopWidth}"`
-        ).toBe("2px");
-        expect(
-          borderTopColor,
-          `up-next lesson-row-${apiLesson.lessonid}'s borderTopColor should be the primary blue (${PRIMARY_BORDER_RGB}), found "${borderTopColor}"`
-        ).toBe(PRIMARY_BORDER_RGB);
-      } else {
-        // Every other row's border is 1px, the divider colour.
-        expect(
-          borderTopWidth,
-          `lesson-row-${apiLesson.lessonid}'s borderTopWidth should be 1px, found "${borderTopWidth}"`
-        ).toBe("1px");
-        expect(
-          borderTopColor,
-          `lesson-row-${apiLesson.lessonid}'s borderTopColor should be the divider colour (${DIVIDER_BORDER_RGB}), found "${borderTopColor}"`
-        ).toBe(DIVIDER_BORDER_RGB);
-      }
-
-      // No play-triangle glyph anywhere in this row.
-      await assertNoPlayGlyph(row);
-
-      // aria-label sanity: no literal "undefined".
-      const label = await row.getAttribute("aria-label");
-      expect(
-        label,
-        `lesson-row-${apiLesson.lessonid} should carry an aria-label`
-      ).not.toBeNull();
-      expect(
-        (label as string).includes("undefined"),
-        `lesson-row-${apiLesson.lessonid}'s aria-label contains the literal string "undefined": "${label}"`
-      ).toBe(false);
-
-      // The cta-pill must appear in this row iff it is the expected
-      // up-next row — not just "at most one per row, somewhere". Non-up-next
-      // rows show the plain status word instead (no pill).
-      const pill = row.locator('[data-testid="cta-pill"]');
-      const pillCount = await pill.count();
-      expect(
-        pillCount,
-        `lesson-row-${apiLesson.lessonid} cta-pill presence (${pillCount}) should match up-next expectation (${
-          isExpectedUpNext ? 1 : 0
-        })`
-      ).toBe(isExpectedUpNext ? 1 : 0);
-
-      // aria-label prefix, anchored exactly as LessonRow.tsx builds it
-      // (`${chipLabel}, ${title}, ${statusOrCtaText}, ${stepsDescription}`)
-      // — NOT a loose substring check. A loose check is vacuous here: the
-      // Start pill text ("ចាប់ផ្ដើម") is a substring of the not-started word
-      // ("មិនទាន់ចាប់ផ្ដើម"), and every label ends with the step description,
-      // which reuses the done / not-started words. Anchoring on the exact
-      // prefix (chip, title, word) rules both out.
-      const chip = chipLabelFor(apiLesson.lessonorder);
-      const word = isExpectedUpNext ? expectedPillText : ROW_STATUS_KM[expectedStatus];
-      const expectedPrefix = `${chip}, ${apiLesson.lessonname}, ${word}, `;
-      expect(
-        (label as string).startsWith(expectedPrefix),
-        `lesson-row-${apiLesson.lessonid}'s aria-label "${label}" should start with "${expectedPrefix}"`
-      ).toBe(true);
-
-      // The status word / pill text in the row: exactly one exact-match
-      // occurrence (toHaveCount counts DOM matches, visible or not).
-      if (isExpectedUpNext) {
-        pillRows++;
-        await expect(
-          row.getByText(expectedPillText, { exact: true }),
-          `up-next lesson-row-${apiLesson.lessonid} should show the pill text "${expectedPillText}" exactly once`
-        ).toHaveCount(1);
-      } else {
-        await expect(
-          row.getByText(ROW_STATUS_KM[expectedStatus], { exact: true }),
-          `lesson-row-${apiLesson.lessonid} should show the status word "${ROW_STATUS_KM[expectedStatus]}" exactly once`
-        ).toHaveCount(1);
-      }
-    }
-
-    // eslint-disable-next-line no-console
-    console.log(
-      `[lesson-status] observed ${rowCount} lesson row(s), statuses: ${JSON.stringify(
-        observedStatuses
-      )}`
-    );
-    for (const state of ["done", "inProgress", "todo"] as const) {
-      const occurred = observedStatuses.includes(state);
-      // eslint-disable-next-line no-console
-      console.log(
-        `[lesson-status] status "${state}" ${
-          occurred ? "occurred" : "did NOT occur"
-        } in the observed data`
-      );
-    }
-
-    expect(
-      pillRows,
-      expectedUpNext
-        ? "expected exactly the up-next row to show a cta-pill"
-        : "expected no cta-pill when every lesson is done (per the API data)"
-    ).toBe(expectedUpNext ? 1 : 0);
-
-    // Footer button: only rendered when there's an upNext lesson (i.e. not
-    // every lesson is done, per the API). Its text must equal the expected
-    // "...Lesson N" (or plain fallback) string derived from the up-next
-    // lesson's own progress and lessonorder.
     if (expectedUpNext) {
-      const footerButton = page.getByRole("button", {
-        name: expectedFooterText,
-        exact: true,
-      });
-      await expect(footerButton).toBeVisible();
-      const footerText = (await footerButton.innerText()).trim();
-      expect(
-        footerText,
-        `footer text should equal the expected text derived from the up-next lesson's own progress (${expectedUpNext.progress}) and lessonorder (${expectedUpNext.lessonorder})`
-      ).toBe(expectedFooterText);
-
-      // Screenshots: module screen, plus a zoom crop of the up-next status
-      // icon.
-      await page.screenshot({
-        path: test.info().outputPath("module.png"),
-        fullPage: true,
-      });
-      const upNextRowForCrop = page.locator(
-        `[data-testid="lesson-row-${expectedUpNext.lessonid}"]`
-      );
-      const iconBox = await upNextRowForCrop
+      const upNextRow = page.locator(`[data-testid="lesson-row-${expectedUpNext.lessonid}"]`);
+      await page.screenshot({ path: test.info().outputPath("module.png"), fullPage: true });
+      const iconBox = await upNextRow
         .locator('[data-testid="status-icon-upNext"]')
         .boundingBox();
       if (iconBox) {
@@ -517,86 +752,457 @@ test.describe("expo web lesson status icons (corporate / DCRS)", () => {
         });
       }
 
-      // Open the up-next lesson: tap its row (the whole row is the
-      // Pressable target — LessonRow.tsx sets onPress on the row itself,
-      // not the pill).
-      const upNextRow = page.locator(
-        `[data-testid="lesson-row-${expectedUpNext.lessonid}"]`
-      );
       await upNextRow.click();
-      // v2.1 (edtech-expo #93/#94, localhost:8091) drops the Lesson
-      // screen's own app-bar title (screen.lesson.header / KM.lessonHeader)
-      // — the app-bar shows only a back chevron now (see
-      // goToFirstDcrsLessonActivities's and phone-in-lesson-status.spec.ts's
-      // own comments on the same change). Assert the "In this lesson"
-      // heading text (screen.lesson.inThisLesson, a plain Text with no
-      // accessibilityRole) instead, confirming the navigation actually
-      // landed on the Lesson screen.
-      await expect(
-        page.getByText(KM.inThisLesson, { exact: true })
-      ).toBeVisible();
-      // Prove it's the RIGHT lesson, not just any lesson: the v2.1 Lesson
-      // screen renders lesson.lessonname as its title (LessonSelectionScreen.tsx
-      // ~line 427, a plain Text with no accessibilityRole) — the up-next row's
-      // own lesson, not one a stale click or a wrong id happened to land on.
-      // `.last()`: the Level screen's own row for this lesson (same text)
-      // stays mounted underneath the pushed Lesson screen — confirmed live
-      // by phone-learner-path.spec.ts hitting the same strict-mode double
-      // match — so the newly pushed screen's title is the later DOM node.
+      await expect(page.getByText(KM.inThisLesson, { exact: true })).toBeVisible();
       await expect(
         page.getByText(expectedUpNext.lessonname, { exact: true }).last()
       ).toBeVisible();
     } else {
-      // Every lesson is already done per the API — no incomplete lesson,
-      // so LevelSelectionScreen renders no pill and no sticky footer.
-      // NOT currently exercised by the seed data (miv.verify's DCRS
-      // Module 1 always has unfinished lessons), so this branch has not
-      // been observed to run green or red — it only guards the contract
-      // for whenever the seed does put every lesson in a "done" state.
-      await expect(
-        page.getByRole("button", {
-          name: new RegExp(
-            `^(${PILL_START_KM}|${PILL_CONTINUE_KM}|${FOOTER_START_TEMPLATE.replace(
-              "{{n}}",
-              "\\d+"
-            )}|${FOOTER_CONTINUE_TEMPLATE.replace("{{n}}", "\\d+")})$`
-          ),
-        })
-      ).toHaveCount(0);
-
-      await page.screenshot({
-        path: test.info().outputPath("module.png"),
-        fullPage: true,
-      });
-      // No up-next row to open — fall back to the first lesson by
-      // lessonorder (sortedApiLessons[0]) so the activity-list assertions
-      // below still run, using the same lesson-row-<id> testID the loop
-      // above already validated, not a hard-coded lesson title.
+      await page.screenshot({ path: test.info().outputPath("module.png"), fullPage: true });
+      const sortedApiLessons = [...apiLessons].sort(
+        (a, b) => (a.lessonorder ?? 0) - (b.lessonorder ?? 0)
+      );
       await page
         .locator(`[data-testid="lesson-row-${sortedApiLessons[0].lessonid}"]`)
         .click();
-      // v2.1 drops the Lesson screen's app-bar title — see the up-next
-      // branch's own comment above for the full explanation.
-      await expect(
-        page.getByText(KM.inThisLesson, { exact: true })
-      ).toBeVisible();
+      await expect(page.getByText(KM.inThisLesson, { exact: true })).toBeVisible();
     }
 
-    // Activity list: activity-row-* present, no play glyph anywhere.
     const activityRows = page.locator('[data-testid^="activity-row-"]');
     await expect(activityRows.first()).toBeVisible();
     const activityRowCount = await activityRows.count();
-    expect(
-      activityRowCount,
-      "expected at least one activity row"
-    ).toBeGreaterThan(0);
+    expect(activityRowCount, "expected at least one activity row").toBeGreaterThan(0);
     for (let i = 0; i < activityRowCount; i++) {
       await assertNoPlayGlyph(activityRows.nth(i));
     }
 
-    await page.screenshot({
-      path: test.info().outputPath("activities.png"),
-      fullPage: true,
-    });
+    await page.screenshot({ path: test.info().outputPath("activities.png"), fullPage: true });
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `[lesson-status:real-data] observed statuses: ${JSON.stringify(
+        derived.map((d) => d.status)
+      )}`
+    );
+  });
+});
+
+/**
+ * Intercepts the `/steps` request and fulfills it with a body produced by
+ * `mutate(realBody)`. `route.fetch()` gets the true response so the
+ * mutation is applied on top of real data, not a hand-built fixture. The
+ * route handler is scoped to the level it actually fires for: it captures
+ * that level id straight from `route.request().url()` (the same regex the
+ * rest of this spec uses to read a level id out of a `/steps` URL) and
+ * resolves it alongside the mutated body, so the caller can assert it
+ * equals the level id the test actually opened — not just that some
+ * `/steps` request was intercepted. Returns a promise that resolves once
+ * the interception has actually fired, so the caller can derive its
+ * expectations from exactly what was served.
+ */
+function interceptSteps(
+  page: Page,
+  mutate: (real: StepsApiResponse) => StepsApiResponse | Promise<StepsApiResponse>
+): Promise<{ levelId: string | undefined; body: StepsApiResponse }> {
+  let resolveMutated: (result: { levelId: string | undefined; body: StepsApiResponse }) => void;
+  const mutatedPromise = new Promise<{ levelId: string | undefined; body: StepsApiResponse }>(
+    (resolve) => {
+      resolveMutated = resolve;
+    }
+  );
+
+  page.route(
+    (url) => LEVEL_STEPS_RESPONSE_URL_RE.test(url.toString()),
+    async (route: Route) => {
+      const requestUrl = route.request().url();
+      const levelId = LEVEL_STEPS_RESPONSE_URL_RE.exec(requestUrl)?.[1];
+      const response = await route.fetch();
+      const realJson = await response.json();
+      const realBody: StepsApiResponse = realJson?.data ?? realJson;
+      const mutatedBody = await mutate(realBody);
+      const fulfilledJson =
+        realJson?.data !== undefined ? { ...realJson, data: mutatedBody } : mutatedBody;
+      resolveMutated({ levelId, body: mutatedBody });
+      await route.fulfill({ response, json: fulfilledJson });
+    }
+  );
+
+  return mutatedPromise;
+}
+
+/**
+ * Intercepts the level's own `GET /lesson/level/:levelid` response (the
+ * plain lesson list, not `/steps`) and zeroes `progress`/`completed` on
+ * EVERY lesson. Case (a) needs this: this corporate seed's real account has
+ * genuine server-side progress on lessons that `/steps` alone doesn't
+ * explain, so the raw fallback rule can already read "inProgress" (or
+ * "done") for a lesson before any mutation runs. Zeroing only the lessons
+ * that weren't already `isLessonDone` left a hidden seed precondition: a
+ * lesson that is `completed` server-side but has unfinished `/steps` items
+ * would be picked as case (a)'s target (its steps-derived status isn't
+ * done), keep `oldStatus === "done"`, and fail the "OLD fallback rule would
+ * have said todo" assertion with a message blaming the app. Zeroing every
+ * lesson makes the fallback rule read "todo" everywhere, so the observed
+ * Start -> Continue flip is attributable only to the single `/steps` item
+ * case (a) flips. Every expectation in the spec (including the
+ * `approximateSteps(progress, ...)` fallback derivation) reads this same
+ * served body, because Playwright's `waitForResponse` returns the fulfilled
+ * body, not the upstream one.
+ *
+ * Like `interceptSteps`, the handler captures the level id from
+ * `route.request().url()` and resolves the returned promise with it the
+ * first time it fires, so the caller can assert the baseline was applied to
+ * the level actually opened, not some other `/lesson/level/:id` request.
+ */
+function interceptLevelProgressBaseline(page: Page): Promise<{ levelId: string | undefined }> {
+  let resolveFired: (result: { levelId: string | undefined }) => void;
+  const firedPromise = new Promise<{ levelId: string | undefined }>((resolve) => {
+    resolveFired = resolve;
+  });
+
+  page.route(
+    (url) => LEVEL_RESPONSE_URL_RE.test(url.toString()),
+    async (route: Route) => {
+      const requestUrl = route.request().url();
+      const levelId = LEVEL_RESPONSE_URL_RE.exec(requestUrl)?.[1];
+      const response = await route.fetch();
+      const json = await response.json();
+      const lessons: ApiLesson[] = json?.data?.lesson ?? [];
+      const zeroed = lessons.map((l) => ({ ...l, progress: 0, completed: false }));
+      const mutatedJson =
+        json?.data?.lesson !== undefined
+          ? { ...json, data: { ...json.data, lesson: zeroed } }
+          : json;
+      resolveFired({ levelId });
+      await route.fulfill({ response, json: mutatedJson });
+    }
+  );
+
+  return firedPromise;
+}
+
+test.describe("expo web lesson status icons — intercepted /steps (#97 proof)", () => {
+  // Real proof: page.route intercepts the level's own `/steps` response,
+  // fetches the TRUE payload, mutates specific item statuses, and fulfills
+  // with the modified body. Every expectation below is derived from that
+  // MODIFIED body (assertLevelDetailMatchesDerivation takes it as an
+  // argument), not from what the real seed data happens to contain — so
+  // these cases fail if the app ever stops actually reading `/steps` to
+  // decide status/dots, independent of today's seed state. Each case gets
+  // its own fresh browser context/login (no shared storage) so no
+  // persisted progress leaks between cases.
+
+  test("(a) a todo lesson's first learning flips to inProgress: steps -> inProgress, up-next pill/footer flip Start -> Continue", async ({
+    browser,
+  }) => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    try {
+      let mutatedLessonId: string | undefined;
+
+      // See interceptLevelProgressBaseline's own comment: zeroes the raw
+      // progress/completed of every lesson so the "OLD fallback rule would
+      // have said todo" assertion below is actually about this mutation,
+      // not about whatever the live account happens to carry. Registered
+      // before login so it's in place for the very first /level request the
+      // Level Detail screen makes.
+      const baselinePromise = interceptLevelProgressBaseline(page);
+
+      // Captured independently of openModule1AndCaptureResponses so the
+      // mutator (which runs inside the /steps route handler, before that
+      // helper returns) can read the same (already-baselined) /level
+      // payload to pick its target deterministically. Assigned only after
+      // login (below), so its 10s timeout covers the navigation to Module 1
+      // rather than login plus navigation, and so it waits for the same
+      // /level response openModule1AndCaptureResponses captures. The /steps
+      // handler can't fire before then: /steps is only requested once
+      // Module 1 is opened.
+      let levelResponsePromise: Promise<Response> | undefined;
+
+      const mutatedPromise = interceptSteps(page, async (real) => {
+        expect(
+          levelResponsePromise,
+          "the /level waiter must be registered before the /steps handler fires"
+        ).toBeDefined();
+        const levelBody = await (await levelResponsePromise!).json();
+        const apiLessonsForPick: ApiLesson[] = levelBody?.data?.lesson ?? [];
+        const stepsByLessonId = new Map<string, StepsApiLesson>(
+          (real.lessons ?? []).map((l) => [l.lessonid, l])
+        );
+
+        // "done" here uses the SAME derivedStatusFor the rest of this spec
+        // asserts against (steps-derived, falling back to the old
+        // completed/progress rule only when a lesson has no known
+        // structure) — not the raw `completed`/`progress` fields — so a
+        // lesson the screen would already show as done from real /steps
+        // data is correctly left alone rather than reset to todo.
+        const statusFor = (lesson: ApiLesson) =>
+          derivedStatusFor(lesson, stepsByLessonId.get(lesson.lessonid)).status;
+
+        const sortedNonDone = apiLessonsForPick
+          .slice()
+          .sort((x, y) => (x.lessonorder ?? 0) - (y.lessonorder ?? 0))
+          .filter((lesson) => statusFor(lesson) !== "done");
+
+        expect(
+          sortedNonDone.length,
+          "case (a) needs at least one non-done lesson in the real /level payload"
+        ).toBeGreaterThan(0);
+
+        const target = sortedNonDone[0];
+        mutatedLessonId = target.lessonid;
+
+        // Reset every item of every non-done lesson to todo, so the target
+        // (the first non-done lesson by lessonorder) starts this mutation
+        // from a clean todo state and no OTHER non-done lesson could
+        // out-rank it for up-next once its first learning item flips.
+        const resetItems = (items: StepsApiItem[] | undefined) =>
+          items?.map((i) => ({ ...i, status: "todo" as const }));
+
+        const mutatedLessons = (real.lessons ?? []).map((l) => {
+          if (statusFor(l) === "done") return l;
+          const reset: StepsApiLesson = {
+            ...l,
+            learnings: resetItems(l.learnings),
+            practices: resetItems(l.practices),
+            quizzes: resetItems(l.quizzes),
+          };
+          if (l.lessonid !== target.lessonid) return reset;
+
+          const learnings = reset.learnings ?? [];
+          expect(
+            learnings.length,
+            `case (a)'s target lesson (${target.lessonid}, the first non-done lesson by ` +
+              "lessonorder) needs a learnings array in /steps to flip to inProgress"
+          ).toBeGreaterThan(0);
+          return {
+            ...reset,
+            learnings: [
+              { ...learnings[0], status: "inProgress" as const },
+              ...learnings.slice(1),
+            ],
+          };
+        });
+
+        return { ...real, lessons: mutatedLessons };
+      });
+
+      await loginViaExpoUi(page, CORPORATE_STUDENT.username, CORPORATE_STUDENT.password);
+      levelResponsePromise = page.waitForResponse(
+        (res) =>
+          res.request().method() === "GET" &&
+          LEVEL_RESPONSE_URL_RE.test(res.url()) &&
+          res.ok(),
+        { timeout: 10_000 }
+      );
+      const { apiLessons, openedLevelId } = await openModule1AndCaptureResponses(page);
+      const { levelId: mutatedLevelId, body: mutatedStepsBody } = await mutatedPromise;
+      expect(
+        mutatedLevelId,
+        "the intercepted /steps request's level id should equal the level actually opened"
+      ).toBe(openedLevelId);
+      const { levelId: baselineLevelId } = await baselinePromise;
+      expect(
+        baselineLevelId,
+        "the /level progress baseline should have been applied to the level actually opened"
+      ).toBe(openedLevelId);
+
+      // eslint-disable-next-line no-console
+      console.log(`[lesson-status:case-a] mutated lesson: ${mutatedLessonId}`);
+
+      const { derived, expectedUpNext, expectedPillText, expectedFooterText } =
+        await assertLevelDetailMatchesDerivation(
+          page,
+          apiLessons,
+          mutatedStepsBody.lessons ?? [],
+          "case-a"
+        );
+
+      const mutatedEntry = derived.find((d) => d.lesson.lessonid === mutatedLessonId)!;
+      expect(
+        mutatedEntry.status,
+        "the mutated lesson's steps-derived status should be inProgress (one learning item started)"
+      ).toBe("inProgress");
+      expect(
+        mutatedEntry.oldStatus,
+        'the OLD fallback rule (completed/progress, untouched by this mutation) should still say ' +
+          'todo (i.e. would render the "Start" pill/footer) — proving the app is reading the NEW ' +
+          "/steps-derived rule, not the old one"
+      ).toBe("todo");
+
+      // By construction (case (a)'s mutator resets every OTHER non-done
+      // lesson to fully todo and only starts the first non-done lesson's
+      // first learning item), the mutated lesson must be up-next — asserted
+      // unconditionally, not behind an `if`.
+      expect(
+        expectedUpNext?.lessonid,
+        "the mutated lesson (the first non-done lesson by lessonorder) should be the up-next lesson"
+      ).toBe(mutatedLessonId);
+      expect(
+        expectedPillText,
+        "the up-next pill text should be cta.continue, not cta.start"
+      ).toBe(PILL_CONTINUE_KM);
+      expect(
+        expectedFooterText,
+        "the sticky footer should read the exact cta.continueLesson string with the mutated lesson's N"
+      ).toBe(formatFooterLesson(FOOTER_CONTINUE_TEMPLATE, expectedUpNext!.lessonorder!));
+
+      const mutatedRow = page.locator(`[data-testid="lesson-row-${mutatedLessonId}"]`);
+      await expect(
+        mutatedRow.getByText(PILL_CONTINUE_KM, { exact: true }),
+        `up-next lesson-row-${mutatedLessonId} should show the Continue pill exactly once`
+      ).toHaveCount(1);
+      await expect(
+        page.getByRole("button", { name: expectedFooterText, exact: true }),
+        `the sticky footer button should read exactly "${expectedFooterText}"`
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: /^ចាប់ផ្ដើម/ }),
+        'no "Start"-prefixed button should remain once the up-next lesson has flipped to Continue'
+      ).toHaveCount(0);
+
+      await page.screenshot({ path: test.info().outputPath("case-a.png"), fullPage: true });
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("(b) a done lesson's quiz statuses reset to todo: steps -> inProgress, header N/% drop", async ({
+    browser,
+  }) => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    try {
+      let mutatedLessonId: string | undefined;
+      const mutatedPromise = interceptSteps(page, (real) => {
+        // A lesson whose every known non-empty type is fully done, with a
+        // non-empty quizzes array to reset.
+        const candidate = (real.lessons ?? []).find((l) => {
+          const types = [l.learnings, l.practices, l.quizzes].filter(
+            (arr): arr is StepsApiItem[] => !!arr && arr.length > 0
+          );
+          return (
+            (l.quizzes?.length ?? 0) > 0 &&
+            types.length > 0 &&
+            types.every((arr) => arr.every((i) => i.status === "done"))
+          );
+        });
+        expect(
+          candidate,
+          "case (b) needs at least one lesson in /steps that is fully done with a non-empty quizzes array"
+        ).toBeTruthy();
+        mutatedLessonId = candidate!.lessonid;
+        const mutatedLessons = (real.lessons ?? []).map((l) =>
+          l.lessonid === candidate!.lessonid
+            ? {
+                ...l,
+                quizzes: (l.quizzes ?? []).map((q) => ({
+                  ...q,
+                  status: "todo" as const,
+                })),
+              }
+            : l
+        );
+        return { ...real, lessons: mutatedLessons };
+      });
+
+      await loginViaExpoUi(page, CORPORATE_STUDENT.username, CORPORATE_STUDENT.password);
+      const { apiLessons, openedLevelId } = await openModule1AndCaptureResponses(page);
+      const { levelId: mutatedLevelId, body: mutatedStepsBody } = await mutatedPromise;
+      expect(
+        mutatedLevelId,
+        "the intercepted /steps request's level id should equal the level actually opened"
+      ).toBe(openedLevelId);
+
+      // eslint-disable-next-line no-console
+      console.log(`[lesson-status:case-b] mutated lesson: ${mutatedLessonId}`);
+
+      const { derived, expectedDoneCount } = await assertLevelDetailMatchesDerivation(
+        page,
+        apiLessons,
+        mutatedStepsBody.lessons ?? [],
+        "case-b"
+      );
+
+      const mutatedEntry = derived.find((d) => d.lesson.lessonid === mutatedLessonId)!;
+      expect(
+        mutatedEntry.status,
+        "the mutated lesson's steps-derived status should be inProgress (quizzes reset, learning/practice still done)"
+      ).toBe("inProgress");
+      expect(
+        mutatedEntry.oldStatus,
+        "the OLD fallback rule (completed/progress, untouched by this mutation) should still say done " +
+          "— the on-screen row shows inProgress instead, proving it reads /steps, not the old rule"
+      ).toBe("done");
+
+      // The done count/% already got asserted exactly inside
+      // assertLevelDetailMatchesDerivation against the mutated data;
+      // this just logs the resulting header value for the record.
+      // eslint-disable-next-line no-console
+      console.log(
+        `[lesson-status:case-b] header now reads doneCount=${expectedDoneCount} (mutated lesson no longer counted as done)`
+      );
+
+      await page.screenshot({ path: test.info().outputPath("case-b.png"), fullPage: true });
+    } finally {
+      await context.close();
+    }
+  });
+
+  test("(c) a lesson's quizzes array is emptied: quiz dot hidden, aria-label tail omits it", async ({
+    browser,
+  }) => {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    try {
+      let mutatedLessonId: string | undefined;
+      const mutatedPromise = interceptSteps(page, (real) => {
+        const candidate = (real.lessons ?? []).find(
+          (l) => (l.quizzes?.length ?? 0) > 0
+        );
+        expect(
+          candidate,
+          "case (c) needs at least one lesson in /steps with a non-empty quizzes array"
+        ).toBeTruthy();
+        mutatedLessonId = candidate!.lessonid;
+        const mutatedLessons = (real.lessons ?? []).map((l) =>
+          l.lessonid === candidate!.lessonid ? { ...l, quizzes: [] } : l
+        );
+        return { ...real, lessons: mutatedLessons };
+      });
+
+      await loginViaExpoUi(page, CORPORATE_STUDENT.username, CORPORATE_STUDENT.password);
+      const { apiLessons, openedLevelId } = await openModule1AndCaptureResponses(page);
+      const { levelId: mutatedLevelId, body: mutatedStepsBody } = await mutatedPromise;
+      expect(
+        mutatedLevelId,
+        "the intercepted /steps request's level id should equal the level actually opened"
+      ).toBe(openedLevelId);
+
+      // eslint-disable-next-line no-console
+      console.log(`[lesson-status:case-c] mutated lesson: ${mutatedLessonId}`);
+
+      await assertLevelDetailMatchesDerivation(
+        page,
+        apiLessons,
+        mutatedStepsBody.lessons ?? [],
+        "case-c"
+      );
+      // The generic per-row assertion above already required the row's
+      // aria-label to equal describeStepsExpected()'s tail EXACTLY, which
+      // (per LessonStepDots.tsx's `STEP_ORDER.filter(total > 0)`) omits the
+      // quiz clause entirely once quizzes is empty — that alone proves the
+      // tail change. This adds the direct, visual half of the same claim:
+      // no quiz-labelled dot renders in this row's DOM at all.
+      const mutatedRow = page.locator(`[data-testid="lesson-row-${mutatedLessonId}"]`);
+      await expect(
+        mutatedRow.getByText(KM.quizTitle, { exact: false }),
+        `lesson-row-${mutatedLessonId} should render no "${KM.quizTitle}" (quiz) dot label after its quizzes array was emptied`
+      ).toHaveCount(0);
+
+      await page.screenshot({ path: test.info().outputPath("case-c.png"), fullPage: true });
+    } finally {
+      await context.close();
+    }
   });
 });
