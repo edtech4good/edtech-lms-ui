@@ -569,17 +569,34 @@ async function assertLevelDetailMatchesDerivation(
   // Header "N of M lessons · get a certificate" / "%" — exact strings from
   // km.json's screen.level.progressWithCertificate, not a loose substring
   // match.
+  //
+  // Since edtech-expo#104 ("Lessons-based % on grade, level and Library
+  // cards") the Home tab's Subjects/Courses/Units screens underneath this
+  // Level Detail screen (still mounted, just hidden -- React Navigation's
+  // stack doesn't unmount screens below the top one) ALSO show a
+  // lessons-based % pill, and with this seed data those coincidentally read
+  // the same value as this level's own header -- confirmed live: a bare
+  // `page.getByText('${expectedLevelProgress}%')` resolves 4 elements (the
+  // three background drill-down cards' pills plus this header). Scope to
+  // the header's own row instead of guessing an index: `expectedHeaderText`
+  // above is unique to this template (the "· get a certificate" suffix
+  // isn't used anywhere else), so its immediate parent -- the flex row View
+  // that lays the "N of M" text and the "%" text side by side
+  // (LevelSelectionScreen.tsx's detailHeader) -- is this level's own header
+  // and nothing else's.
   const expectedHeaderText = format1(
     format1(PROGRESS_WITH_CERTIFICATE_TEMPLATE, "done", expectedDoneCount),
     "total",
     sortedApiLessons.length
   );
+  const headerTextLocator = page.getByText(expectedHeaderText, { exact: true });
   await expect(
-    page.getByText(expectedHeaderText, { exact: true }),
+    headerTextLocator,
     `expected the header to read exactly "${expectedHeaderText}"`
   ).toBeVisible();
+  const headerRow = headerTextLocator.locator("xpath=..");
   await expect(
-    page.getByText(`${expectedLevelProgress}%`, { exact: true }),
+    headerRow.getByText(`${expectedLevelProgress}%`, { exact: true }),
     `expected the header % to read exactly "${expectedLevelProgress}%"`
   ).toBeVisible();
 
