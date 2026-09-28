@@ -20,9 +20,10 @@
  *     cached (LibrarySlice, keyed by schooluserid) so the offline case
  *     renders from redux-persist.
  *   - app/(app)/(home)/_layout.tsx — phone corporate shell is <Tabs> with
- *     three screens in DOM/array order: home (tab-home), library/index
- *     (tab-library), profile/index (tab-profile). dashboard/index is
- *     `href: null` and must not render as a fourth visible tab.
+ *     four screens in DOM/array order (edtech-expo#103 added "My progress"
+ *     between Library and Profile): home (tab-home), library/index
+ *     (tab-library), progress/index (tab-progress), profile/index
+ *     (tab-profile).
  *   - src/screens/LevelSelection/LevelSelectionScreen.tsx — Level Detail.
  *     When opened `from: 'library'` (LibraryScreen's handleLevelPress sets
  *     this param), a `useEffect` keyed on `params.from` overrides headerLeft
@@ -98,25 +99,95 @@ function lessonsProgressText(done: number, total: number): string {
 }
 
 /**
- * Copied verbatim from CorporateCardGrid.tsx's own `normalizeProgressFraction`
- * (re-exported via src/components) — LibraryScreen imports the real one; this
- * is a test-side copy of the same three lines so the expected percentage is
- * derived the same way the component derives it, not guessed.
+ * Since edtech-expo#104 ("Lessons-based % on grade, level and Library
+ * cards") LibraryScreen no longer shows `level/library`'s own points-based
+ * `progress` field at all -- each card's % now comes from
+ * `GET student/progress/summary`'s per-level `lessonsCompleted`/
+ * `lessonsTotal` (matched by levelid via `findLevelProgress`), normalised
+ * with that model's own `toPercent` (src/models/ProgressSummary.ts). A
+ * level with no matching summary row renders no percent at all (just the
+ * lessons-progress footer). `toNumber`/`toPercent` below are copied
+ * verbatim from that file so the expected value is derived the same way
+ * the component derives it, not guessed or read off `level/library`.
  */
-function normalizeProgressFraction(
-  progress: number | undefined | null,
-): number | undefined {
-  if (typeof progress !== "number" || progress <= 0) return undefined;
-  return progress > 1 ? progress / 100 : progress;
+function toNumber(value: number | string | null | undefined): number {
+  if (value === null || value === undefined) return 0;
+  const n = typeof value === "string" ? parseInt(value, 10) : value;
+  return Number.isFinite(n) ? n : 0;
+}
+
+function toPercent(done: number, total: number): number {
+  if (total <= 0) return 0;
+  const percent = Math.min(100, Math.max(0, Math.round((done / total) * 100)));
+  if (done < total && percent === 100) return 99;
+  if (done > 0 && percent === 0) return 1;
+  return percent;
+}
+
+interface RawProgressSummaryLevel {
+  levelid: string;
+  lessonsCompleted: number | string | null;
+  lessonsTotal: number | string | null;
+}
+interface RawProgressSummaryGrade {
+  gradeid: string;
+  levels?: RawProgressSummaryLevel[] | null;
+}
+interface RawProgressSummaryCurriculum {
+  curriculumid: string;
+  grades?: RawProgressSummaryGrade[] | null;
+}
+interface ProgressSummaryResponseBody {
+  data: { curricula: RawProgressSummaryCurriculum[]; totals: unknown };
+}
+
+/**
+ * Registers the `GET .../student/progress/summary` waitForResponse --
+ * same ok-response/10s-timeout shape as `waitForLibraryResponse` -- for
+ * whichever request LibraryScreen's own `useProgressSummary()` mount
+ * triggers when the Library tab is opened.
+ */
+function waitForProgressSummaryResponse(page: Page) {
+  return page.waitForResponse(
+    (res) =>
+      res.request().method() === "GET" &&
+      /\/student\/progress\/summary(\?|$)/.test(res.url()) &&
+      res.ok(),
+    { timeout: 10_000 },
+  );
+}
+
+/** levelid -> lessons-based percent, exactly as `findLevelProgress(...).percent` resolves it. */
+function buildProgressByLevelId(
+  body: ProgressSummaryResponseBody,
+): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const curriculum of body.data.curricula ?? []) {
+    for (const grade of curriculum.grades ?? []) {
+      for (const level of grade.levels ?? []) {
+        map.set(
+          level.levelid,
+          toPercent(toNumber(level.lessonsCompleted), toNumber(level.lessonsTotal)),
+        );
+      }
+    }
+  }
+  return map;
 }
 
 /** Every `library-level-<id>`'s expected accessible name, per LibraryScreen.tsx line ~168. */
-function expectedLevelLabel(level: LibraryLevel): string {
-  const pct = Math.round((normalizeProgressFraction(level.progress) ?? 0) * 100);
-  return `${level.levelname}, ${pct}%, ${lessonsProgressText(
+function expectedLevelLabel(
+  level: LibraryLevel,
+  progressByLevelId: Map<string, number>,
+): string {
+  const pct = progressByLevelId.get(level.levelid);
+  const lessonsProgress = lessonsProgressText(
     level.number_completed_lessons,
     level.number_lessons,
-  )}`;
+  );
+  return pct === undefined
+    ? `${level.levelname}, ${lessonsProgress}`
+    : `${level.levelname}, ${pct}%, ${lessonsProgress}`;
 }
 
 /**
@@ -145,13 +216,30 @@ function waitForLibraryResponse(page: Page) {
  */
 async function openLibrary(
   page: Page,
-): Promise<{ body: LibraryResponseBody; origin: string }> {
+): Promise<{
+  body: LibraryResponseBody;
+  origin: string;
+  progressByLevelId: Map<string, number>;
+}> {
   const responsePromise = waitForLibraryResponse(page);
+  // LibraryScreen's own `useProgressSummary()` mount (independent of
+  // useLibrary's `level/library` fetch) fires this request every time the
+  // tab is opened after a fresh reload -- registered before the click for
+  // the same reason as responsePromise above.
+  const summaryPromise = waitForProgressSummaryResponse(page);
   await page.locator('[data-testid="tab-library"]').click();
-  const response = await responsePromise;
+  const [response, summaryResponse] = await Promise.all([
+    responsePromise,
+    summaryPromise,
+  ]);
   const body = (await response.json()) as LibraryResponseBody;
+  const summaryBody = (await summaryResponse.json()) as ProgressSummaryResponseBody;
   await expect(page.locator('[data-testid="library-screen"]')).toBeVisible();
-  return { body, origin: new URL(response.url()).origin };
+  return {
+    body,
+    origin: new URL(response.url()).origin,
+    progressByLevelId: buildProgressByLevelId(summaryBody),
+  };
 }
 
 /**
@@ -166,6 +254,7 @@ async function openLibrary(
 async function assertLibraryMatchesResponse(
   page: Page,
   body: LibraryResponseBody,
+  progressByLevelId: Map<string, number>,
 ): Promise<void> {
   const curricula = body.data.curricula ?? [];
 
@@ -202,7 +291,9 @@ async function assertLibraryMatchesResponse(
 
       for (const level of grade.levels) {
         const card = page.locator(`[data-testid="library-level-${level.levelid}"]`);
-        await expect(card).toHaveAccessibleName(expectedLevelLabel(level));
+        await expect(card).toHaveAccessibleName(
+          expectedLevelLabel(level, progressByLevelId),
+        );
       }
     }
   }
@@ -252,43 +343,55 @@ test.describe("expo web phone Library tab (corporate / DCRS)", () => {
     await expect(page.locator('[data-testid="tab-home"]')).toBeVisible();
   });
 
-  test("tab bar has exactly three tabs in order: home, library, profile", async () => {
+  test("tab bar has exactly four tabs in order: home, library, progress, profile", async () => {
+    // edtech-expo#103 ("My progress") added a fourth tab between Library
+    // and Profile -- app/(app)/(home)/_layout.tsx's phone <Tabs> now lists
+    // home, library/index, progress/index, profile/index in that DOM order.
     await expect(page.locator('[data-testid="tab-home"]')).toBeVisible();
     await expect(page.locator('[data-testid="tab-library"]')).toBeVisible();
+    await expect(page.locator('[data-testid="tab-progress"]')).toBeVisible();
     await expect(page.locator('[data-testid="tab-profile"]')).toBeVisible();
 
     // Scoped to the tablist's own role="link" children (confirmed live:
     // each tab-* element is <a role="link"> inside a <div role="tablist">)
-    // rather than [data-testid^="tab-"], so a fourth tab rendered WITHOUT a
+    // rather than [data-testid^="tab-"], so a fifth tab rendered WITHOUT a
     // testID (e.g. dashboard/index losing its href: null) would still be
     // counted here and fail this guard.
     const tabItems = page.getByRole("tablist").getByRole("link");
-    await expect(tabItems).toHaveCount(3);
+    await expect(tabItems).toHaveCount(4);
 
     // Exact testID order too, not just a count.
     const testIds = await tabItems.evaluateAll((els) =>
       els.map((el) => el.getAttribute("data-testid")),
     );
-    expect(testIds).toEqual(["tab-home", "tab-library", "tab-profile"]);
+    expect(testIds).toEqual([
+      "tab-home",
+      "tab-library",
+      "tab-progress",
+      "tab-profile",
+    ]);
 
     // Order also verified by x-position, independent of DOM-order alone.
-    const [homeBox, libraryBox, profileBox] = await Promise.all([
+    const [homeBox, libraryBox, progressBox, profileBox] = await Promise.all([
       page.locator('[data-testid="tab-home"]').boundingBox(),
       page.locator('[data-testid="tab-library"]').boundingBox(),
+      page.locator('[data-testid="tab-progress"]').boundingBox(),
       page.locator('[data-testid="tab-profile"]').boundingBox(),
     ]);
     expect(homeBox).not.toBeNull();
     expect(libraryBox).not.toBeNull();
+    expect(progressBox).not.toBeNull();
     expect(profileBox).not.toBeNull();
     expect(homeBox!.x).toBeLessThan(libraryBox!.x);
-    expect(libraryBox!.x).toBeLessThan(profileBox!.x);
+    expect(libraryBox!.x).toBeLessThan(progressBox!.x);
+    expect(progressBox!.x).toBeLessThan(profileBox!.x);
 
     await page.screenshot({ path: test.info().outputPath("library.png") });
   });
 
   test("library tab renders curricula/grades/levels matching the level/library response", async () => {
-    const { body } = await openLibrary(page);
-    await assertLibraryMatchesResponse(page, body);
+    const { body, progressByLevelId } = await openLibrary(page);
+    await assertLibraryMatchesResponse(page, body, progressByLevelId);
 
     await page.screenshot({ path: test.info().outputPath("library.png") });
   });
@@ -408,8 +511,8 @@ test.describe("expo web phone Library tab (corporate / DCRS)", () => {
     // response body to assert against later and (via LibrarySlice, name
     // 'library', whitelisted in Store.ts's persistConfig) writes the cache
     // that the offline reload below needs to have something to fall back to.
-    const { body, origin } = await openLibrary(page);
-    await assertLibraryMatchesResponse(page, body);
+    const { body, origin, progressByLevelId } = await openLibrary(page);
+    await assertLibraryMatchesResponse(page, body, progressByLevelId);
 
     // redux-persist's async-storage web shim writes LibrarySlice to
     // localStorage['persist:root'] as a second JSON string, keyed
@@ -444,7 +547,11 @@ test.describe("expo web phone Library tab (corporate / DCRS)", () => {
       await page.reload();
 
       await expect(page.locator('[data-testid="library-screen"]')).toBeVisible();
-      await assertLibraryMatchesResponse(page, body);
+      // The reload's `page.route` block above also blocks
+      // student/progress/summary, so LibraryScreen falls back to
+      // progressSlice's own persisted (pre-offline) value -- the same
+      // progressByLevelId captured above, unchanged by the reload.
+      await assertLibraryMatchesResponse(page, body, progressByLevelId);
       expect(abortCount).toBeGreaterThan(0);
 
       await page.screenshot({ path: test.info().outputPath("library.png") });
@@ -489,7 +596,19 @@ test.describe("expo web phone Library tab — nothing cached yet", () => {
       await page.screenshot({ path: test.info().outputPath("library.png") });
     } finally {
       await page.unroute("**/level/library");
-      await context.close();
+      // context.close() has been observed (once, locally) to throw an
+      // ENOENT from Playwright's own trace-artifact cleanup after this
+      // test's assertions had already passed -- a teardown race, not a
+      // real failure. Swallow only this specific cleanup call so a flaky
+      // close doesn't turn a passing test red; anything the assertions
+      // above raise still fails the test normally, before this ever runs.
+      try {
+        await context.close();
+      } catch (err) {
+        console.warn(
+          `[phone-library] context.close() cleanup error (ignored): ${err}`,
+        );
+      }
     }
   });
 });
