@@ -1,0 +1,1007 @@
+// ng-zorro restyle layer for the admin redesign (v2 / v2.1).
+//
+// Imported by styles.less AFTER ng-zorro and the theme variables, so these
+// rules win on equal specificity. The theme variables in styles.less do the bulk
+// of the work (colours, radii, control heights); this file covers what variables
+// cannot: the raised buttons, field rings and focus states, flat cards, floating
+// layers and so on. Spec: docs/design/admin/handoff-v2/README.md ("Design
+// tokens", "ng-zorro mapping") and README-v2.1.md ("Token corrections").
+//
+// One block per ng-zorro component; the comment above each names it.
+// Tokens come from styles/tokens.less (already imported by styles.less).
+
+// ---------------------------------------------------------------------------
+// Base
+// ---------------------------------------------------------------------------
+html,
+body {
+  font-family: @font-body;
+  color: @color-ink;
+  background: @color-paper;
+}
+
+// Khmer must never clip: long, stacked glyphs need the 1.7 line-height from the
+// theme and no fixed heights on content. Make that explicit for the content
+// controls so a later component stylesheet cannot quietly shorten it.
+.ant-input,
+.ant-input-number-input,
+.ant-select-selection-item,
+.ant-table-tbody > tr > td,
+.ant-table-thead > tr > th {
+  font-family: @font-body;
+  line-height: 1.7;
+}
+
+// Focus-visible on links (table links such as a student name). The standard
+// 3px white + 3px ink ring with a small radius. Buttons rendered as <a> have their
+// own ring below, so they are excluded to keep their radius.
+a:not(.ant-btn):focus-visible {
+  outline: none;
+  border-radius: 4px;
+  box-shadow: @shadow-focus-visible;
+}
+
+// ---------------------------------------------------------------------------
+// nz-button  ([nz-button], .ant-btn)
+// Raised on a 3px offset (2px for small), sinks on press. Only buttons pop.
+// --btn-edge is the colour of the offset; --btn-drop its depth.
+// The ring is a real 1.5px border so inline `border-color` overrides keep working.
+// ---------------------------------------------------------------------------
+.ant-btn {
+  --btn-drop: 3px;
+  --btn-edge: @color-secondary-edge;
+  font-family: @font-body;
+  font-weight: 600;
+  border-width: 1.5px;
+  border-radius: @radius-control;
+  text-shadow: none;
+  box-shadow: 0 var(--btn-drop) 0 var(--btn-edge);
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+
+  &.ant-btn-sm {
+    --btn-drop: 2px;
+    border-radius: @radius-control-sm;
+  }
+
+  &.ant-btn-lg {
+    border-radius: @radius-control;
+  }
+
+  &.ant-btn-circle,
+  &.ant-btn-circle.ant-btn-sm {
+    border-radius: 50%;
+  }
+
+  &.ant-btn-round,
+  &.ant-btn-round.ant-btn-sm {
+    border-radius: @radius-pill;
+  }
+
+  // Pressed: the button sinks into its offset.
+  &:active:not([disabled]) {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 var(--btn-edge);
+  }
+
+  // Focus-visible on every control: 3px white ring + 3px ink outer ring.
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 var(--btn-drop) 0 var(--btn-edge), @shadow-focus-visible;
+  }
+
+  &:active:not([disabled]):focus-visible {
+    box-shadow: 0 1px 0 var(--btn-edge), @shadow-focus-visible;
+  }
+
+  // Primary: offset is the pressed blue. ng-zorro hard-codes hover/focus to a
+  // lighter palette step (#3381FF, white text 3.7:1) that the theme variables
+  // cannot change, so set hover, focus and active here. White text is 5.1:1 at
+  // rest, 6.4:1 on hover/focus and 8:1 pressed.
+  &.ant-btn-primary {
+    --btn-edge: @color-action-press;
+  }
+
+  &.ant-btn-primary:not([disabled]):not(.ant-btn-background-ghost) {
+    &:hover,
+    &:focus {
+      background: @color-action-hover;
+      border-color: @color-action-hover;
+      color: #fff;
+    }
+
+    &:active {
+      background: @color-action-press;
+      border-color: @color-action-press;
+      color: #fff;
+    }
+  }
+
+  // Not raised: link, text, dashed and ghost buttons stay flat.
+  &.ant-btn-link,
+  &.ant-btn-text,
+  &.ant-btn-dashed,
+  &.ant-btn-background-ghost {
+    --btn-edge: transparent;
+  }
+
+  &.ant-btn-link:active:not([disabled]),
+  &.ant-btn-text:active:not([disabled]),
+  &.ant-btn-dashed:active:not([disabled]),
+  &.ant-btn-background-ghost:active:not([disabled]) {
+    transform: none;
+  }
+
+  // Destructive. Outline: orange text and ring on white. Filled (confirm steps
+  // only): #C24A05 behind white text with the #8F3603 offset. The state rules
+  // are :not([disabled]) so a disabled destructive button falls through to the
+  // flat grey disabled style below.
+  &.ant-btn-dangerous:not([disabled]) {
+    --btn-edge: @color-danger-edge;
+    border-color: @color-danger-ring;
+    color: @color-danger;
+
+    // Hover/focus: pale orange fill and a darker label.
+    &:hover,
+    &:focus {
+      background: @color-danger-tint;
+      border-color: @color-danger-ring;
+      color: @color-danger-press;
+    }
+
+    &.ant-btn-primary {
+      --btn-edge: @color-danger-press;
+      background: @color-danger;
+      border-color: @color-danger;
+      color: #fff;
+
+      // Filled hover/focus: one step darker (white text 6.3:1).
+      &:hover,
+      &:focus {
+        background: @color-danger-hover;
+        border-color: @color-danger-hover;
+        color: #fff;
+      }
+
+      &:active {
+        background: @color-danger-press;
+        border-color: @color-danger-press;
+      }
+    }
+
+    &.ant-btn-link,
+    &.ant-btn-text {
+      --btn-edge: transparent;
+      border-color: transparent;
+
+      &:hover,
+      &:focus {
+        background: @color-danger-tint;
+        border-color: transparent;
+      }
+    }
+  }
+
+  // Disabled: flat grey, no offset.
+  &[disabled],
+  &[disabled]:hover,
+  &[disabled]:focus,
+  &[disabled]:active {
+    --btn-edge: transparent;
+    transform: none;
+    box-shadow: none;
+    border-color: transparent;
+    background: @disabled-bg;
+    color: @disabled-color;
+  }
+
+  &.ant-btn-link[disabled],
+  &.ant-btn-text[disabled] {
+    background: transparent;
+  }
+}
+
+// No wave animation on click (the radius and offset make it look broken).
+.ant-click-animating-node,
+[ant-click-animating-without-extra-node='true']::after {
+  display: none !important;
+  animation: none !important;
+}
+
+// ---------------------------------------------------------------------------
+// nz-input, nz-input-number, nz-select, nz-textarea, nz-date-picker, nz-time-picker
+// Paper fill, 1.5px #7C8CA6 ring, radius 14, 46px tall. Focus = 2px blue ring
+// plus a 4px halo. Heights come from the theme variables; none of these set a
+// fixed height on the text itself (Khmer-safe) except nz-select, whose
+// 46px box is tall enough for Khmer's stacked glyphs.
+// ---------------------------------------------------------------------------
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-input-number,
+.ant-picker,
+.ant-select:not(.ant-select-customize-input) .ant-select-selector {
+  border-width: 1.5px;
+  border-radius: @radius-control;
+  box-shadow: none;
+}
+
+.ant-input-affix-wrapper > input.ant-input {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+// Multi-line text never clips: no fixed height, a sensible minimum.
+textarea.ant-input {
+  height: auto;
+  min-height: @size-input;
+  line-height: 1.7;
+}
+
+// nz-input-number: the inner input carries the height, minus the 1.5px borders.
+.ant-input-number {
+  .ant-input-number-input {
+    height: @size-input - 3px;
+    line-height: 1.7;
+  }
+
+  .ant-input-number-handler-wrap {
+    border-radius: 0 @radius-control @radius-control 0;
+    overflow: hidden;
+  }
+}
+
+// nz-date-picker / nz-time-picker. The 46px box is for the default size only;
+// small and large pickers keep ng-zorro's own padding from the theme heights.
+.ant-picker:not(.ant-picker-small):not(.ant-picker-large) {
+  padding-top: 0;
+  padding-bottom: 0;
+  height: @size-input;
+  align-items: center;
+}
+
+.ant-picker .ant-picker-input > input {
+  line-height: 1.7;
+}
+
+// nz-select
+.ant-select {
+  font-family: @font-body;
+
+  &:not(.ant-select-customize-input) .ant-select-selector {
+    background: @color-paper;
+  }
+
+  &.ant-select-multiple .ant-select-selection-item {
+    border-radius: @radius-pill;
+    background: @color-action-tint;
+    border-color: transparent;
+    color: @color-ink;
+  }
+}
+
+// Small selects (the in-row "Add Tag" select is 100px wide): a smaller type size
+// and tighter padding so the placeholder is fully readable next to the arrow.
+.ant-select-sm {
+  font-size: 13px;
+
+  .ant-select-selection-item,
+  .ant-select-selection-placeholder {
+    font-size: 13px;
+  }
+
+  &.ant-select-single:not(.ant-select-customize-input) .ant-select-selector {
+    padding: 0 8px;
+  }
+
+  &.ant-select-show-arrow .ant-select-selection-item,
+  &.ant-select-show-arrow .ant-select-selection-placeholder {
+    padding-inline-end: 16px;
+  }
+
+  .ant-select-arrow {
+    inset-inline-end: 8px;
+  }
+}
+
+// Focus: 2px #0B5FFF ring + 4px rgba(11,95,255,.14) halo. ng-zorro's hover rule
+// (.x:not(.x-disabled):hover) outranks a bare focus rule, so the focused state
+// is also written with :not(-disabled) to match its specificity.
+.field-focus(@c) {
+  .@{c}:focus,
+  .@{c}-focused,
+  .@{c}:not(.@{c}-disabled):focus,
+  .@{c}.@{c}-focused:not(.@{c}-disabled) {
+    border-color: @color-action;
+    box-shadow: @shadow-focus-input;
+    outline: none;
+  }
+}
+
+.field-focus(ant-input);
+.field-focus(ant-input-affix-wrapper);
+.field-focus(ant-input-number);
+.field-focus(ant-input-number-affix-wrapper);
+.field-focus(ant-picker);
+
+.ant-select-focused:not(.ant-select-disabled):not(.ant-select-customize-input) .ant-select-selector,
+.ant-select-open:not(.ant-select-disabled):not(.ant-select-customize-input) .ant-select-selector {
+  border-color: @color-action;
+  box-shadow: @shadow-focus-input;
+  outline: none;
+}
+
+// Error state: orange ring on a pale orange fill. The message below says how to
+// fix it. ng-zorro marks errors with -status-error classes on the control (which
+// outrank .ant-form-item-has-error), so both are covered.
+.field-error(@c) {
+  .@{c}.@{c}-status-error:not(.@{c}-disabled):not(.@{c}-borderless),
+  .ant-form-item-has-error .@{c}:not(.@{c}-disabled):not(.@{c}-borderless) {
+    border-color: @color-danger-ring;
+    background: @color-danger-tint;
+  }
+
+  .@{c}.@{c}-status-error:not(.@{c}-disabled):not(.@{c}-borderless):focus,
+  .@{c}.@{c}-status-error:not(.@{c}-disabled):not(.@{c}-borderless).@{c}-focused,
+  .ant-form-item-has-error .@{c}:not(.@{c}-disabled):not(.@{c}-borderless):focus,
+  .ant-form-item-has-error .@{c}:not(.@{c}-disabled):not(.@{c}-borderless).@{c}-focused {
+    border-color: @color-danger-ring;
+    box-shadow: @shadow-focus-input-error;
+  }
+}
+
+.field-error(ant-input);
+.field-error(ant-input-affix-wrapper);
+.field-error(ant-input-number);
+.field-error(ant-input-number-affix-wrapper);
+.field-error(ant-picker);
+
+// nz-select error. ng-zorro sets the border colour with !important on
+// .ant-select-status-error, so this has to match its selector and be !important too.
+.ant-select-status-error.ant-select:not(.ant-select-disabled):not(.ant-select-customize-input):not(.ant-pagination-size-changer) .ant-select-selector,
+.ant-form-item-has-error .ant-select:not(.ant-select-disabled):not(.ant-select-customize-input):not(.ant-pagination-size-changer) .ant-select-selector {
+  border-color: @color-danger-ring !important;
+  background-color: @color-danger-tint;
+}
+
+.ant-select-status-error.ant-select.ant-select-focused:not(.ant-select-disabled):not(.ant-select-customize-input):not(.ant-pagination-size-changer) .ant-select-selector,
+.ant-select-status-error.ant-select.ant-select-open:not(.ant-select-disabled):not(.ant-select-customize-input):not(.ant-pagination-size-changer) .ant-select-selector {
+  box-shadow: @shadow-focus-input-error;
+}
+
+.ant-form-item-explain-error,
+.ant-form-item-explain {
+  font-size: 13px;
+}
+
+// Labels sit in a fixed-width column on the current forms, and Poppins is wider
+// than the old system stack, so keep them at 14px to avoid colliding with the field.
+.ant-form-item-label > label {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+// ---------------------------------------------------------------------------
+// nz-table  (.ant-table)
+// Header 600 13 #475569 with no band fill, rows >= 52px, hover paper, rounded
+// row ends, sorted column in blue. Row height grows for Khmer and never clips.
+// ---------------------------------------------------------------------------
+.ant-table {
+  font-size: @font-size-base;
+  background: transparent;
+
+  .ant-table-thead > tr > th {
+    font-size: 13px;
+    font-weight: 600;
+    color: @color-text-2;
+    background: transparent;
+    border-bottom: 1.5px solid @color-edge;
+
+    &::before {
+      display: none; // column separator
+    }
+
+    // The sorted column shows in blue with its arrow.
+    &.ant-table-column-sort,
+    &.ant-table-column-sort .ant-table-column-sorters {
+      color: @color-action;
+      background: transparent;
+    }
+
+    &.ant-table-column-has-sorters:hover,
+    &.ant-table-column-has-sorters:hover .ant-table-filter-trigger-container {
+      background: transparent;
+    }
+  }
+
+  .ant-table-tbody > tr > td {
+    height: @size-row-min; // table cells treat this as a minimum
+    border-bottom: 1px solid @color-edge;
+    vertical-align: middle;
+    transition: background-color 0.12s;
+  }
+
+  .ant-table-tbody > tr.ant-table-row:hover > td,
+  .ant-table-tbody > tr > td.ant-table-cell-row-hover {
+    background: @color-paper;
+  }
+
+  // Rounded row ends on hover and selection (not at rest, so the row
+  // separators stay straight).
+  .ant-table-tbody > tr.ant-table-row:hover > td:first-child,
+  .ant-table-tbody > tr.ant-table-row-selected > td:first-child {
+    border-top-left-radius: @radius-control;
+    border-bottom-left-radius: @radius-control;
+  }
+
+  .ant-table-tbody > tr.ant-table-row:hover > td:last-child,
+  .ant-table-tbody > tr.ant-table-row-selected > td:last-child {
+    border-top-right-radius: @radius-control;
+    border-bottom-right-radius: @radius-control;
+  }
+
+  // Selected rows: blue tint.
+  .ant-table-tbody > tr.ant-table-row-selected > td {
+    background: @color-action-tint;
+    border-color: transparent;
+  }
+
+  .ant-table-tbody > tr.ant-table-row-selected:hover > td {
+    background: @color-action-tint-press;
+  }
+
+  .ant-table-filter-trigger.active,
+  .ant-table-column-sorter-up.active,
+  .ant-table-column-sorter-down.active {
+    color: @color-action;
+  }
+
+  .ant-table-footer {
+    background: transparent;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// nz-card  (.ant-card)
+// Radius 24, 1.5px #E3E7F5 hairline, no drop shadow.
+// ---------------------------------------------------------------------------
+.ant-card {
+  border: none;
+  border-radius: @radius-card;
+  box-shadow: @shadow-ring-edge;
+  font-size: @font-size-base;
+
+  .ant-card-head {
+    border-bottom: 1.5px solid @color-edge;
+    border-radius: @radius-card @radius-card 0 0;
+    font-weight: 700;
+  }
+
+  .ant-card-bordered,
+  &.ant-card-bordered {
+    border: none;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// nz-modal  (.ant-modal)
+// Radius 28, the modal shadow; confirm footers right-aligned (ng-zorro default).
+// ---------------------------------------------------------------------------
+.ant-modal {
+  .ant-modal-content {
+    border-radius: @radius-modal;
+    box-shadow: @shadow-modal;
+    overflow: hidden;
+  }
+
+  .ant-modal-header {
+    border-bottom: none;
+    border-radius: @radius-modal @radius-modal 0 0;
+    padding: 24px 28px 8px;
+  }
+
+  .ant-modal-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: @color-ink;
+  }
+
+  .ant-modal-body {
+    padding: 16px 28px 20px;
+  }
+
+  .ant-modal-footer {
+    border-top: none;
+    padding: 8px 28px 24px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+
+    .ant-btn + .ant-btn:not(.ant-dropdown-trigger) {
+      margin-left: 0;
+    }
+  }
+
+  .ant-modal-close {
+    color: @color-text-2;
+  }
+}
+
+.ant-modal-mask {
+  background: @color-scrim;
+}
+
+// Modal.confirm() dialogs
+.ant-modal-confirm {
+  .ant-modal-confirm-title {
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  .ant-modal-confirm-btns {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+
+    .ant-btn + .ant-btn {
+      margin-left: 0;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// nz-dropdown, nz-select dropdown, nz-cascader, date-picker panel  (floating layers)
+// One soft shadow, no ring; items rounded.
+// ---------------------------------------------------------------------------
+.ant-dropdown-menu,
+.ant-select-dropdown,
+.ant-cascader-menus,
+.ant-picker-dropdown .ant-picker-panel-container,
+.ant-popover-inner {
+  border-radius: @radius-control;
+  box-shadow: @shadow-menu;
+}
+
+.ant-dropdown-menu {
+  padding: 6px;
+}
+
+.ant-dropdown-menu-item,
+.ant-dropdown-menu-submenu-title {
+  border-radius: 10px;
+  padding: 8px 12px;
+}
+
+.ant-select-dropdown {
+  padding: 6px;
+
+  // Option rows are exactly 32px: nz-select sizes its virtual-scroll viewport as
+  // options x nzOptionHeightPx (default 32), so taller rows clip the last option
+  // and misalign scrolling. 25.5px line (15px x 1.7, Khmer-safe) + 2 x 3px padding.
+  .ant-select-item {
+    box-sizing: border-box;
+    border-radius: 10px;
+    min-height: 32px;
+    line-height: 1.7;
+    padding: 3px 12px;
+  }
+
+  .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
+    background: @color-paper;
+  }
+
+  .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+    background: @color-action-tint;
+    font-weight: 600;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// nz-popconfirm / nz-popover  (.ant-popover)
+// ---------------------------------------------------------------------------
+.ant-popover {
+  .ant-popover-inner {
+    padding: 4px;
+  }
+
+  .ant-popover-inner-content {
+    padding: 12px 16px;
+  }
+
+  .ant-popover-message {
+    font-size: @font-size-base;
+    color: @color-ink;
+  }
+
+  .ant-popover-buttons {
+    margin-top: 14px;
+    padding-bottom: 4px;
+
+    .ant-btn {
+      margin-left: 8px;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// nz-tag  (.ant-tag)
+// Pill, 999 radius.
+// ---------------------------------------------------------------------------
+.ant-tag {
+  border-radius: @radius-pill;
+  padding: 1px 12px;
+  font-weight: 600;
+  font-size: 13px;
+  border-color: transparent;
+}
+
+// Preset tag colours: ng-zorro's cyan/green/warning text fails contrast on its own
+// tints. Question and document tags are cyan, so cyan becomes the Learning tint;
+// success and warning use the published / plan inks (>= 6:1).
+.ant-tag-cyan {
+  color: @color-learning-ink;
+  background: @color-learning-tint;
+  border-color: transparent;
+}
+
+.ant-tag-green,
+.ant-tag-success {
+  color: @color-published-ink;
+  background: @color-published-tint;
+  border-color: transparent;
+}
+
+.ant-tag-warning {
+  color: @color-plan-ink;
+  background: @color-plan-tint;
+  border-color: transparent;
+}
+
+// Warning text elsewhere (the amber warning ICON colour is @warning-color, 3.7:1;
+// text on white needs the ink).
+.ant-form-item-explain-warning,
+.ant-form-item-has-warning .ant-form-item-explain,
+.ant-form-item-has-warning .ant-form-item-split {
+  color: @color-plan-ink;
+}
+
+// ---------------------------------------------------------------------------
+// nz-pagination  (.ant-pagination)
+// 36px squares radius 12 with a hairline ring; the current page is a dark ink pill.
+// ---------------------------------------------------------------------------
+.ant-pagination {
+  font-family: @font-body;
+
+  .ant-pagination-item,
+  .ant-pagination-prev .ant-pagination-item-link,
+  .ant-pagination-next .ant-pagination-item-link {
+    border: none;
+    border-radius: 12px;
+    box-shadow: @shadow-ring-edge;
+    background: #fff;
+  }
+
+  &:not(.ant-pagination-mini) {
+    .ant-pagination-item,
+    .ant-pagination-prev .ant-pagination-item-link,
+    .ant-pagination-next .ant-pagination-item-link {
+      line-height: @size-button-sm;
+    }
+  }
+
+  // Compact tables (nzSize="small") paginate in mini: 24px squares.
+  &.ant-pagination-mini {
+    .ant-pagination-item,
+    .ant-pagination-prev .ant-pagination-item-link,
+    .ant-pagination-next .ant-pagination-item-link {
+      border-radius: 8px;
+      line-height: 24px;
+    }
+  }
+
+  .ant-pagination-item {
+    a {
+      color: @color-ink;
+      font-weight: 600;
+    }
+
+    &:hover {
+      box-shadow: inset 0 0 0 1.5px @color-action;
+
+      a {
+        color: @color-action;
+      }
+    }
+  }
+
+  .ant-pagination-item-active {
+    background: @color-ink;
+    box-shadow: none;
+
+    a,
+    &:hover a {
+      color: #fff;
+    }
+  }
+
+  .ant-pagination-prev:hover .ant-pagination-item-link,
+  .ant-pagination-next:hover .ant-pagination-item-link {
+    box-shadow: inset 0 0 0 1.5px @color-action;
+  }
+
+  // Focus-visible. The items had their border removed for the hairline ring, and
+  // ng-zorro shows focus only through border colour, so restore it (including the
+  // active page) with the standard ring. Page numbers are <li><a>; prev/next are buttons.
+  .ant-pagination-item:focus-visible,
+  .ant-pagination-item:has(> a:focus-visible),
+  .ant-pagination-item-active:focus-visible,
+  .ant-pagination-item-link:focus-visible {
+    outline: none;
+    box-shadow: @shadow-focus-visible;
+  }
+
+  .ant-pagination-item > a:focus-visible {
+    box-shadow: none;
+    border-radius: 0;
+  }
+
+  .ant-pagination-disabled .ant-pagination-item-link {
+    background: transparent;
+    color: @disabled-color;
+  }
+
+  .ant-pagination-options-size-changer.ant-select .ant-select-selector {
+    height: @size-button-sm;
+    background: #fff;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// nz-tabs  (.ant-tabs) and nz-segmented
+// Line tabs: blue ink bar. Card tabs: a segmented pill row on paper, the
+// selected tab a white pill with a ring.
+// ---------------------------------------------------------------------------
+.ant-tabs {
+  font-family: @font-body;
+
+  .ant-tabs-tab {
+    font-weight: 500;
+  }
+
+  .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+    font-weight: 600;
+    color: @color-action;
+  }
+
+  .ant-tabs-ink-bar {
+    background: @color-action;
+    height: 3px;
+    border-radius: 3px 3px 0 0;
+  }
+}
+
+// Tab buttons are focusable divs (role=tab).
+.ant-tabs .ant-tabs-tab-btn:focus-visible {
+  outline: none;
+  border-radius: 6px;
+  box-shadow: @shadow-focus-visible;
+}
+
+.ant-tabs-card > .ant-tabs-nav .ant-tabs-nav-list,
+.ant-tabs-card > div > .ant-tabs-nav .ant-tabs-nav-list {
+  gap: 4px;
+  padding: 4px;
+  border-radius: @radius-control;
+  background: @color-paper;
+}
+
+.ant-tabs-card > .ant-tabs-nav .ant-tabs-tab,
+.ant-tabs-card > div > .ant-tabs-nav .ant-tabs-tab {
+  margin: 0;
+  border: none;
+  border-radius: 11px;
+  background: transparent;
+
+  &.ant-tabs-tab-active {
+    background: #fff;
+    box-shadow: @shadow-ring-edge;
+
+    .ant-tabs-tab-btn {
+      color: @color-ink;
+      font-weight: 600;
+    }
+  }
+}
+
+.ant-segmented {
+  border-radius: @radius-control;
+  background: @color-paper;
+
+  .ant-segmented-item {
+    border-radius: 11px;
+  }
+
+  .ant-segmented-item-selected,
+  .ant-segmented-thumb {
+    background: #fff;
+    box-shadow: @shadow-ring-edge;
+    border-radius: 11px;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// nz-switch  (.ant-switch)
+// 44x26, on = #0B5FFF; off is a mid slate so the track clears 3:1.
+// Size comes from the theme (@switch-height / @switch-min-width).
+// ---------------------------------------------------------------------------
+.ant-switch {
+  background: @color-field-ring;
+
+  &.ant-switch-checked {
+    background: @color-action;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: @shadow-focus-visible;
+  }
+
+  &.ant-switch-disabled {
+    opacity: 0.45;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// nz-checkbox, nz-radio  (.ant-checkbox, .ant-radio)
+// Unselected ring #7C8CA6 (v2.1, 3.4:1), 2px. Checked = action blue.
+// ---------------------------------------------------------------------------
+.ant-checkbox-inner,
+.ant-radio-inner {
+  border-color: @color-field-ring;
+  background: #fff;
+}
+
+.ant-checkbox-inner {
+  border-radius: 6px;
+}
+
+.ant-checkbox-checked .ant-checkbox-inner {
+  background: @color-action;
+  border-color: @color-action;
+}
+
+.ant-checkbox-indeterminate .ant-checkbox-inner::after {
+  background: @color-action;
+}
+
+.ant-radio-checked .ant-radio-inner {
+  border-color: @color-action;
+}
+
+.ant-checkbox-wrapper:hover .ant-checkbox-inner,
+.ant-checkbox:hover .ant-checkbox-inner,
+.ant-checkbox-input:focus + .ant-checkbox-inner,
+.ant-radio-wrapper:hover .ant-radio,
+.ant-radio:hover .ant-radio-inner,
+.ant-radio-input:focus + .ant-radio-inner {
+  border-color: @color-action;
+}
+
+.ant-checkbox-input:focus-visible + .ant-checkbox-inner,
+.ant-radio-input:focus-visible + .ant-radio-inner {
+  box-shadow: @shadow-focus-visible;
+}
+
+.ant-radio-button-wrapper {
+  border-width: 1.5px;
+  border-color: @color-field-edge;
+  line-height: @size-button - 3px;
+  height: @size-button;
+
+  &:first-child {
+    border-radius: @radius-control 0 0 @radius-control;
+  }
+
+  &:last-child {
+    border-radius: 0 @radius-control @radius-control 0;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// nz-notification, nz-message  (.ant-notification, .ant-message)
+// Flat-ish toast: icon + title + one line; one soft shadow, rounded.
+// ---------------------------------------------------------------------------
+.ant-notification-notice {
+  border-radius: 18px;
+  box-shadow: @shadow-menu, @shadow-ring-edge;
+  padding: 16px 20px;
+
+  .ant-notification-notice-message {
+    font-weight: 600;
+    color: @color-ink;
+  }
+
+  .ant-notification-notice-description {
+    color: @color-text-2;
+    font-size: 14px;
+  }
+}
+
+.ant-message {
+  .ant-message-notice-content {
+    border-radius: @radius-control;
+    box-shadow: @shadow-menu, @shadow-ring-edge;
+    font-weight: 500;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// nz-alert  (.ant-alert)
+// ---------------------------------------------------------------------------
+.ant-alert {
+  border-radius: @radius-control;
+  border-width: 1.5px;
+}
+
+// ---------------------------------------------------------------------------
+// nz-breadcrumb  (.ant-breadcrumb)
+// 500 14 #475569, separators faint, last crumb 600 ink. Colours come from the
+// theme variables; weights here.
+// ---------------------------------------------------------------------------
+.ant-breadcrumb {
+  font-size: 14px;
+  font-weight: 500;
+
+  > span:last-child,
+  > span:last-child a {
+    font-weight: 600;
+    color: @color-ink;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// nz-progress  (.ant-progress)
+// 8px bars with round caps in published green.
+// ---------------------------------------------------------------------------
+.ant-progress-line .ant-progress-inner {
+  border-radius: @radius-pill;
+}
+
+.ant-progress-line .ant-progress-bg {
+  height: 8px !important; // ng-zorro writes the stroke width inline
+  border-radius: @radius-pill;
+}
+
+.ant-progress-status-normal .ant-progress-bg,
+.ant-progress-status-active .ant-progress-bg,
+.ant-progress-status-success .ant-progress-bg {
+  background: @color-published;
+}
+
+// ---------------------------------------------------------------------------
+// nz-steps  (.ant-steps)
+// Numbered pills.
+// ---------------------------------------------------------------------------
+.ant-steps-item-process .ant-steps-item-icon {
+  background: @color-action;
+  border-color: @color-action;
+}
+
+.ant-steps-item-finish .ant-steps-item-icon {
+  border-color: @color-action;
+  background: @color-action-tint;
+}
+
+// ---------------------------------------------------------------------------
+// nz-sider menu (the current shell navigation)
+// The shell is rebuilt in a later PR. Until then the sider sizes itself to its
+// content (width: auto) while its layout offset is a fixed 210px, so a wider
+// typeface would push it over the page. Keep the menu on ng-zorro's original
+// system stack and 14px so the shell is pixel-stable. Delete this block when
+// the new nav lands.
+// ---------------------------------------------------------------------------
+nz-sider .ant-menu {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif;
+  font-size: 14px;
+  line-height: 1.5715;
+}

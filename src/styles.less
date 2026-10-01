@@ -1,13 +1,167 @@
 // Custom Theming for NG-ZORRO
 // For more information: https://ng.ant.design/docs/customize-theme/en
 @import "../node_modules/ng-zorro-antd/ng-zorro-antd.less";
+// Design tokens (Less variables + :root custom properties). Less resolves
+// variables lazily, so these can be used by the theme below even though they
+// are imported after ng-zorro.
+@import "styles/tokens.less";
+
+// Self-hosted fonts (no requests to Google). Only the weights the design uses.
+// The per-weight files declare unicode-range subsets, so the browser downloads
+// just the subsets a page actually needs (Khmer glyphs pull the Khmer subset).
+@import (css) url("../node_modules/@fontsource/poppins/400.css");
+@import (css) url("../node_modules/@fontsource/poppins/500.css");
+@import (css) url("../node_modules/@fontsource/poppins/600.css");
+@import (css) url("../node_modules/@fontsource/poppins/700.css");
+@import (css) url("../node_modules/@fontsource/kantumruy-pro/400.css");
+@import (css) url("../node_modules/@fontsource/kantumruy-pro/600.css");
+@import (css) url("../node_modules/@fontsource/space-mono/700.css");
+
 // Override less variables to here
 // View all variables: https://github.com/NG-ZORRO/ng-zorro-antd/blob/master/components/style/themes/default.less
 
-// @primary-color: #1890ff;
+// ---- Brand and status colours --------------------------------------------
+@primary-color: @color-action;
+@primary-color-active: @color-action-press;
+// ng-zorro derives hover/focus from a lighter palette step (#3381FF, 3.7:1 under
+// white text). Use a darker hover so white text stays >= 4.5:1 in every state.
+@primary-color-hover: @color-action-hover;
+@primary-5: @color-action-hover;
+@link-hover-color: @color-action-press;
+@link-active-color: @color-action-press;
+@primary-1: @color-action-tint;
+@info-color: @color-action;
+// Success/warning feed both icons and text. Use the INK values (text >= 4.5:1);
+// the amber warning icon is set separately in zorro-overrides.less.
+@success-color: @color-published-ink;
+@warning-color: @color-warning-icon;
+@error-color: @color-danger;
+@highlight-color: @color-danger;           // required-field asterisk
+@link-color: @color-action;
+@processing-color: @color-action;
+
+// ---- Text and surfaces ---------------------------------------------------
+@text-color: @color-ink;
+@text-color-secondary: @color-text-2;
+@heading-color: @color-ink;
+@icon-color-hover: @color-ink;
+@body-background: @color-paper;
+@layout-body-background: @color-paper;
+@component-background: #fff;
+@item-hover-bg: @color-paper;
+@background-color-light: @color-paper;
+@background-color-base: @color-slate-tint;
+@disabled-color: @color-faint;
+@disabled-bg: @color-slate-tint;
+@input-placeholder-color: @color-placeholder;
+
+// ---- Type ----------------------------------------------------------------
+@font-family: @font-body;
+@font-size-base: 15px;
+@font-size-sm: 13px;
+@line-height-base: 1.7;                     // Khmer needs >= 1.7
+@heading-1-size: 28px;
+@heading-2-size: 24px;
+@heading-3-size: 20px;
+@heading-4-size: 18px;
+@heading-5-size: 16px;
+@font-variant-base: normal;                 // Poppins has no tabular figures
+@font-feature-settings-base: normal;
+
+// ---- Radii ---------------------------------------------------------------
+@border-radius-base: @radius-control;
+@border-radius-sm: @radius-control-sm;
+@border-radius-lg: @radius-control;
+@control-border-radius: @radius-control;
+@btn-border-radius-base: @radius-control;
+@btn-border-radius-sm: @radius-control-sm;
+@card-radius: @radius-card;
+@modal-border-radius: @radius-modal;
+@tag-border-radius: @radius-pill;
+@progress-radius: @radius-pill;
+
+// ---- Borders -------------------------------------------------------------
+@border-color-base: @color-field-edge;
+@border-color-split: @color-edge;
+@input-border-color: @color-field-ring;
+// No separate hover colour: antd's hover rule outranks a bare focus rule, so the
+// ring stays #7C8CA6 on hover and only focus changes it.
+@input-hover-border-color: @color-field-ring;
+@select-border-color: @color-field-ring;
+@input-bg: @color-paper;
+@select-background: @color-paper;
+@picker-bg: @color-paper;
+@input-disabled-bg: @color-slate-tint;
+
+// ---- Control heights -----------------------------------------------------
+@btn-height-lg: @size-button-lg;
+@btn-height-base: @size-button;
+@btn-height-sm: @size-button-sm;
+@btn-padding-horizontal-base: 18px;
+@btn-padding-horizontal-lg: 22px;
+@btn-padding-horizontal-sm: 14px;
+@btn-font-weight: 600;
+@btn-font-size-lg: 16px;
+@btn-font-size-sm: 14px;
+@btn-shadow: none;
+@btn-primary-shadow: none;
+@btn-text-shadow: none;
+@btn-default-border: @color-field-edge;
+@input-height-lg: @size-input;
+@input-height-base: @size-input;
+@input-height-sm: @size-button-sm;
+// 46px total = 25.5px line + 2 x 1.5px border + 2 x 8.75px padding.
+@input-padding-vertical-base: 8.75px;
+@input-padding-vertical-lg: 8.75px;
+@input-padding-vertical-sm: 4px;
+@select-single-item-height-lg: @size-input;
+@pagination-item-size: @size-button-sm;
+
+// ---- Tables, cards, modals -----------------------------------------------
+@table-header-bg: transparent;
+@table-header-color: @color-text-2;
+@table-header-sort-bg: transparent;
+@table-header-sort-active-bg: transparent;
+@table-header-filter-active-bg: transparent;
+@table-body-sort-bg: transparent;
+@table-row-hover-bg: @color-paper;
+@table-padding-vertical: 12px;
+@table-padding-horizontal: 16px;
+@table-border-color: @color-edge;
+@table-header-cell-split-color: transparent;
+@modal-header-border-width: 0;
+@modal-footer-border-width: 0;
+@modal-heading-color: @color-ink;
+
+// ---- Small controls ------------------------------------------------------
+@switch-height: 26px;
+@switch-min-width: 44px;
+@switch-sm-height: 18px;
+@switch-sm-min-width: 32px;
+@switch-bg: #fff;
+@checkbox-size: 20px;
+@checkbox-border-width: 2px;
+@radio-size: 20px;
+@radio-border-width: 2px;
+@tag-line-height: 22px;
+@tag-default-bg: @color-slate-tint;
+@tag-default-color: @color-text-2-dark;
+@breadcrumb-base-color: @color-text-2;
+@breadcrumb-link-color: @color-text-2;
+@breadcrumb-link-color-hover: @color-ink;
+@breadcrumb-last-item-color: @color-ink;
+@breadcrumb-separator-color: @color-faint;
+@label-required-color: @color-danger;
+
+// ---- Floating layers -----------------------------------------------------
+@shadow-2: @shadow-menu;
+@box-shadow-base: @shadow-menu;
+
 /* You can add global styles to this file, and also import other style files */
 
 .ant-form-item-label {
   text-align: left !important;
 }
 
+// ng-zorro restyle layer (buttons, fields, tables, cards, modals, ...).
+@import "styles/zorro-overrides.less";
