@@ -79,6 +79,9 @@ test('the account chip shows the name and the sign-in email, not a role', async 
   // lmsuserrole is stamped as superadmin on every account, so it must not be shown.
   await expect(chip).not.toContainText(/\bSuperadmin\b/);
   await expect(chip.locator('.email')).toHaveAttribute('title', SUPERADMIN.username);
+  // The name line ellipsizes when it is long: the full name is its tooltip.
+  const name = chip.locator('.name');
+  await expect(name).toHaveAttribute('title', (await name.textContent())!.trim());
 });
 
 test('the window scrolls and the nav panel stays in view', async () => {
@@ -268,18 +271,20 @@ test('Sign out ends the session and returns to the login page', async () => {
   await expect(page.getByRole('menuitem')).toHaveText(['Sign out']);
 
   // Signing out also tells the server (it revokes the token).
-  const serverLogout = page.waitForResponse((r) => r.url().includes('/auth/logout'));
+  // (A short timeout, so a regression fails here, readably, and not as a 30s
+  // "page closed" timeout at the end of the test.)
+  const serverLogout = page.waitForResponse((r) => r.url().includes('/auth/logout'), { timeout: 5_000 });
   await page.getByRole('menuitem', { name: 'Sign out' }).click();
-  expect((await serverLogout).ok()).toBeTruthy();
+  expect((await serverLogout).ok(), 'the server revokes the token on sign out').toBeTruthy();
 
   await expect(page).toHaveURL(/\/auth\/login/);
-  await expect(page.locator('input[formControlName="lmsusername"]')).toBeVisible();
+  await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
   // No tokens left behind...
   expect(await tokenKeys()).toEqual([]);
   // ...so a protected page is not reachable any more.
   await page.goto('/question/index');
   await expect(page).toHaveURL(/\/auth/);
-  await expect(page.locator('input[formControlName="lmsusername"]')).toBeVisible();
+  await expect(page.getByLabel('Email', { exact: true })).toBeVisible();
 });
 });
 
@@ -308,50 +313,15 @@ test.describe('shell, signed in as a role-limited user', () => {
     createdUserIds.push((await created.json()).data.lmsuserid);
   }
 
-  // The API allows 10 logins a minute per client (5 for some routes) and the
-  // whole smoke suite logs in often, so by the time these tests run the budget
-  // may be spent. On a 429, wait out the window and try once more.
-  const THROTTLE_WINDOW_MS = 61_000;
-  // When this block's logins began. They (and the superadmin API login) use up
-  // the budget the specs after this file need, so afterAll waits the window out.
-  let loginsBeganAt = 0;
-
-  async function apiLoginPatiently(): Promise<string> {
-    try {
-      return await apiLogin();
-    } catch (e) {
-      if (!String(e).includes('429')) throw e;
-      await new Promise((r) => setTimeout(r, THROTTLE_WINDOW_MS));
-      loginsBeganAt = Date.now();
-      return apiLogin();
-    }
-  }
-
-  async function signInPatiently(p: Page, account: { username: string; password: string }): Promise<void> {
-    let status = 0;
-    p.on('response', (r) => {
-      if (r.url().includes('/auth/login')) status = r.status();
-    });
-    try {
-      await loginViaUi(p, account.username, account.password);
-    } catch (e) {
-      if (status !== 429) throw e;
-      await p.waitForTimeout(THROTTLE_WINDOW_MS);
-      loginsBeganAt = Date.now();
-      await loginViaUi(p, account.username, account.password);
-    }
-  }
-
+  // Sign-in is rate-limited; the shared fixtures wait it out when (and only when)
+  // the API says 429, so nothing here sleeps on a schedule.
   test.beforeAll(async () => {
-    test.setTimeout(150_000);
-    loginsBeganAt = Date.now();
-    superadmin = await apiContext(await apiLoginPatiently());
+    superadmin = await apiContext(await apiLogin());
     await makeUser(TEACHER, ROLE.teacher);
     await makeUser(NOBODY, ROLE.user);
   });
 
   test.afterAll(async () => {
-    test.setTimeout(150_000);
     // DELETE /user/:id disables the account rather than removing it (same as
     // role-grants.spec.ts), so these rows stay in lmsusers, uniquely named:
     //   DELETE FROM lmsusers WHERE lmsusername LIKE 'e2e-shell-%';
@@ -360,9 +330,6 @@ test.describe('shell, signed in as a role-limited user', () => {
       if (!res.ok()) throw new Error(`failed to disable fixture user ${id}: HTTP ${res.status()}`);
     }
     await superadmin?.dispose();
-    // Leave the login budget as we found it for the next spec file.
-    const remaining = loginsBeganAt + THROTTLE_WINDOW_MS - Date.now();
-    if (remaining > 0) await new Promise((r) => setTimeout(r, remaining));
   });
 
   // Written out here, not read from shell-nav.config.ts, so a change to the
@@ -390,10 +357,9 @@ test.describe('shell, signed in as a role-limited user', () => {
   ];
 
   test('a Teacher sees exactly the items their permissions allow', async ({ browser }) => {
-    test.setTimeout(150_000);
     const p = await browser.newPage();
     try {
-      await signInPatiently(p, TEACHER);
+      await loginViaUi(p, TEACHER.username, TEACHER.password);
       const side = p.locator('nav[aria-label="Main"]');
       // The token the app holds is the source of truth for what this user may see.
       const token = await p.evaluate(() => {
@@ -432,10 +398,9 @@ test.describe('shell, signed in as a role-limited user', () => {
   test('with no permissions, every group disappears with its label and Home leads to the default page', async ({
     browser,
   }) => {
-    test.setTimeout(150_000);
     const p = await browser.newPage();
     try {
-      await signInPatiently(p, NOBODY);
+      await loginViaUi(p, NOBODY.username, NOBODY.password);
       await expect(p).toHaveURL(/\/dashboard\/default$/);
       const side = p.locator('nav[aria-label="Main"]');
       await expect(side).toBeVisible();
@@ -453,6 +418,37 @@ test.describe('shell, signed in as a role-limited user', () => {
       await expect(side.getByRole('button', { name: 'Curricula', exact: true })).toHaveCount(0);
       await expect(side.getByRole('button', { name: 'Administration', exact: true })).toHaveCount(0);
       await expect(side.getByRole('link')).toHaveCount(1);
+    } finally {
+      await p.close();
+    }
+  });
+
+  test('Sign out still works, quietly, when the server cannot be reached', async ({ browser }) => {
+    const p = await browser.newPage();
+    try {
+      await loginViaUi(p, NOBODY.username, NOBODY.password);
+      const tokenKeys = () => p.evaluate(() => Object.keys(sessionStorage).filter((k) => k.startsWith('lms_')));
+      expect(await tokenKeys(), 'signed in: the tokens are in session storage').not.toEqual([]);
+
+      // The API is unreachable for the logout request only.
+      await p.route('**/auth/logout', (route) => route.abort('connectionrefused'));
+      const failed = p.waitForEvent('requestfailed', {
+        predicate: (r) => r.url().includes('/auth/logout'),
+        timeout: 5_000,
+      });
+      await p.locator('nav[aria-label="Main"]').getByRole('button', { name: /e2e-shell-nobody/i }).click();
+      await p.getByRole('menuitem', { name: 'Sign out' }).click();
+      await failed;
+
+      // The session is cleared and the user is on the sign-in page...
+      await expect(p).toHaveURL(/\/auth\/login/);
+      await expect(p.getByLabel('Email', { exact: true })).toBeVisible();
+      expect(await tokenKeys(), 'no tokens left behind').toEqual([]);
+      // ...without an error toast: the failure of a request the user cannot act
+      // on is not news. (Give a toast the time it would need to appear.)
+      // (Look once: a retrying assertion would pass after the toast faded.)
+      await p.waitForTimeout(750);
+      expect(await p.locator('.ant-notification-notice').count(), 'no error toast').toBe(0);
     } finally {
       await p.close();
     }

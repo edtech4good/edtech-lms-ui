@@ -1,0 +1,111 @@
+// Sign-in layout. Spec: docs/design/admin/handoff-v2 "01 Login" and "01b Staff
+// sign-in" (1440x900: 24px page padding and gap, a tinted panel with radius 32,
+// a 560px column holding a 440px white card with radius 32, 36px padding and a
+// 20px rhythm). Tokens come from the :root custom properties in tokens.less.
+
+:host {
+  display: block;
+}
+
+.page {
+  box-sizing: border-box;
+  display: flex;
+  gap: 24px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 24px;
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+// No artwork has been supplied: a plain tint with the logo mark.
+.panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 32px;
+  background: var(--color-action-tint);
+}
+
+.mark {
+  max-width: 40%;
+  height: auto;
+}
+
+.main {
+  width: 560px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card {
+  box-sizing: border-box;
+  width: 440px;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 36px;
+  border-radius: 32px;
+  background: #fff;
+  box-shadow: var(--shadow-ring-edge);
+}
+
+.logo {
+  display: block;
+  align-self: flex-start;
+  height: 32px;
+  width: auto;
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 30px;
+  line-height: 40px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+
+.subheading {
+  margin: 0;
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--color-text-2);
+}
+
+// Under 900px there is no room for the panel: the card takes the width.
+@media (max-width: 899.98px) {
+  .panel {
+    display: none;
+  }
+
+  .main {
+    width: 100%;
+  }
+}
+
+// Phones: smaller gutters, so the card keeps its width at 360px.
+@media (max-width: 480px) {
+  .page {
+    padding: 16px;
+  }
+
+  .card {
+    padding: 24px;
+  }
+
+  h1 {
+    font-size: 28px;
+    line-height: 36px;
+  }
+}

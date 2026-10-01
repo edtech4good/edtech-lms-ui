@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { ChangeDetectorRef, Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
@@ -6,11 +7,11 @@ import { first } from 'rxjs/operators';
 import { ResetPasswordBody } from 'src/app/models/changepassword';
 import { AuthService } from 'src/app/services/auth.service';
 import { UtilService } from 'src/app/services/util.service';
+import { INVALID_LINK_MESSAGE } from '../auth-messages';
 
 @Component({
     selector: 'app-change-password',
     templateUrl: './change-password.component.html',
-    styleUrls: ['./change-password.component.less'],
     standalone: false
 })
 export class ChangePasswordComponent implements OnInit {
@@ -19,31 +20,76 @@ export class ChangePasswordComponent implements OnInit {
   changePassworForm!: UntypedFormGroup;
   changePasswordForm!: UntypedFormGroup;
 
-  async submitLoginForm() {
-    this.utilservice.checkFormDirty(this.changePassworForm);
-    if (this.changePassworForm.valid) {
-      const tempCred = {
-        lmsuserpassword: this.changePassworForm.getRawValue()['lmsuserpassword'],
-        lmsuserconfirmpassword: this.changePassworForm.getRawValue()['lmsuserconfirmpassword'],
-      }
-      if (tempCred.lmsuserconfirmpassword !== tempCred.lmsuserpassword) {
-        this.notification.create("error", 'Error', "Passwords don't match");
+  /** The two passwords were different when the form was last submitted. */
+  mismatch = false;
 
-      }
-      const temp = <ResetPasswordBody>{
-        lmsuserpassword: this.changePassworForm.getRawValue()['lmsuserpassword']
-      };
-      const token = this.route.snapshot.paramMap.get("token") ?? "";
-      await this.authService.changepassword(temp, token).toPromise();
-      this.notification.create("success", 'Sucess', "Password updated sucesfully");
-      this.router.navigate(['dashboard/index']);
+  /** A change is on its way: the button is disabled and a second submit does nothing. */
+  submitting = false;
+
+  @ViewChild('confirmInput') private confirmInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('submitButton') private submitButton?: ElementRef<HTMLButtonElement>;
+
+  /** A required field the user has touched or submitted past, and left empty. */
+  showInvalid(name: 'lmsuserpassword' | 'lmsuserconfirmpassword'): boolean {
+    const control = this.changePassworForm.get(name);
+    return !!control && control.invalid && (control.dirty || control.touched);
+  }
+
+  /** What is wrong with the Confirm field, if anything. */
+  get confirmError(): string | null {
+    if (this.showInvalid('lmsuserconfirmpassword')) return 'Enter the new password again.';
+    if (this.mismatch) return "The passwords don't match.";
+    return null;
+  }
+
+  async submitLoginForm() {
+    // A double-click or a second Enter arrives before the button is disabled.
+    if (this.submitting) return;
+    this.mismatch = false;
+    this.utilservice.checkFormDirty(this.changePassworForm);
+    if (!this.changePassworForm.valid) return;
+    const { lmsuserpassword, lmsuserconfirmpassword } = this.changePassworForm.getRawValue();
+    if (lmsuserconfirmpassword !== lmsuserpassword) {
+      // Say so beside the field, and send nothing.
+      this.mismatch = true;
+      this.confirmInput?.nativeElement.focus();
+      return;
     }
+    const temp = <ResetPasswordBody>{ lmsuserpassword };
+    const token = this.route.snapshot.paramMap.get("token") ?? "";
+    this.submitting = true;
+    try {
+      await this.authService.changepassword(temp, token).toPromise();
+    } catch (error) {
+      this.submitting = false;
+      // A 401 means the link is no good (the interceptor already toasts 400 and
+      // 500). Say so, and leave: there is nothing to retry on this page.
+      if (error instanceof HttpErrorResponse && error.status === 401) {
+        this.notification.create('error', 'Error', INVALID_LINK_MESSAGE);
+        this.router.navigate(['auth/login']);
+      } else {
+        // The form stays: a 400, a 500, no answer. Let the user press it again.
+        this.refocus();
+      }
+      return;
+    }
+    this.submitting = false;
+    // The user is signed out: the next step is to sign in with the new password.
+    this.notification.create('success', 'Success', 'Password updated. Sign in with your new password.');
+    this.router.navigate(['auth/login']);
+  }
+
+  /** The button was disabled while the request ran, which dropped focus to the page. */
+  private refocus(): void {
+    // The button is enabled again only once the view has updated.
+    this.cdr.detectChanges();
+    this.submitButton?.nativeElement.focus();
   }
 
   constructor(private fb: UntypedFormBuilder,
     private router: Router, private readonly notification: NzNotificationService,
     private utilservice: UtilService, private authService: AuthService,
-    private route: ActivatedRoute) { }
+    private route: ActivatedRoute, private readonly cdr: ChangeDetectorRef) { }
 
   async ngOnInit(): Promise<void> {
     const token = this.route.snapshot.paramMap.get("token") ?? "";
@@ -51,9 +97,22 @@ export class ChangePasswordComponent implements OnInit {
       this.router.navigate(['auth/login']);
       return;
     }
-    const result: any = await this.authService.validatechangepassword(token).pipe(first()).toPromise()
+    let result: any;
+    try {
+      result = await this.authService.validatechangepassword(token).pipe(first()).toPromise();
+    } catch (error) {
+      // This page has nothing to show without a good link, so a failed check always
+      // ends at sign-in. The interceptor's toast says what happened for a 500 or no
+      // connection; a 401 is the API saying the link is no good. Nothing is logged
+      // here: the error's URL contains the token.
+      if (error instanceof HttpErrorResponse && error.status === 401) {
+        this.notification.create('error', 'Error', INVALID_LINK_MESSAGE);
+      }
+      this.router.navigate(['auth/login']);
+      return;
+    }
     if (!result.data) {
-      this.notification.create("error", 'Error', "Invalid link!!");
+      this.notification.create('error', 'Error', INVALID_LINK_MESSAGE);
       this.router.navigate(['auth/login']);
       return;
     }

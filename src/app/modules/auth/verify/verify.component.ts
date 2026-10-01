@@ -1,8 +1,10 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { first } from 'rxjs/operators';
 import { AuthService } from 'src/app/services/auth.service';
+import { INVALID_LINK_MESSAGE } from '../auth-messages';
 
 @Component({
     selector: 'app-verify',
@@ -23,13 +25,25 @@ export class VerifyComponent implements OnInit {
       this.router.navigate(['auth/login']);
       return;
     }
-    const result: any = await this.authService.verify(token).pipe(first()).toPromise()
+    let result: any;
+    try {
+      result = await this.authService.verify(token).pipe(first()).toPromise();
+    } catch (error) {
+      // This page has nothing to show, so a failed check always ends at sign-in.
+      // A 401 is the API saying the link is no good (the interceptor already
+      // toasts 400 and 500, and a dropped connection).
+      if (error instanceof HttpErrorResponse && error.status === 401) {
+        this.notification.create('error', 'Error', INVALID_LINK_MESSAGE);
+      }
+      this.router.navigate(['auth/login']);
+      return;
+    }
     if (!result.data) {
-      this.notification.create("error", 'Error', "Invalid link!!");
+      this.notification.create('error', 'Error', INVALID_LINK_MESSAGE);
       this.router.navigate(['auth/login']);
       return;
     } else {
-      this.notification.create("success", 'Success', "Email verified, please login");
+      this.notification.create("success", 'Success', 'Email verified. Sign in to continue.');
       this.router.navigate(['auth/login']);
     }
   }

@@ -1,0 +1,23 @@
+<div class="page auth-scope">
+  <div class="panel" aria-hidden="true">
+    <!-- The logo mark (the first three shapes of assets/logo.svg), drawn large. -->
+    <svg class="mark" viewBox="0 0 28 24.5" width="168" height="147" focusable="false">
+      <path transform="translate(0 0.051)" fill="#0b5fff" d="M 14.929 0.444 C 13.347 -0.47 11.322 0.072 10.408 1.654 L 0.444 18.915 C -0.47 20.497 0.072 22.522 1.656 23.436 C 3.238 24.349 5.263 23.808 6.177 22.224 L 17.469 2.664 C 16.771 1.758 15.904 1.006 14.929 0.444 Z" />
+      <path transform="translate(10.182 8.867)" fill="#06afbc" d="M 9.849 0.444 C 8.266 -0.47 6.241 0.072 5.328 1.654 L 0.444 10.113 C -0.47 11.695 0.072 13.72 1.656 14.634 C 3.238 15.547 5.263 15.006 6.177 13.422 L 12.388 2.662 C 11.691 1.756 10.824 1.005 9.849 0.442 L 9.849 0.444 Z" />
+      <path transform="translate(20.37 17.331)" fill="#0b5fff" d="M 4.965 0.444 C 3.382 -0.47 1.357 0.072 0.444 1.656 C -0.47 3.238 0.072 5.263 1.656 6.177 C 3.238 7.09 5.263 6.549 6.177 4.965 C 7.09 3.382 6.549 1.357 4.965 0.444 Z" />
+    </svg>
+  </div>
+
+  <main class="main">
+    <div class="card">
+      <img class="logo" src="assets/logo.svg" alt="EdTech for Good" width="142" height="32" />
+      <div class="heading">
+        <h1>{{ heading }}</h1>
+        @if (subheading) {
+          <p class="subheading">{{ subheading }}</p>
+        }
+      </div>
+      <ng-content />
+    </div>
+  </main>
+</div>

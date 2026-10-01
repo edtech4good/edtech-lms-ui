@@ -1,93 +1,106 @@
-<nz-table [nzLoading]="isloading">
-<nz-layout>
-  <nz-content>
-    <div style="width: calc(100vw); height: calc(100vh)">
-      <div nz-row>
-        <div nz-col nzSpan="8"></div>
-        <div nz-col nzSpan="8" style="margin-top: 200px">
-          <nz-card nzTitle="FortyK">
-            <form
-              nz-form
-              [formGroup]="loginForm"
-              class="login-form"
-              (keydown.enter)="submitLoginForm()"
-            >
-              <nz-form-item>
-                <nz-form-control nzErrorTip="Please input your email!">
-                  <nz-input-group nzPrefixIcon="user">
-                    <input
-                      type="text"
-                      nz-input
-                      formControlName="lmsusername"
-                      placeholder="Email"
-                    />
-                  </nz-input-group>
-                </nz-form-control>
-              </nz-form-item>
-              <nz-form-item>
-                <nz-form-control nzErrorTip="Please input your Password!">
-                  <nz-input-group nzPrefixIcon="lock">
-                    <input
-                      type="password"
-                      nz-input
-                      formControlName="lmsuserpassword"
-                      placeholder="Password"
-                    />
-                  </nz-input-group>
-                </nz-form-control>
-              </nz-form-item>
-
-              <button
-                nz-button
-                type="button"
-                (click)="submitLoginForm()"
-                class="login-form-button login-form-margin"
-                [nzType]="'primary'"
-              >
-                Log in
-              </button>
-              <div nz-row class="login-form-margin">
-                <div nz-col [nzSpan]="24">
-                  <a class="login-form-forgot" (click)="showChangePassword()"
-                    >Forgot password</a
-                  >
-                </div>
-              </div>
-            </form>
-          </nz-card>
-        </div>
-        <div nz-col nzSpan="8"></div>
-      </div>
+<app-auth-layout heading="Sign in" subheading="Use your staff email and password.">
+  <form class="auth-form" [formGroup]="loginForm" (ngSubmit)="submitLoginForm()" [attr.aria-busy]="isloading">
+    <div class="field">
+      <label class="field-label" for="signin-email">Email</label>
+      <input
+        #emailInput
+        id="signin-email"
+        class="field-input"
+        [class.invalid]="showInvalid('lmsusername')"
+        type="email"
+        formControlName="lmsusername"
+        autocomplete="username"
+        autocapitalize="none"
+        spellcheck="false"
+        [attr.aria-invalid]="showInvalid('lmsusername') ? 'true' : null"
+        [attr.aria-describedby]="showInvalid('lmsusername') ? 'signin-email-error' : null"
+        (input)="loginError = null"
+      />
+      @if (showInvalid('lmsusername')) {
+        <p class="field-error" id="signin-email-error" role="alert">Enter your email.</p>
+      }
     </div>
-  </nz-content>
-</nz-layout>
-</nz-table>
+
+    <div class="field">
+      <label class="field-label" for="signin-password">Password</label>
+      <div class="field-control">
+        <input
+          #passwordInput
+          id="signin-password"
+          class="field-input with-toggle"
+          [class.invalid]="showInvalid('lmsuserpassword')"
+          [type]="showPassword ? 'text' : 'password'"
+          formControlName="lmsuserpassword"
+          autocomplete="current-password"
+          [attr.aria-invalid]="showInvalid('lmsuserpassword') ? 'true' : null"
+          [attr.aria-describedby]="showInvalid('lmsuserpassword') ? 'signin-password-error' : null"
+          (input)="loginError = null"
+        />
+        <button
+          type="button"
+          class="field-toggle"
+          aria-controls="signin-password"
+          (click)="showPassword = !showPassword"
+        >
+          {{ showPassword ? 'Hide' : 'Show' }}<span class="sr-only"> password</span>
+        </button>
+      </div>
+      @if (showInvalid('lmsuserpassword')) {
+        <p class="field-error" id="signin-password-error" role="alert">Enter your password.</p>
+      }
+      <button type="button" class="link-button" (click)="showChangePassword()">Forgot password?</button>
+    </div>
+
+    @if (loginError) {
+      <p class="form-error" role="alert">
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 8v4M12 16h.01" />
+        </svg>
+        <span>{{ loginError }}</span>
+      </p>
+    }
+
+    <button #submitButton type="submit" class="submit" [disabled]="isloading">{{ isloading ? 'Signing in…' : 'Sign in' }}</button>
+    <p class="note">Learners and teachers use the learning app, not this console.</p>
+  </form>
+</app-auth-layout>
 
 <nz-modal
-  [nzBodyStyle]="{ height: '80px' }"
   [(nzVisible)]="changePasswordisVisible"
-  nzTitle="Change Password"
-  nzOkText="Submit"
+  nzTitle="Reset your password"
+  nzOkText="Send reset link"
   nzCancelText="Cancel"
   (nzOnOk)="submitchangePasswordForm()"
   (nzOnCancel)="hideChangePassword()"
 >
   <ng-container *nzModalContent>
-    <nz-input-group>
-      <form nz-form [formGroup]="changePasswordForm">
-        <nz-form-item>
-          <nz-form-control nzErrorTip="Please input your email!">
-            <nz-input-group nzPrefixIcon="user">
-              <input
-                type="text"
-                nz-input
-                formControlName="lmsusername"
-                placeholder="Email"
-              />
-            </nz-input-group>
-          </nz-form-control>
-        </nz-form-item>
+    <div class="auth-scope">
+      <p class="dialog-hint">We will email you a link to set a new password.</p>
+      <form class="auth-form" [formGroup]="changePasswordForm" (ngSubmit)="submitchangePasswordForm()">
+        <div class="field">
+          <label class="field-label" for="forgot-email">Email</label>
+          <input
+            id="forgot-email"
+            class="field-input"
+            type="email"
+            formControlName="lmsusername"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+          />
+        </div>
       </form>
-    </nz-input-group>
+    </div>
   </ng-container>
 </nz-modal>

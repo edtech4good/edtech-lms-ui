@@ -1,7 +1,7 @@
 import { HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { environment } from 'src/environments/environment';
-import voca from 'voca';
+import { isPublicAuthPath } from './public-auth-paths';
 
 @Injectable({
   providedIn: 'root',
@@ -22,14 +22,12 @@ export class CoreService {
     headers: new HttpHeaders({ 'Content-Type': 'application/csv' }),
   };
 
-  ignoreToken = () => {
-    let tokenignorelist = [
-      '/auth/login',
-      '/auth/changepassword',
-      '/auth/verify',
-    ];
-    return !tokenignorelist.find((x) => voca.indexOf(window.location.pathname, x));
-  };
+  /**
+   * True when the page being shown is one a signed-out user is meant to see (see
+   * public-auth-paths.ts). Used by AuthService.routetoLogin so those pages are not
+   * bounced to the sign-in form.
+   */
+  ignoreToken = () => isPublicAuthPath(window.location.pathname);
 
   constructor() {}
 }
