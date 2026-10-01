@@ -73,8 +73,6 @@ export interface ShellNavExpander {
   children: ShellNavLink[];
   /** Any child's permission shows the expander. */
   permissions: string[];
-  /** True while the children are a stand-in for a screen that has not been built. */
-  temporary?: boolean;
 }
 
 export type ShellNavEntry = ShellNavItem | ShellNavExpander;
@@ -121,13 +119,11 @@ const expander = (
   label: string,
   icon: ShellIconName,
   children: ShellNavLink[],
-  temporary = false,
 ): ShellNavExpander => ({
   key,
   label,
   icon,
   children,
-  temporary,
   permissions: sidebarPerm(...children.flatMap((c) => c.permissions.filter((p) => p !== 'superadmin'))),
 });
 
@@ -247,7 +243,7 @@ export const SHELL_HOME: ShellNavItem = {
   label: 'Home',
   icon: 'home',
   route: HOME_ROUTE,
-  // Home is matched by exact route (see ShellNavService), never by prefix.
+  // Home is matched by its two exact routes (see resolveActive), never by prefix.
   match: [],
   permissions: HOME_PERMISSIONS,
 };
@@ -258,19 +254,13 @@ export const SHELL_GROUPS: ShellNavGroup[] = [
   group('content', 'Content', 'content', [
     // TEMPORARY: the Curricula workspace will replace these five screens with one
     // entry. Until then Curricula expands in place, like Administration.
-    expander(
-      'curricula',
-      'Curricula',
-      'curricula',
-      [
-        link('curriculum', 'Curriculum list', '/curriculum/index', ['view_curriculum']),
-        link('grade', 'Grades', '/grade/index', ['view_grade']),
-        link('level', 'Levels', '/level/index', ['view_level']),
-        link('lesson', 'Lessons', '/lesson/index', ['view_lesson']),
-        link('map', 'Map', '/map/index', ['view_map']),
-      ],
-      true,
-    ),
+    expander('curricula', 'Curricula', 'curricula', [
+      link('curriculum', 'Curriculum list', '/curriculum/index', ['view_curriculum']),
+      link('grade', 'Grades', '/grade/index', ['view_grade']),
+      link('level', 'Levels', '/level/index', ['view_level']),
+      link('lesson', 'Lessons', '/lesson/index', ['view_lesson']),
+      link('map', 'Map', '/map/index', ['view_map']),
+    ]),
     item('questions', link('question', 'Questions', '/question/index', ['view_question'])),
     item('media', link('document', 'Media', '/document/index', ['view_document'])),
     item(
@@ -282,7 +272,7 @@ export const SHELL_GROUPS: ShellNavGroup[] = [
   ]),
   group('people', 'People', 'people', [
     item('schools', link('school', 'Schools', '/school/index', ['view_school'])),
-    item('schools', link('standard', 'Classes', '/standard/index', ['view_standard'])),
+    item('classes', link('standard', 'Classes', '/standard/index', ['view_standard'])),
     item('learners', link('student', 'Learners', '/student/index', ['view_student'])),
     item('teachers', link('teacher', 'Teachers', '/teacher/index', ['view_teacher'])),
   ]),
@@ -343,13 +333,13 @@ function prefixMatches(path: string, prefix: string): boolean {
 
 /**
  * The one item that is active for `url`.
- * Home wins only when the URL is exactly where Home leads for this user
- * (`homeRoute`); every other dashboard URL belongs to Reports. Elsewhere the
- * longest matching prefix wins, so child pages highlight their parent.
+ * Both home screens (/dashboard/index and /dashboard/default) are Home; every
+ * other dashboard URL belongs to Reports. Elsewhere the longest matching prefix
+ * wins, so child pages highlight their parent.
  */
-export function resolveActive(url: string, homeRoute: string): ShellActive | null {
+export function resolveActive(url: string): ShellActive | null {
   const path = pathOf(url);
-  if (path === homeRoute) {
+  if (path === HOME_ROUTE || path === HOME_FALLBACK_ROUTE) {
     return { link: SHELL_HOME };
   }
   let best: { active: ShellActive; len: number } | null = null;

@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { REPORT_HUB } from '../../shell/shell-nav.config';
+import { ShellNavService } from '../../shell/shell-nav.service';
 
 /**
  * The Reports hub (/report): every dashboard and report in one place, as link
@@ -15,4 +16,7 @@ import { REPORT_HUB } from '../../shell/shell-nav.config';
 })
 export class ReportIndexComponent {
   readonly sections = REPORT_HUB;
+
+  /** Reach is Home's screen for users who hold it, so the hub does not repeat it. */
+  constructor(readonly nav: ShellNavService) {}
 }

@@ -1,18 +1,17 @@
 <nav class="panel" [class.collapsed]="collapsed()" aria-label="Main">
   <div class="top">
     <img class="logo" src="assets/logo.svg" alt="EdTech for Good" width="107" height="24" />
-    @if (!collapsed()) {
-      <button
-        type="button"
-        class="icon-btn"
-        aria-label="Main menu"
-        title="Collapse menu"
-        aria-expanded="true"
-        (click)="toggleCollapsed()"
-      >
-        <app-shell-icon name="collapse" [size]="18" />
-      </button>
-    }
+    <!-- One button for both states, so keyboard focus stays on it when the panel changes. -->
+    <button
+      type="button"
+      class="icon-btn toggle"
+      aria-label="Main menu"
+      [attr.title]="collapsed() ? 'Expand menu' : 'Collapse menu'"
+      [attr.aria-expanded]="!collapsed()"
+      (click)="toggleCollapsed()"
+    >
+      <app-shell-icon [name]="collapsed() ? 'expand' : 'collapse'" [size]="18" />
+    </button>
   </div>
 
   <div class="list" #list>
@@ -46,10 +45,10 @@
                   type="button"
                   class="item expander"
                   [class.has-active]="hasActiveChild(entry)"
-                  [class.active]="collapsed() && hasActiveChild(entry)"
+                  [class.active]="subListHidden(entry) && hasActiveChild(entry)"
                   [attr.aria-expanded]="!collapsed() && isOpen(entry)"
                   [attr.aria-controls]="'sub-' + entry.key"
-                  [attr.aria-current]="collapsed() && hasActiveChild(entry) ? 'page' : null"
+                  [attr.aria-current]="subListHidden(entry) && hasActiveChild(entry) ? 'page' : null"
                   [attr.title]="collapsed() ? entry.label : null"
                   (click)="onExpander(entry)"
                 >
@@ -95,19 +94,6 @@
     }
   </div>
 
-  @if (collapsed()) {
-    <button
-      type="button"
-      class="icon-btn rail-toggle"
-      aria-label="Main menu"
-      title="Expand menu"
-      aria-expanded="false"
-      (click)="toggleCollapsed()"
-    >
-      <app-shell-icon name="expand" [size]="18" />
-    </button>
-  }
-
   <div class="account" (keydown)="onAccountKeydown($event)" (focusout)="onAccountFocusOut($event)">
     @if (accountOpen()) {
       <div class="menu" role="menu" aria-label="Account" #accountMenu>
@@ -130,7 +116,9 @@
       <span class="avatar" aria-hidden="true">{{ initials }}</span>
       <span class="who">
         <span class="name">{{ displayName }}</span>
-        <span class="role">{{ roleLabel }}</span>
+        @if (email) {
+          <span class="email" [attr.title]="email">{{ email }}</span>
+        }
       </span>
       <span class="chev"><app-shell-icon name="chevronsUpDown" [size]="18" /></span>
     </button>

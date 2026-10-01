@@ -3,6 +3,7 @@ import { NavigationEnd, Router } from '@angular/router';
 import { NgxPermissionsService } from 'ngx-permissions';
 import {
   HOME_FALLBACK_ROUTE,
+  HOME_PERMISSIONS,
   HOME_ROUTE,
   ShellActive,
   pathOf,
@@ -34,19 +35,19 @@ export class ShellNavService {
     });
   }
 
-  /** The item that would be active for `url` (does not touch state). */
+  /** The item that is active for `url` (does not touch state). */
   resolve(url: string): ShellActive | null {
-    return resolveActive(url, this.computeHomeRoute());
+    return resolveActive(url);
   }
 
   private update(url: string): void {
     this.homeRoute = this.computeHomeRoute();
-    this.active.set(resolveActive(pathOf(url), this.homeRoute));
+    this.active.set(resolveActive(pathOf(url)));
   }
 
   private computeHomeRoute(): string {
     // Same rule the login page uses to choose where to land.
     const perms = this.permissions.getPermissions();
-    return perms['view_plus_reach'] || perms['superadmin'] ? HOME_ROUTE : HOME_FALLBACK_ROUTE;
+    return HOME_PERMISSIONS.some((p) => perms[p]) ? HOME_ROUTE : HOME_FALLBACK_ROUTE;
   }
 }

@@ -1,4 +1,5 @@
 import { Component, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRouteSnapshot, NavigationEnd, Router } from '@angular/router';
 import { ShellNavService } from './shell-nav.service';
 
@@ -30,7 +31,7 @@ export class ShellBreadcrumbComponent {
     private readonly nav: ShellNavService,
   ) {
     this.update(this.router.url);
-    this.router.events.subscribe((event) => {
+    this.router.events.pipe(takeUntilDestroyed()).subscribe((event) => {
       if (event instanceof NavigationEnd) {
         this.update(event.urlAfterRedirects);
       }

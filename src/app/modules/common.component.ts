@@ -1,5 +1,4 @@
 import { Component, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { NgxPermissionsService } from 'ngx-permissions';
 import { NgxSpinnerService } from 'ngx-spinner';
@@ -18,7 +17,6 @@ export class CommonComponent implements OnInit {
   user: lmsuser | null = null;
 
   constructor(
-    private readonly router: Router,
     private spinner: NgxSpinnerService,
     private store: Store<appState>,
     private authService: AuthService,
@@ -39,8 +37,14 @@ export class CommonComponent implements OnInit {
       }
     });
   }
+  /**
+   * Sign out. AuthService.logout() does all of it: it starts the server-side
+   * logout (the bearer token is read synchronously when the request is
+   * subscribed, so clearing storage on the next line cannot race it), clears the
+   * user store and the stored tokens, and then goes to /auth/login.
+   */
   logout(): void {
-    this.router.navigateByUrl('/auth/login');
+    this.authService.logout();
   }
 
   /**

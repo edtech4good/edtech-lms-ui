@@ -1,18 +1,21 @@
 // The shell layout (design README "Shell > Layout"): a floating nav panel and a
-// main column that scrolls on its own, on the paper canvas.
+// main column, on the paper canvas. The WINDOW scrolls. An inner scroller would
+// not be a CDK scrollable, so dropdowns, date pickers and popconfirms would stay
+// put while their trigger scrolled away. The nav panel is sticky instead.
 .shell {
   box-sizing: border-box;
   display: flex;
   gap: 20px;
   padding: 16px;
-  height: 100vh;
+  min-height: 100vh;
   background: var(--color-paper);
 }
 
 .main-column {
   flex: 1;
   min-width: 0;
-  overflow: auto;
+  // Wide tables scroll sideways inside the column, not the whole page.
+  overflow-x: auto;
 }
 
 main {

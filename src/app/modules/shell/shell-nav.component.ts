@@ -12,12 +12,10 @@ import {
   untracked,
 } from '@angular/core';
 import { lmsuser } from '../../models/lmsuser.model';
-import { Role } from '../../models/enums/role.enum';
 import {
   SHELL_GROUPS,
   SHELL_HOME,
   ShellNavExpander,
-  ShellNavGroup,
   ShellNavLink,
   isExpander,
 } from './shell-nav.config';
@@ -26,12 +24,6 @@ import { ShellNavService } from './shell-nav.service';
 const COLLAPSED_KEY = 'edtech-admin-nav-collapsed';
 /** At or below this width the panel starts as the icon rail (design: README "Nav"). */
 const RAIL_BREAKPOINT = 1024;
-
-const ROLE_LABELS: Record<string, string> = {
-  [Role.superadmin]: 'Superadmin',
-  [Role.admin]: 'Admin',
-  [Role.user]: 'User',
-};
 
 @Component({
   selector: 'app-shell-nav',
@@ -93,8 +85,14 @@ export class ShellNavComponent {
     return letters.toUpperCase();
   }
 
-  get roleLabel(): string {
-    return ROLE_LABELS[this.user?.lmsuserrole ?? ''] ?? 'Staff';
+  /**
+   * The sign-in email, shown under the name. (Not the role: `lmsuserrole` is a
+   * legacy field that the API stamps as superadmin on every account.) Hidden when
+   * the name is already the email.
+   */
+  get email(): string {
+    const e = this.user?.lmsusername ?? '';
+    return e && e !== this.displayName ? e : '';
   }
 
   toggleAccount(): void {
@@ -175,6 +173,11 @@ export class ShellNavComponent {
     return this.nav.active()?.parent?.key === e.key;
   }
 
+  /** True when this expander's children are not on screen (closed, or the rail). */
+  subListHidden(e: ShellNavExpander): boolean {
+    return this.collapsed() || !this.isOpen(e);
+  }
+
   isOpen(e: ShellNavExpander): boolean {
     return this.opened().has(e.key);
   }
@@ -195,8 +198,6 @@ export class ShellNavComponent {
     else next.delete(key);
     this.opened.set(next);
   }
-
-  trackGroup = (_: number, g: ShellNavGroup) => g.key;
 
   private keepActiveVisible(): void {
     const list = this.listRef?.nativeElement;

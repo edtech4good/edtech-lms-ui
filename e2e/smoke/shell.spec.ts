@@ -1,14 +1,17 @@
-import { Locator, Page, expect, test } from '@playwright/test';
-import { loginViaUi } from '../fixtures/auth';
+import { APIRequestContext, Locator, Page, expect, test } from '@playwright/test';
+import { ROLE, SUPERADMIN } from '../fixtures/accounts';
+import { apiContext, apiLogin, jwtClaims, loginViaUi } from '../fixtures/auth';
 
 /**
  * The navigation shell: floating nav panel, breadcrumb row, account menu.
  *
- * One login for the whole file (the JWT lives in sessionStorage). Serial,
- * because the collapse test changes state that a reload must keep, and the
- * sign-out test has to run last: it leaves the page on the login screen.
+ * Two describe blocks, run in order. The first uses one superadmin login (the
+ * JWT lives in sessionStorage) and is serial, because the collapse test changes
+ * state that a reload must keep and the sign-out test has to run last: it
+ * leaves the page on the login screen. The second signs in as role-limited
+ * users. It creates them through the API, which logs the superadmin in again
+ * and so evicts the first block's session: that is why it must come second.
  */
-test.describe.configure({ mode: 'serial' });
 
 let page: Page;
 let nav: Locator;
@@ -16,6 +19,9 @@ let nav: Locator;
 const COLLAPSED_KEY = 'edtech-admin-nav-collapsed';
 const PANEL_WIDTH = 248;
 const RAIL_WIDTH = 76;
+
+test.describe('shell, signed in as superadmin', () => {
+test.describe.configure({ mode: 'serial' });
 
 test.beforeAll(async ({ browser }) => {
   page = await browser.newPage();
@@ -60,6 +66,30 @@ test('the permitted groups render', async () => {
   await expect(nav.getByRole('button', { name: 'Administration', exact: true })).toBeVisible();
   // ...and the old header bar and dark sider are gone.
   await expect(page.locator('nz-sider, nz-header')).toHaveCount(0);
+
+  // Schools and Classes are different things and have different icons.
+  const iconOf = (name: string) => nav.getByRole('link', { name, exact: true }).locator('path').first().getAttribute('d');
+  expect(await iconOf('Classes')).not.toBe(await iconOf('Schools'));
+});
+
+test('the account chip shows the name and the sign-in email, not a role', async () => {
+  await page.goto('/dashboard/index');
+  const chip = nav.getByRole('button', { name: /superadmin/i });
+  await expect(chip).toContainText(SUPERADMIN.username);
+  // lmsuserrole is stamped as superadmin on every account, so it must not be shown.
+  await expect(chip).not.toContainText(/\bSuperadmin\b/);
+  await expect(chip.locator('.email')).toHaveAttribute('title', SUPERADMIN.username);
+});
+
+test('the window scrolls and the nav panel stays in view', async () => {
+  await page.goto('/question/index');
+  await expect(page.locator('main tbody tr').first()).toBeVisible();
+  const before = await nav.boundingBox();
+  await page.evaluate(() => window.scrollTo(0, 400));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(100);
+  const after = await nav.boundingBox();
+  expect(Math.round(after!.y)).toBe(Math.round(before!.y));
+  await page.evaluate(() => window.scrollTo(0, 0));
 });
 
 test('every link navigates and becomes the one current page', async () => {
@@ -132,6 +162,14 @@ test('a child page keeps its parent active and shows the breadcrumb', async () =
   // Content > Lessons > Quiz; the middle crumb links back to the list.
   await expect(crumbs).toHaveText(['Content', 'Lessons', 'Quiz']);
   await expect(page.locator('nav[aria-label="Breadcrumb"] a')).toHaveAttribute('href', '/lesson/index');
+
+  // Close the sub-list: its current child is out of sight, so the expander
+  // itself becomes the one current item.
+  const curricula = nav.getByRole('button', { name: 'Curricula', exact: true });
+  await curricula.click();
+  await expect(curricula).toHaveAttribute('aria-expanded', 'false');
+  await expect(curricula).toHaveAttribute('aria-current', 'page');
+  await expect(nav.locator('[aria-current="page"]')).toHaveCount(1);
 });
 
 test('the collapsed rail persists across a reload', async () => {
@@ -140,10 +178,14 @@ test('the collapsed rail persists across a reload', async () => {
   await page.reload();
   await expect.poll(panelWidth).toBe(PANEL_WIDTH);
 
-  // Collapse to the rail.
-  await page.getByRole('button', { name: 'Main menu' }).click();
+  // Collapse to the rail. It is the same button in both states, so keyboard
+  // focus stays on it (it used to drop to <body> when two buttons swapped).
+  const toggle = page.getByRole('button', { name: 'Main menu' });
+  await toggle.focus();
+  await page.keyboard.press('Enter');
   await expect.poll(panelWidth).toBe(RAIL_WIDTH);
-  await expect(page.getByRole('button', { name: 'Main menu' })).toHaveAttribute('aria-expanded', 'false');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(toggle).toBeFocused();
 
   // On the rail the names are still the accessible names, with a tooltip.
   await expect(nav.getByRole('link', { name: 'Questions', exact: true })).toHaveAttribute('title', 'Questions');
@@ -155,6 +197,7 @@ test('the collapsed rail persists across a reload', async () => {
   // Expand again, and a reload keeps that too.
   await page.getByRole('button', { name: 'Main menu' }).click();
   await expect.poll(panelWidth).toBe(PANEL_WIDTH);
+  await expect(page.getByRole('button', { name: 'Main menu' })).toBeFocused();
   await page.reload();
   await expect.poll(panelWidth).toBe(PANEL_WIDTH);
 });
@@ -189,8 +232,11 @@ test('the Reports hub lists its sections', async () => {
   const section = (title: string) => page.locator('nz-card', { hasText: title });
 
   for (const title of ['Programme', 'Learners, offline schools', 'Learners, online schools', 'Sync record']) {
-    await expect(page.locator('nz-card .ant-card-head-title', { hasText: title })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: title, exact: true })).toBeVisible();
   }
+
+  // Home already leads to Reach for this user, so the hub does not repeat it.
+  await expect(section('Programme').getByRole('link', { name: 'Reach', exact: true })).toHaveCount(0);
 
   await expect(section('Programme').getByRole('link', { name: 'Reach by school' })).toHaveAttribute(
     'href',
@@ -211,13 +257,162 @@ test('the Reports hub lists its sections', async () => {
   );
 });
 
-test('Sign out returns to the login page', async () => {
+test('Sign out ends the session and returns to the login page', async () => {
   await page.goto('/dashboard/index');
+  const tokenKeys = () => page.evaluate(() => Object.keys(sessionStorage).filter((k) => k.startsWith('lms_')));
+  expect(await tokenKeys(), 'signed in: the tokens are in session storage').not.toEqual([]);
+
   const chip = nav.getByRole('button', { name: /superadmin/i });
   await chip.click();
   // The menu holds Sign out and nothing else (the dead Profile item is gone).
   await expect(page.getByRole('menuitem')).toHaveText(['Sign out']);
+
+  // Signing out also tells the server (it revokes the token).
+  const serverLogout = page.waitForResponse((r) => r.url().includes('/auth/logout'));
   await page.getByRole('menuitem', { name: 'Sign out' }).click();
+  expect((await serverLogout).ok()).toBeTruthy();
+
   await expect(page).toHaveURL(/\/auth\/login/);
   await expect(page.locator('input[formControlName="lmsusername"]')).toBeVisible();
+  // No tokens left behind...
+  expect(await tokenKeys()).toEqual([]);
+  // ...so a protected page is not reachable any more.
+  await page.goto('/question/index');
+  await expect(page).toHaveURL(/\/auth/);
+  await expect(page.locator('input[formControlName="lmsusername"]')).toBeVisible();
+});
+});
+
+test.describe('shell, signed in as a role-limited user', () => {
+  test.describe.configure({ mode: 'serial' });
+
+  const stamp = Date.now();
+  const TEACHER = { username: `e2e-shell-teacher-${stamp}@example.com`, password: 'ShellTeacher_Pass1' };
+  // The User role holds no permissions at all.
+  const NOBODY = { username: `e2e-shell-nobody-${stamp}@example.com`, password: 'ShellNobody_Pass1' };
+
+  let superadmin: APIRequestContext;
+  const createdUserIds: string[] = [];
+
+  async function makeUser(account: { username: string; password: string }, role: string): Promise<void> {
+    const created = await superadmin.post('/user/create', {
+      data: {
+        lmsusername: account.username,
+        lmsuserpasswordhash: account.password,
+        lmsuserroles: [role],
+        countryids: [],
+        schoolids: [],
+      },
+    });
+    expect(created.ok(), `could not create ${account.username}: ${created.status()}`).toBeTruthy();
+    createdUserIds.push((await created.json()).data.lmsuserid);
+  }
+
+  test.beforeAll(async () => {
+    superadmin = await apiContext(await apiLogin());
+    await makeUser(TEACHER, ROLE.teacher);
+    await makeUser(NOBODY, ROLE.user);
+  });
+
+  test.afterAll(async () => {
+    // DELETE /user/:id disables the account rather than removing it (same as
+    // role-grants.spec.ts), so these rows stay in lmsusers, uniquely named:
+    //   DELETE FROM lmsusers WHERE lmsusername LIKE 'e2e-shell-%';
+    for (const id of createdUserIds) {
+      const res = await superadmin.delete(`/user/${id}`);
+      if (!res.ok()) throw new Error(`failed to disable fixture user ${id}: HTTP ${res.status()}`);
+    }
+    await superadmin?.dispose();
+  });
+
+  // Written out here, not read from shell-nav.config.ts, so a change to the
+  // menu's permissions cannot quietly rewrite what this test expects.
+  const LINKS: Array<{ label: string; keys: string[]; parent?: string }> = [
+    { label: 'Curriculum list', keys: ['view_curriculum'], parent: 'Curricula' },
+    { label: 'Grades', keys: ['view_grade'], parent: 'Curricula' },
+    { label: 'Levels', keys: ['view_level'], parent: 'Curricula' },
+    { label: 'Lessons', keys: ['view_lesson'], parent: 'Curricula' },
+    { label: 'Map', keys: ['view_map'], parent: 'Curricula' },
+    { label: 'Questions', keys: ['view_question'] },
+    { label: 'Media', keys: ['view_document'] },
+    { label: 'Assessments', keys: ['view_baseline-endline'] },
+    { label: 'Schools', keys: ['view_school'] },
+    { label: 'Classes', keys: ['view_standard'] },
+    { label: 'Learners', keys: ['view_student'] },
+    { label: 'Teachers', keys: ['view_teacher'] },
+    { label: 'Staff accounts', keys: ['view_user'], parent: 'Administration' },
+    { label: 'Roles', keys: ['view_role'], parent: 'Administration' },
+    { label: 'Subjects', keys: ['view_subject'], parent: 'Administration' },
+    { label: 'Countries', keys: ['view_country'], parent: 'Administration' },
+    { label: 'Question tags', keys: ['view_questiontag'], parent: 'Administration' },
+    { label: 'Media tags', keys: ['view_documenttag'], parent: 'Administration' },
+    { label: 'Feedback', keys: ['view_feedback'], parent: 'Administration' },
+  ];
+
+  test('a Teacher sees exactly the items their permissions allow', async ({ browser }) => {
+    const p = await browser.newPage();
+    try {
+      await loginViaUi(p, TEACHER.username, TEACHER.password);
+      const side = p.locator('nav[aria-label="Main"]');
+      // The token the app holds is the source of truth for what this user may see.
+      const token = await p.evaluate(() => {
+        const g = (k: string) => sessionStorage.getItem(k);
+        return `${g('lms_access_alg')}.${g('lms_access_payload')}.${g('lms_access_hash')}`;
+      });
+      const held = new Set(jwtClaims(token).permissions as string[]);
+
+      // Open both expanders (when present) so every child is in the DOM.
+      for (const parent of ['Curricula', 'Administration']) {
+        const button = side.getByRole('button', { name: parent, exact: true });
+        if ((await button.count()) && (await button.getAttribute('aria-expanded')) !== 'true') await button.click();
+      }
+
+      let shown = 0;
+      let hidden = 0;
+      for (const { label, keys } of LINKS) {
+        const expected = keys.some((k) => held.has(k));
+        const link = side.getByRole('link', { name: label, exact: true });
+        if (expected) {
+          await expect(link, `${label} is permitted`).toBeVisible();
+          shown++;
+        } else {
+          await expect(link, `${label} is not permitted`).toHaveCount(0);
+          hidden++;
+        }
+      }
+      // Guard the guard: this account must exercise both branches.
+      expect(shown, 'the Teacher should be allowed some items').toBeGreaterThan(0);
+      expect(hidden, 'the Teacher should be denied some items').toBeGreaterThan(0);
+    } finally {
+      await p.close();
+    }
+  });
+
+  test('with no permissions, every group disappears with its label and Home leads to the default page', async ({
+    browser,
+  }) => {
+    const p = await browser.newPage();
+    try {
+      await loginViaUi(p, NOBODY.username, NOBODY.password);
+      await expect(p).toHaveURL(/\/dashboard\/default$/);
+      const side = p.locator('nav[aria-label="Main"]');
+      await expect(side).toBeVisible();
+
+      // Home is always there, and without the Reach permission it goes to the default page.
+      const home = side.getByRole('link', { name: 'Home', exact: true });
+      await expect(home).toHaveAttribute('href', '/dashboard/default');
+      await expect(home).toHaveAttribute('aria-current', 'page');
+
+      // Nothing else: no group, no group label, no expander, no other link.
+      await expect(side.getByRole('group')).toHaveCount(0);
+      for (const label of ['Content', 'People', 'Reports and settings']) {
+        await expect(side.getByText(label, { exact: true })).toHaveCount(0);
+      }
+      await expect(side.getByRole('button', { name: 'Curricula', exact: true })).toHaveCount(0);
+      await expect(side.getByRole('button', { name: 'Administration', exact: true })).toHaveCount(0);
+      await expect(side.getByRole('link')).toHaveCount(1);
+    } finally {
+      await p.close();
+    }
+  });
 });

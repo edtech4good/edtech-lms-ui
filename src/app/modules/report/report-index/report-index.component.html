@@ -1,28 +1,31 @@
 <h1 class="page-title">Reports</h1>
 @for (section of sections; track section.key) {
-  <nz-card *ngxPermissionsOnly="section.permissions" class="section" [nzTitle]="section.title">
+  <nz-card *ngxPermissionsOnly="section.permissions" class="section" [nzTitle]="heading">
+    <ng-template #heading><h2 class="card-title">{{ section.title }}</h2></ng-template>
     <p class="help">{{ section.help }}</p>
     <ul class="links">
       @for (link of section.links; track link.route) {
-        <li *ngxPermissionsOnly="link.permissions">
-          <a class="link-card" [routerLink]="link.route" [queryParams]="link.queryParams">
-            <span>{{ link.label }}</span>
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-              focusable="false"
-            >
-              <path d="M5 12h14M12 5l7 7-7 7" />
-            </svg>
-          </a>
-        </li>
+        @if (link.route !== nav.homeRoute) {
+          <li *ngxPermissionsOnly="link.permissions">
+            <a class="link-card" [routerLink]="link.route" [queryParams]="link.queryParams">
+              <span>{{ link.label }}</span>
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </a>
+          </li>
+        }
       }
     </ul>
   </nz-card>
