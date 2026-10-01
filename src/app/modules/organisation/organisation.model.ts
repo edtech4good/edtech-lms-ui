@@ -53,6 +53,8 @@ export interface OrganisationWrite {
 export interface OrganisationCreate extends OrganisationWrite {
   organisationcode: string;
   organisationpreset: OrganisationPreset;
+  /** Set from the starting point on create, never sent on edit. */
+  uitheme: 'kids' | 'corporate';
 }
 
 export interface Country {
@@ -64,5 +66,6 @@ export interface Country {
 export interface ApiErrorBody {
   code?: string;
   errormessage?: string;
+  hint?: string;
   fields?: Array<{ field: string; message: string }>;
 }

@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   ElementRef,
   computed,
@@ -24,6 +25,7 @@ import {
   SWATCHES,
   codeError,
   countriesError,
+  knownBranding,
   nameError,
   serverFieldErrors,
   shortNameError,
@@ -74,6 +76,7 @@ const FIELD_ORDER: FieldKey[] = ['organisationname', 'organisationshortname', 'o
 export class OrganisationDrawerComponent {
   private readonly service = inject(OrganisationService);
   private readonly modal = inject(NzModalService);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   readonly open = input(false);
   /** The organisation to edit; null to create a new one. */
@@ -201,7 +204,8 @@ export class OrganisationDrawerComponent {
     this.shortName.set(org?.organisationshortname ?? '');
     this.code.set(org?.organisationcode ?? '');
     this.preset.set(org?.organisationpreset ?? 'company');
-    const { tilecolour, ...rest } = org?.brandingconfig ?? {};
+    const known = knownBranding(org?.brandingconfig) ?? {};
+    const { tilecolour, ...rest } = known;
     this.colour.set(tilecolour ?? DEFAULT_TILE_COLOUR);
     this.otherBranding = rest;
     this.countryIds.set(org?.countries.map((c) => c.countryid) ?? []);
@@ -301,6 +305,8 @@ export class OrganisationDrawerComponent {
           ...write,
           organisationcode: this.code(),
           organisationpreset: this.preset(),
+          // The look follows the starting point, chosen once, at creation.
+          uitheme: this.preset() === 'company' ? 'corporate' : 'kids',
         });
     request.subscribe({
       next: (saved) => {
@@ -317,8 +323,13 @@ export class OrganisationDrawerComponent {
     this.serverErrors.set(fields);
     this.formError.set(form ?? null);
     const first = FIELD_ORDER.find((k) => fields[k]);
-    // The view must update before focus can move (the button was disabled).
-    setTimeout(() => (first ? this.focusField(first) : this.submitButton()?.nativeElement.focus()), 0);
+    // The button was disabled while saving: bring the view up to date, then move focus.
+    this.cdr.detectChanges();
+    if (first) {
+      this.focusField(first);
+    } else {
+      this.submitButton()?.nativeElement.focus();
+    }
   }
 
   private focusField(key: FieldKey): void {

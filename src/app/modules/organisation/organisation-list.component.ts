@@ -12,8 +12,8 @@ import { NgxPermissionsService } from 'ngx-permissions';
 import { EMPTY, Subject, catchError, debounceTime, lastValueFrom, switchMap, tap } from 'rxjs';
 import { confirmDialog } from './confirm-dialog';
 import { OrganisationDrawerComponent } from './organisation-drawer.component';
-import { DEFAULT_TILE_COLOUR, tileTextColour } from './organisation-form';
-import { Organisation, OrganisationWrite } from './organisation.model';
+import { DEFAULT_TILE_COLOUR, knownBranding, tileTextColour } from './organisation-form';
+import { ApiErrorBody, Organisation, OrganisationWrite } from './organisation.model';
 import { OrganisationService } from './organisation.service';
 
 const SEARCH_DELAY_MS = 300;
@@ -224,7 +224,7 @@ export class OrganisationListComponent {
     const body: OrganisationWrite = {
       organisationname: o.organisationname,
       organisationshortname: o.organisationshortname,
-      brandingconfig: o.brandingconfig,
+      brandingconfig: knownBranding(o.brandingconfig),
       countryids: o.countries.map((c) => c.countryid),
       organisationstatus: active,
     };
@@ -238,6 +238,22 @@ export class OrganisationListComponent {
         this.reload();
       },
       error: (error: HttpErrorResponse) => this.failed(o, active ? 'reactivate' : 'suspend', error),
+    });
+  }
+
+  /** Reactivating is one click; suspending ends staff sign-in, so it asks first. */
+  toggleStatus(o: Organisation): void {
+    if (!o.organisationstatus) {
+      this.setStatus(o, true);
+      return;
+    }
+    confirmDialog(this.modal, {
+      nzTitle: `Suspend “${o.organisationname}”?`,
+      nzContent: 'Its staff will be signed out and cannot sign in until it is reactivated.',
+      nzOkText: 'Suspend organisation',
+      nzOkDanger: true,
+      nzCancelText: 'Cancel',
+      nzOnOk: () => this.setStatus(o, false),
     });
   }
 
@@ -260,17 +276,29 @@ export class OrganisationListComponent {
   }
 
   /**
-   * An action on a row did not work. A 400, a 500 or no connection has already been
-   * toasted by the error interceptor; anything else would otherwise be silent.
+   * An action on a row did not work. A 429, a 500 or no connection has already been
+   * toasted by the error interceptor, and so was a 400 until the update request was
+   * marked to show its field errors inline (a row action has no fields to show them on).
+   * Everything else would otherwise be silent. A 409 carries the API's own words for
+   * what is in the way ("This organisation still has staff users." / "Move or remove
+   * them first, then try again."), written for people, so they are shown as they are.
    */
   private failed(o: Organisation, action: string, error: HttpErrorResponse): void {
+    const title = `Couldn't ${action} ${o.organisationname}`;
+    if ([0, 429, 500].includes(error.status)) {
+      return;
+    }
     if (error.status === 404) {
-      this.notification.error(`Couldn't ${action} ${o.organisationname}`, 'It no longer exists.');
+      this.notification.error(title, 'It no longer exists.');
       this.reload();
     } else if (error.status === 403) {
-      this.notification.error(`Couldn't ${action} ${o.organisationname}`, "You don't have permission to do that.");
-    } else if (![0, 400, 500].includes(error.status)) {
-      this.notification.error(`Couldn't ${action} ${o.organisationname}`, 'Try again in a moment.');
+      this.notification.error(title, "You don't have permission to do that.");
+    } else if (error.status === 409) {
+      const body = (error.error ?? {}) as ApiErrorBody;
+      const said = [body.errormessage, body.hint].filter((t) => typeof t === 'string' && t.trim()).join(' ');
+      this.notification.error(title, said || 'Try again in a moment.');
+    } else {
+      this.notification.error(title, 'Try again in a moment.');
     }
   }
 }

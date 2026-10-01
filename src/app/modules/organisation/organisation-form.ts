@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { ApiErrorBody } from './organisation.model';
+import { ApiErrorBody, OrganisationBranding } from './organisation.model';
 
 /** The five tile colours (design o2). White text is at least 4.5:1 on each. */
 export const SWATCHES = [
@@ -41,8 +41,13 @@ export function nameError(value: string): string | null {
 export function shortNameError(value: string): string | null {
   if (!value) return 'Enter a short name.';
   if (!SHORTNAME_PATTERN.test(value)) return 'Use letters only, starting with a letter.';
-  if ([...value].length > SHORTNAME_MAX_CODE_POINTS || countGraphemes(value) > SHORTNAME_MAX_GRAPHEMES) {
+  if (countGraphemes(value) > SHORTNAME_MAX_GRAPHEMES) {
     return `Use ${SHORTNAME_MAX_GRAPHEMES} letters or fewer.`;
+  }
+  // Few enough letters, but built from too many characters (stacked marks): the
+  // API refuses it, and "use 3 letters or fewer" would be untrue.
+  if ([...value].length > SHORTNAME_MAX_CODE_POINTS) {
+    return 'That short name is too long. Use simpler letters.';
   }
   return null;
 }
@@ -72,15 +77,37 @@ export interface ServerFieldErrors {
   form?: string;
 }
 
+/** Shown when a save failed and the API gave nothing more specific. */
+export const SAVE_FAILED = "The organisation couldn't be saved. Try again.";
+
 /**
- * Turn a failed create or update into messages beside the fields. A 400 names its
- * fields. A 409 names none: the API says only which rule was broken, in its message
- * ("That organisation name ..." or "... code ..."), so the field is read from that.
- * A 409 for both a name and a code reports the name first.
+ * Statuses the error interceptor already puts in a toast (429, 500, and no
+ * connection). Saying it again beside the form would be a second message.
+ */
+const TOASTED_BY_INTERCEPTOR: readonly number[] = [0, 429, 500];
+
+/** The API's own sentences for a 409 (edtech-lms-api, organisation.business.validator.ts and organisation.business.ts). */
+const API_NAME_IN_USE = 'That organisation name is already in use.';
+const API_CODE_IN_USE = 'That organisation code is already in use.';
+const API_COUNTRY_HAS_SCHOOLS = 'A school of this organisation is in a country you are removing.';
+
+/**
+ * Turn a failed create or update into messages beside the fields, or one for the
+ * form. Every failure the interceptor does not toast says something here.
+ *
+ * - A 400 names its fields.
+ * - A 409 names none; the API's sentence says which rule was broken. The name and
+ *   code sentences go to those fields (both, if both are in the message), the
+ *   countries sentence to Countries, and any other 409 shows the API's own message
+ *   for the form (it is written for users), or the generic line when it has none.
+ * - Anything else (401, 502, 503, ...) is the generic line.
  */
 export function serverFieldErrors(error: HttpErrorResponse): ServerFieldErrors {
   const body = (error.error ?? {}) as ApiErrorBody;
   const out: ServerFieldErrors = { fields: {} };
+  if (TOASTED_BY_INTERCEPTOR.includes(error.status)) {
+    return out;
+  }
   if (error.status === 400 && body.fields?.length) {
     for (const f of body.fields) {
       if (f.field in FIELD_MESSAGES) {
@@ -92,13 +119,18 @@ export function serverFieldErrors(error: HttpErrorResponse): ServerFieldErrors {
     return out;
   }
   if (error.status === 409) {
-    const message = (body.errormessage ?? '').toLowerCase();
-    if (message.includes('code')) {
-      out.fields.organisationcode = 'That code is already in use. Codes can never be reused.';
-    } else if (message.includes('name')) {
+    const message = typeof body.errormessage === 'string' ? body.errormessage : '';
+    if (message.includes(API_NAME_IN_USE)) {
       out.fields.organisationname = 'That name is already in use. Use a different name.';
-    } else {
-      out.form = 'That name or code is already in use.';
+    }
+    if (message.includes(API_CODE_IN_USE)) {
+      out.fields.organisationcode = 'That code is already in use. Codes can never be reused.';
+    }
+    if (message.includes(API_COUNTRY_HAS_SCHOOLS)) {
+      out.fields.countryids = API_COUNTRY_HAS_SCHOOLS;
+    }
+    if (Object.keys(out.fields).length === 0) {
+      out.form = message.trim() ? message : SAVE_FAILED;
     }
     return out;
   }
@@ -108,7 +140,22 @@ export function serverFieldErrors(error: HttpErrorResponse): ServerFieldErrors {
     out.form = "You don't have permission to do that.";
   } else if (error.status === 400) {
     out.form = "Some of the information isn't valid. Check the form and try again.";
+  } else {
+    out.form = SAVE_FAILED;
   }
+  return out;
+}
+
+/**
+ * The branding the form knows about, and nothing else: whatever other keys a row
+ * carries are not sent back. (The API stores only these three anyway.)
+ */
+export function knownBranding(raw: OrganisationBranding | null | undefined): OrganisationBranding | null {
+  if (!raw) return null;
+  const out: OrganisationBranding = {};
+  if (typeof raw.tilecolour === 'string') out.tilecolour = raw.tilecolour;
+  if (typeof raw.logourl === 'string') out.logourl = raw.logourl;
+  if (typeof raw.displayname === 'string') out.displayname = raw.displayname;
   return out;
 }
 
