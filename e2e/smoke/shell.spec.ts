@@ -65,7 +65,7 @@ test('the permitted groups render', async () => {
 test('every link navigates and becomes the one current page', async () => {
   const top: Array<[string, RegExp]> = [
     ['Home', /\/dashboard\/index$/],
-    ['Questions', /\/question\/index/],
+    ['Questions', /\/question\/index(\?|$)/],
     ['Media', /\/document\/index$/],
     ['Assessments', /\/baseline-curriculum\/index$/],
     ['Schools', /\/school\/index$/],
