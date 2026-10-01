@@ -23,6 +23,8 @@ function throttleWaitMs(retryAfter: string | undefined): number {
  * timeout, so lend the running test (or hook) the time it is about to spend.
  */
 async function waitOutThrottle(ms: number): Promise<void> {
+  // Say so, so a slow run can be told apart from a throttled one.
+  console.warn(`[e2e] sign-in was rate-limited (429): waiting ${Math.round(ms / 1000)}s, then trying once more`);
   try {
     const info = test.info();
     info.setTimeout(info.timeout + ms);

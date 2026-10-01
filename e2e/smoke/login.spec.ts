@@ -33,6 +33,10 @@ test.describe('login', () => {
     // Staff sign in with an email (the field says so, and autofill is told which is which).
     await expect(email(page)).toHaveAttribute('autocomplete', 'username');
     await expect(password(page)).toHaveAttribute('autocomplete', 'current-password');
+    // The shared auth styles (one global stylesheet, scoped under .auth-scope) apply:
+    // a 52px field with radius 16.
+    await expect(email(page)).toHaveCSS('height', '52px');
+    await expect(email(page)).toHaveCSS('border-top-left-radius', '16px');
     await expect(page.getByText('Learners and teachers use the learning app, not this console.')).toBeVisible();
     // The admin is English-only for now.
     await expect(page.getByText('English', { exact: true })).toHaveCount(0);
@@ -111,6 +115,8 @@ test.describe('login', () => {
     await page.getByRole('button', { name: 'Forgot password?' }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
+    // The dialog renders in an overlay outside the layout: it has the same styles.
+    await expect(dialog.getByLabel('Email', { exact: true })).toHaveCSS('height', '52px');
 
     // Mocked: no email is sent. The request is the one the old dialog made.
     await page.route('**/auth/forgotpassword', (route) =>
