@@ -1,4 +1,4 @@
-import { APIRequestContext, APIResponse, Page, expect, request, test } from '@playwright/test';
+import { APIRequestContext, Page, expect, request, test } from '@playwright/test';
 import { DEMO_STUDENT, SUPERADMIN } from './accounts';
 import { API_URL, RPI_API_URL } from './env';
 
@@ -32,10 +32,20 @@ async function waitOutThrottle(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** A login response, read in full (the request context that made it is disposed). */
+interface LoginAnswer {
+  status: number;
+  ok: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  body: any;
+}
+
 /**
  * POST a login to the API and, on a 429, wait out the window and try once more.
+ * The body is read before the context is disposed: a response cannot be read
+ * after that.
  */
-async function postLogin(url: string, data: Record<string, string>): Promise<APIResponse> {
+async function postLogin(url: string, data: Record<string, string>): Promise<LoginAnswer> {
   const ctx = await request.newContext();
   try {
     let res = await ctx.post(url, { data });
@@ -43,7 +53,8 @@ async function postLogin(url: string, data: Record<string, string>): Promise<API
       await waitOutThrottle(throttleWaitMs(res.headers()['retry-after']));
       res = await ctx.post(url, { data });
     }
-    return res;
+    const body = await res.json().catch(() => null);
+    return { status: res.status(), ok: res.ok(), body };
   } finally {
     await ctx.dispose();
   }
@@ -92,9 +103,8 @@ export async function apiLogin(
   password: string = SUPERADMIN.password,
 ): Promise<string> {
   const res = await postLogin(`${API_URL}/auth/login`, { lmsusername: username, lmsuserpassword: password });
-  expect(res.ok(), `login failed for ${username}: ${res.status()}`).toBeTruthy();
-  const body = await res.json();
-  return body.data.accessToken;
+  expect(res.ok, `login failed for ${username}: ${res.status}`).toBeTruthy();
+  return res.body.data.accessToken;
 }
 
 /** Decode a JWT payload without verifying it — for asserting claims in tests. */
@@ -127,9 +137,8 @@ export async function rpiApiLogin(
     studentpassword: password,
     logintime: '0',
   });
-  expect(res.ok(), `rpi login failed for ${username}: ${res.status()}`).toBeTruthy();
-  const body = await res.json();
-  return body.data.accessToken;
+  expect(res.ok, `rpi login failed for ${username}: ${res.status}`).toBeTruthy();
+  return res.body.data.accessToken;
 }
 
 export async function rpiApiContext(token: string): Promise<APIRequestContext> {
