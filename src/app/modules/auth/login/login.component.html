@@ -40,7 +40,6 @@
           type="button"
           class="field-toggle"
           aria-controls="signin-password"
-          [attr.aria-pressed]="showPassword"
           (click)="showPassword = !showPassword"
         >
           {{ showPassword ? 'Hide' : 'Show' }}<span class="sr-only"> password</span>
@@ -72,7 +71,7 @@
       </p>
     }
 
-    <button type="submit" class="submit" [disabled]="isloading">{{ isloading ? 'Signing in…' : 'Sign in' }}</button>
+    <button #submitButton type="submit" class="submit" [disabled]="isloading">{{ isloading ? 'Signing in…' : 'Sign in' }}</button>
     <p class="note">Learners and teachers use the learning app, not this console.</p>
   </form>
 </app-auth-layout>

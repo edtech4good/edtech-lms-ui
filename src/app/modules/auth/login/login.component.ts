@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
@@ -22,11 +22,12 @@ export class LoginComponent implements OnInit {
   isloading = false;
   /** The Show/Hide toggle on the password field. */
   showPassword = false;
-  /** Why the last attempt failed, shown beside the form (as well as the toast). */
+  /** Why the last attempt failed, shown beside the form (the form is the only place). */
   loginError: string | null = null;
 
   @ViewChild('emailInput') private emailInput?: ElementRef<HTMLInputElement>;
   @ViewChild('passwordInput') private passwordInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('submitButton') private submitButton?: ElementRef<HTMLButtonElement>;
 
   /** A required field the user has touched or submitted past, and left empty. */
   showInvalid(name: 'lmsusername' | 'lmsuserpassword'): boolean {
@@ -68,6 +69,7 @@ export class LoginComponent implements OnInit {
           if(error){
             this.isloading = false;
             this.loginError = this.loginErrorMessage(error);
+            this.returnFocus(error);
           }
         },
         ()=>{
@@ -77,18 +79,34 @@ export class LoginComponent implements OnInit {
   }
 
   /**
-   * The message to show beside the form (the error interceptor leaves these two
-   * to the form). Always the same words for a failed sign-in: the API's text says
-   * "username", and staff sign in with an email. Anything else keeps its toast.
+   * The message to show beside the form. The form owns every sign-in failure
+   * (the error interceptor never toasts for /auth/login). Always the same words
+   * for a failed sign-in: the API's text says "username", and staff sign in with
+   * an email.
    */
-  private loginErrorMessage(error: HttpErrorResponse): string | null {
-    if (error.status === 429) {
-      return 'Too many sign-in attempts. Wait a minute and try again.';
-    }
+  private loginErrorMessage(error: HttpErrorResponse): string {
     if (error.status === 400) {
       return 'The email or password is incorrect.';
     }
-    return null;
+    if (error.status === 429) {
+      return 'Too many sign-in attempts. Wait a minute and try again.';
+    }
+    if (error.status === 0) {
+      return "Can't reach the server. Check your connection and try again.";
+    }
+    return "Sign-in isn't available right now. Try again in a moment.";
+  }
+
+  /**
+   * The Sign in button was disabled while the request ran, which dropped focus to
+   * the page. After a wrong password the next thing to do is retype it; after any
+   * other failure the next thing is to press Sign in again.
+   */
+  private returnFocus(error: HttpErrorResponse): void {
+    // The button is enabled again only once the view has updated.
+    this.cdr.detectChanges();
+    const target = error.status === 400 ? this.passwordInput : this.submitButton;
+    target?.nativeElement.focus();
   }
 
   constructor(
@@ -98,6 +116,7 @@ export class LoginComponent implements OnInit {
     private utilservice: UtilService,
     private authService: AuthService,
     private permissionsService: NgxPermissionsService,
+    private readonly cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
