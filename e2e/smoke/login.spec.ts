@@ -124,11 +124,8 @@ test.describe('login', () => {
   });
 
   test('the change-password page uses the same layout', async ({ page }) => {
-    // The emailed link is meant to be opened signed out, but on a cold load with
-    // no session the app bounces every /auth page to the sign-in form (see
-    // CoreService.ignoreToken: its indexOf test is inverted). So sign in first;
-    // the link's token check is mocked, and nothing is changed.
-    await loginViaUi(page);
+    // Signed out, as the emailed link is opened. The token check is mocked (a real
+    // token would be a real account's reset link), and nothing is submitted.
     await page.route('**/auth/token/validate/changepassword*', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: true }) }),
     );
@@ -138,6 +135,34 @@ test.describe('login', () => {
     await expect(page.getByLabel('Confirm password', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Change password' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Back to sign in' })).toBeVisible();
+    // It is the change-password page, not the sign-in page it used to be bounced to.
+    await expect(page).toHaveURL(/\/auth\/changepassword\//);
+    await expect(page.getByLabel('Email', { exact: true })).toHaveCount(0);
+  });
+
+  test('signed out, a reset link with an invalid token is checked by the server, then sent to sign in', async ({
+    page,
+  }) => {
+    // Real API, real (invalid) token: the page used to be bounced to /auth/login
+    // before it could ask the server anything.
+    const checked = page.waitForRequest((r) => r.url().includes('/auth/token/validate/changepassword'));
+    await page.goto('/auth/changepassword/not-a-real-token');
+    await checked;
+    await expect(page.locator('.ant-notification-notice')).toContainText('Invalid link');
+    await expect(page).toHaveURL(/\/auth\/login/);
+  });
+
+  test('signed out, a verify link reaches the verify page and asks the server', async ({ page }) => {
+    const asked = page.waitForRequest((r) => r.url().includes('/auth/verify?verifyemailtoken='));
+    await page.goto('/auth/verify/not-a-real-token');
+    await asked;
+    await expect(page).toHaveURL(/\/auth\/verify\//);
+  });
+
+  test('signed out, an ordinary protected page still goes to the sign-in page', async ({ page }) => {
+    await page.goto('/question/index');
+    await expect(page).toHaveURL(/\/auth\/login/);
+    await expect(page.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible();
   });
 
   test('the sidebar renders after login', async ({ page }) => {

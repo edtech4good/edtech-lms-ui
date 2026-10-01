@@ -1,7 +1,6 @@
 import { HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { environment } from 'src/environments/environment';
-import voca from 'voca';
 
 @Injectable({
   providedIn: 'root',
@@ -22,13 +21,21 @@ export class CoreService {
     headers: new HttpHeaders({ 'Content-Type': 'application/csv' }),
   };
 
+  /**
+   * True when the page being shown is one a signed-out user is meant to see: the
+   * sign-in page and the emailed links (reset password, verify email). Used by
+   * AuthService.routetoLogin so those pages are not bounced to the sign-in form.
+   * Matches the path itself or anything beneath it, not other paths that merely
+   * start with the same letters (/auth/loginx).
+   */
   ignoreToken = () => {
-    let tokenignorelist = [
+    const tokenignorelist = [
       '/auth/login',
       '/auth/changepassword',
       '/auth/verify',
     ];
-    return !tokenignorelist.find((x) => voca.indexOf(window.location.pathname, x));
+    const path = window.location.pathname;
+    return tokenignorelist.some((x) => path === x || path.startsWith(x + '/'));
   };
 
   constructor() {}
