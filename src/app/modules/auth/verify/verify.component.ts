@@ -43,7 +43,7 @@ export class VerifyComponent implements OnInit {
       this.router.navigate(['auth/login']);
       return;
     } else {
-      this.notification.create("success", 'Success', "Email verified, please login");
+      this.notification.create("success", 'Success', 'Email verified. Sign in to continue.');
       this.router.navigate(['auth/login']);
     }
   }

@@ -175,27 +175,34 @@ test.describe('login', () => {
     await expect(dialog).toBeHidden();
   });
 
+  const TOKEN = 'tok-7f3a9c2e';
   /**
    * Open the change-password page signed out, as the emailed link is. The token
    * check and the password change are mocked (a real token would be a real
    * account's reset link, and nothing may change a real password). Returns the
    * PUTs the page sent.
    */
-  async function openChangePassword(page: Page, putStatus = 200): Promise<string[]> {
+  async function openChangePassword(
+    page: Page,
+    opts: { putStatus?: number | 'abort'; putDelayMs?: number; putMessage?: string } = {},
+  ): Promise<string[]> {
+    const { putStatus = 200, putDelayMs = 0, putMessage = 'Mocked.' } = opts;
     const puts: string[] = [];
     await page.route('**/auth/token/validate/changepassword*', (route) =>
       route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: true }) }),
     );
-    await page.route('**/auth/changepassword?*', (route) => {
+    await page.route('**/auth/changepassword?*', async (route) => {
       if (route.request().method() !== 'PUT') return route.fallback();
       puts.push(route.request().url());
+      if (putDelayMs) await new Promise((r) => setTimeout(r, putDelayMs));
+      if (putStatus === 'abort') return route.abort('connectionrefused');
       return route.fulfill({
         status: putStatus,
         contentType: 'application/json',
-        body: JSON.stringify({ data: putStatus === 200, errormessage: 'Mocked.' }),
+        body: JSON.stringify({ data: putStatus === 200, errormessage: putMessage }),
       });
     });
-    await page.goto('/auth/changepassword/not-a-real-token');
+    await page.goto(`/auth/changepassword/${TOKEN}`);
     await expect(page.getByRole('heading', { level: 1, name: 'Change password' })).toBeVisible();
     return puts;
   }
@@ -254,13 +261,116 @@ test.describe('login', () => {
   });
 
   test('a password change the API refuses as an invalid link says so and goes to sign-in', async ({ page }) => {
-    await openChangePassword(page, 401);
+    await openChangePassword(page, { putStatus: 401 });
     await newPassword(page).fill('Same_Password1');
     await confirmPassword(page).fill('Same_Password1');
     await page.getByRole('button', { name: 'Change password' }).click();
 
     await expect(page).toHaveURL(/\/auth\/login/);
     await expect(toasts(page)).toContainText('This link is invalid or has expired.');
+  });
+
+  async function submitMatching(page: Page): Promise<void> {
+    await newPassword(page).fill('Same_Password1');
+    await confirmPassword(page).fill('Same_Password1');
+  }
+  const changeButton = (page: Page) => page.getByRole('button', { name: 'Change password' });
+
+  test('a double-click sends one change and shows one message', async ({ page }) => {
+    const puts = await openChangePassword(page, { putDelayMs: 800 });
+    await submitMatching(page);
+    await changeButton(page).dblclick();
+    await expect(page).toHaveURL(/\/auth\/login/);
+    await page.waitForTimeout(750);
+    expect(puts.length, 'one password change was sent').toBe(1);
+    expect(await toasts(page).count(), 'one message').toBe(1);
+  });
+
+  test('Enter twice while it loads sends one change', async ({ page }) => {
+    const puts = await openChangePassword(page, { putDelayMs: 800 });
+    await submitMatching(page);
+    await confirmPassword(page).focus();
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/\/auth\/login/);
+    await page.waitForTimeout(750);
+    expect(puts.length, 'one password change was sent').toBe(1);
+    expect(await toasts(page).count(), 'one message').toBe(1);
+  });
+
+  test('a refused change shows the API\'s message once, and the form can be submitted again', async ({ page }) => {
+    const puts = await openChangePassword(page, { putStatus: 400, putMessage: 'Mocked reset refusal.' });
+    await submitMatching(page);
+    await changeButton(page).click();
+    // The interceptor still toasts a 400 from every other auth request.
+    await expect(toasts(page)).toContainText('Mocked reset refusal.');
+    expect(await toasts(page).count(), 'one message').toBe(1);
+    // The form stays, and the button is usable again, with focus on it.
+    await expect(changeButton(page)).toBeEnabled();
+    await expect(changeButton(page)).toBeFocused();
+    await changeButton(page).click();
+    await expect.poll(() => puts.length, 'a second submit sends a second change').toBe(2);
+    await expect(page).toHaveURL(/\/auth\/changepassword\//);
+  });
+
+  for (const putStatus of [500, 'abort'] as const) {
+    test(`a change that fails (${putStatus}) leaves the form usable`, async ({ page }) => {
+      const puts = await openChangePassword(page, { putStatus });
+      await submitMatching(page);
+      await changeButton(page).click();
+      await expect(toasts(page)).toHaveCount(1);
+      await expect(changeButton(page)).toBeEnabled();
+      await expect(changeButton(page)).toBeFocused();
+      await changeButton(page).click();
+      await expect.poll(() => puts.length).toBe(2);
+    });
+  }
+
+  for (const failure of [500, 'abort'] as const) {
+    test(`a token check that fails (${failure}) ends at sign-in with the interceptor's one message, and logs no token`, async ({
+      page,
+    }) => {
+      const logged: string[] = [];
+      page.on('console', (m) => logged.push(m.text()));
+      page.on('pageerror', (e) => logged.push(`${e.message}\n${e.stack ?? ''}`));
+      await page.route('**/auth/token/validate/changepassword*', (route) =>
+        failure === 'abort'
+          ? route.abort('connectionrefused')
+          : route.fulfill({
+              status: 500,
+              contentType: 'application/json',
+              body: JSON.stringify({ errormessage: 'Mocked.' }),
+            }),
+      );
+      await page.goto(`/auth/changepassword/${TOKEN}`);
+      await expect(page).toHaveURL(/\/auth\/login/);
+      await expect(toasts(page)).toHaveCount(1);
+      await page.waitForTimeout(750);
+      expect(await toasts(page).count(), 'one message, not two').toBe(1);
+      expect(logged.filter((l) => l.includes(TOKEN)), 'nothing logged contains the token').toEqual([]);
+    });
+  }
+
+  test('other auth requests still toast: the forgot-password rate limit', async ({ page }) => {
+    await page.route('**/auth/forgotpassword', (route) =>
+      route.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify({ errormessage: 'Mocked.' }) }),
+    );
+    await page.goto('/auth');
+    await page.getByRole('button', { name: 'Forgot password?' }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Email', { exact: true }).fill('someone@example.com');
+    await dialog.getByRole('button', { name: 'Send reset link' }).click();
+    await expect(toasts(page)).toContainText('Too many attempts. Wait a minute and try again.');
+    expect(await toasts(page).count(), 'one message').toBe(1);
+  });
+
+  test('a verified email says to sign in', async ({ page }) => {
+    await page.route('**/auth/verify?*', (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ data: true }) }),
+    );
+    await page.goto(`/auth/verify/${TOKEN}`);
+    await expect(page).toHaveURL(/\/auth\/login/);
+    await expect(toasts(page)).toContainText('Email verified. Sign in to continue.');
   });
 
   test('signed out, a reset link with an invalid token is checked by the server, then sent to sign in', async ({
