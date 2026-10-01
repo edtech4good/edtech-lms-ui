@@ -1,0 +1,50 @@
+// Breadcrumb row: 52px, Poppins 500 14/20 in text-2, "›" in faint, last crumb
+// 600 ink (design README "Shell").
+:host {
+  display: block;
+  flex-shrink: 0;
+}
+
+.crumbs {
+  height: 52px;
+  display: flex;
+  align-items: center;
+  font: 500 14px/20px var(--font-body);
+  color: var(--color-text-2);
+}
+
+ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+li {
+  display: flex;
+  align-items: center;
+
+  + li::before {
+    content: '\203A'; // ›
+    content: ~"'\203A' / ''"; // same, with empty alt text so screen readers skip it
+    margin: 0 8px;
+    color: var(--color-faint);
+  }
+
+  &.last {
+    font-weight: 600;
+    color: var(--color-ink);
+  }
+}
+
+a {
+  color: var(--color-text-2);
+  text-decoration: none;
+
+  &:hover {
+    color: var(--color-ink);
+    text-decoration: underline;
+  }
+}

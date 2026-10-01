@@ -1,0 +1,53 @@
+// Cards come from the global nz-card restyle (flat, 24px radius, hairline).
+// Type: page title 700 28/36, card title 700 (global), secondary text 400 13/15.
+.page-title {
+  margin: 0 0 16px;
+  font: 700 28px/36px var(--font-body);
+  color: var(--color-ink);
+}
+
+.section {
+  margin-bottom: 16px;
+}
+
+.help {
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-text-2);
+}
+
+.links {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.link-card {
+  box-sizing: border-box;
+  min-height: var(--size-row-min);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 16px;
+  border-radius: var(--radius-control);
+  background: var(--color-paper);
+  box-shadow: inset 0 0 0 1.5px var(--color-edge);
+  color: var(--color-ink);
+  font: 600 15px/1.5 var(--font-body);
+  text-decoration: none;
+
+  &:hover {
+    background: var(--color-action-tint);
+    color: var(--color-ink);
+  }
+
+  // The global link focus rule sets a 4px radius; keep this card's own.
+  &:focus-visible {
+    border-radius: var(--radius-control);
+  }
+}

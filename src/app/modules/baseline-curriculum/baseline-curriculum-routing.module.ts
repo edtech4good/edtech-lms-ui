@@ -30,6 +30,7 @@ const routes: Routes = [
         component: BaselineCurriculumCreateComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'New',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -38,6 +39,7 @@ const routes: Routes = [
         component: BaselineCurriculumUpdateComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Edit',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -46,6 +48,7 @@ const routes: Routes = [
         component: BaselinequestionIndexComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Questions',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -54,6 +57,7 @@ const routes: Routes = [
         component: BaselineCurriculumSchoolComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Schools',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },

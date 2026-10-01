@@ -1,0 +1,497 @@
+// The navigation panel. Measurements, colours and group tones come from
+// docs/design/admin/handoff-v2 (README "Shell", AdminNav.dc.html); tokens from
+// src/styles/tokens.less (custom properties on :root).
+
+@ease: cubic-bezier(0.22, 1, 0.36, 1);
+@panel-width: 248px;
+@rail-width: 76px;
+
+:host {
+  display: block;
+  flex-shrink: 0;
+  height: 100%;
+}
+
+.sr-only() {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.panel {
+  position: relative;
+  box-sizing: border-box;
+  width: @panel-width;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 12px;
+  background: #fff;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-ring-edge);
+  font-family: var(--font-body);
+  color: var(--color-ink);
+  transition: width 280ms @ease;
+
+  &.collapsed {
+    width: @rail-width;
+  }
+}
+
+// ---- Top: logo and collapse toggle ---------------------------------------
+.top {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 44px;
+  padding: 0 2px 0 10px;
+  overflow: hidden;
+}
+
+.logo {
+  display: block;
+  flex-shrink: 0;
+}
+
+.collapsed .top {
+  justify-content: center;
+  padding: 0;
+}
+
+// Rail: only the mark (the first 30px of the logo) fits.
+.collapsed .logo {
+  width: 30px;
+  object-fit: none;
+  object-position: 0 0;
+}
+
+.icon-btn {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-control-sm);
+  background: transparent;
+  color: var(--color-text-2);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-paper);
+    color: var(--color-ink);
+  }
+}
+
+// The rail's expand button is a raised secondary button, like the design.
+.rail-toggle {
+  align-self: center;
+  margin: 6px 0 8px;
+  border-radius: var(--radius-control);
+  background: #fff;
+  color: var(--color-ink);
+  box-shadow: 0 3px 0 var(--color-secondary-edge), inset 0 0 0 1.5px var(--color-field-edge);
+
+  &:hover {
+    background: var(--color-paper);
+  }
+}
+
+// ---- The scrolling list ---------------------------------------------------
+// Negative margin + padding leave room for the 6px focus ring inside the
+// scroll container, which would otherwise clip it.
+.list {
+  flex: 1;
+  min-height: 0;
+  margin: 4px -6px 0;
+  padding: 6px 6px 8px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.collapsed .list {
+  align-items: center;
+  gap: 4px;
+  scrollbar-width: thin;
+}
+
+// ---- Group tones (icon tile ink / tint) ----------------------------------
+.tone-home {
+  --tone-ink: var(--color-ink);
+  --tone-tint: var(--color-slate-tint);
+}
+.tone-content {
+  --tone-ink: var(--color-action);
+  --tone-tint: var(--color-action-tint);
+}
+.tone-people {
+  --tone-ink: var(--color-published-ink);
+  --tone-tint: var(--color-published-tint);
+}
+.tone-reports {
+  --tone-ink: var(--color-practice);
+  --tone-tint: var(--color-practice-tint);
+}
+.tone-admin {
+  --tone-ink: var(--color-text-2);
+  --tone-tint: var(--color-slate-tint);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.collapsed .group {
+  align-items: center;
+  gap: 4px;
+}
+
+.group-label {
+  padding: 12px 10px 4px;
+  font: 600 12px/18px var(--font-body);
+  color: var(--color-faint-dark);
+  white-space: nowrap;
+}
+
+.collapsed .group-label {
+  display: none;
+}
+
+.divider {
+  display: none;
+}
+
+.collapsed .divider {
+  display: block;
+  width: 28px;
+  height: 2px;
+  flex-shrink: 0;
+  margin: 2px 0;
+  border-radius: 2px;
+  background: var(--color-edge);
+}
+
+// ---- Items ------------------------------------------------------------------
+.item {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--size-nav-item);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--color-ink);
+  font: 500 14px/1.5 var(--font-body);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:hover {
+    background: var(--color-paper);
+    color: var(--color-ink);
+  }
+
+  &.has-active .label {
+    font-weight: 600;
+  }
+
+  &.active,
+  &.active:hover {
+    background: var(--color-action);
+    color: #fff;
+    font-weight: 600;
+  }
+}
+
+.tile {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: var(--tone-tint);
+  color: var(--tone-ink);
+}
+
+.active .tile {
+  background: #fff;
+  color: var(--color-action);
+}
+
+.label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chev {
+  display: flex;
+  color: var(--color-faint-dark);
+}
+
+// Focus-visible: the standard ring. Specificity beats the global
+// `a:not(.ant-btn):focus-visible` rule, which would set a 4px radius.
+.item:focus-visible,
+.subitem:focus-visible,
+.icon-btn:focus-visible,
+.account-chip:focus-visible,
+.menu-item:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus-visible);
+}
+.item:focus-visible {
+  border-radius: 14px;
+}
+.subitem:focus-visible,
+.menu-item:focus-visible {
+  border-radius: 12px;
+}
+
+.rail-toggle:focus-visible {
+  box-shadow: 0 3px 0 var(--color-secondary-edge), var(--shadow-focus-visible);
+}
+
+.subitem {
+  box-sizing: border-box;
+  min-height: var(--size-nav-item);
+  display: flex;
+  align-items: center;
+  padding: 0 10px 0 48px;
+  border-radius: 12px;
+  color: var(--color-text-2-dark);
+  font: 500 13px/1.5 var(--font-body);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-paper);
+    color: var(--color-text-2-dark);
+  }
+
+  &.active,
+  &.active:hover {
+    background: var(--color-action-tint);
+    color: var(--color-action-press);
+    font-weight: 600;
+  }
+}
+
+.sublist {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 4px;
+}
+
+// ---- The rail: items are 44px tinted squares ------------------------------
+.collapsed {
+  .item {
+    width: 44px;
+    height: 44px;
+    justify-content: center;
+    padding: 0;
+    background: var(--tone-tint);
+    color: var(--tone-ink);
+
+    &:hover {
+      background: var(--tone-tint);
+      box-shadow: inset 0 0 0 2px var(--color-secondary-edge);
+    }
+
+    &.active,
+    &.active:hover {
+      background: var(--color-action);
+      color: #fff;
+      box-shadow: none;
+    }
+
+    &:focus-visible {
+      box-shadow: var(--shadow-focus-visible);
+    }
+  }
+
+  .tile {
+    width: auto;
+    height: auto;
+    background: transparent;
+    color: inherit;
+  }
+
+  .active .tile {
+    background: transparent;
+    color: #fff;
+  }
+
+  // Names stay in the DOM (they are the accessible names) but are not drawn.
+  .label,
+  .chev {
+    .sr-only();
+  }
+
+  .who {
+    .sr-only();
+  }
+}
+
+// ---- Account chip -------------------------------------------------------------
+.account {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.collapsed .account {
+  display: flex;
+  justify-content: center;
+}
+
+.account-chip {
+  box-sizing: border-box;
+  width: 100%;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px 0 8px;
+  border: none;
+  border-radius: 18px;
+  background: var(--color-paper);
+  box-shadow: inset 0 0 0 1.5px var(--color-field-edge);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+
+  &.open {
+    background: var(--color-action-tint);
+    box-shadow: inset 0 0 0 2px var(--color-action);
+
+    &:focus-visible {
+      box-shadow: inset 0 0 0 2px var(--color-action), var(--shadow-focus-visible);
+    }
+  }
+}
+
+.collapsed .account-chip {
+  width: 44px;
+  height: 44px;
+  justify-content: center;
+  padding: 0;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+
+  &.open {
+    box-shadow: inset 0 0 0 2px var(--color-action);
+  }
+
+  &:focus-visible,
+  &.open:focus-visible {
+    box-shadow: var(--shadow-focus-visible);
+  }
+
+  .chev {
+    .sr-only();
+  }
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--color-ink);
+  color: #fff;
+  font: 700 13px/1 var(--font-body);
+}
+
+.who {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 600 14px/20px var(--font-body);
+}
+
+.role {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 400 12px/16px var(--font-body);
+  color: var(--color-faint-dark);
+}
+
+.menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 1500;
+  box-sizing: border-box;
+  width: 224px;
+  padding: 6px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: var(--shadow-menu), var(--shadow-ring-edge);
+}
+
+.menu-item {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--size-touch-min);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--color-danger);
+  font: 600 14px/1.5 var(--font-body);
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-danger-tint);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    transition: none;
+  }
+}

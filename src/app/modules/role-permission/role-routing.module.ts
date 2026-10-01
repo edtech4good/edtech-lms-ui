@@ -28,6 +28,7 @@ const routes: Routes = [
         component: RoleCreateComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'New',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -36,6 +37,7 @@ const routes: Routes = [
         component: RoleUpdateComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Edit',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },

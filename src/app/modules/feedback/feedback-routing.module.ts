@@ -27,6 +27,7 @@ const routes: Routes = [
         component: FeedbackViewComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'View',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
