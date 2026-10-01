@@ -1,0 +1,145 @@
+// Admin console design tokens (v2 / v2.1).
+//
+// Source of truth: docs/design/admin/handoff-v2/README.md ("Design tokens") with
+// the contrast corrections from README-v2.1.md ("Token corrections") applied on
+// top. Where the two disagree, v2.1 wins.
+//
+// Two forms of every token:
+//   - Less variables (@color-*, @radius-*, ...) for the ng-zorro theme in
+//     styles.less and for the override layer in zorro-overrides.less.
+//   - CSS custom properties on :root (--color-*, --radius-*, ...) so component
+//     styles written later (shell, screens) can use them without Less.
+//
+// Each colour has one job (see the "Use" comments).
+
+// ---- Colour ---------------------------------------------------------------
+@color-action: #0b5fff;          // primary actions, active nav, focus
+@color-action-press: #0846bf;    // pressed / offset edge of primary buttons
+@color-action-tint: #eaf2ff;     // selected rows, info notes
+@color-ink: #1e293b;             // text, dark pills
+@color-ink-deep: #09101d;        // learner-app ink, shadow base
+@color-text-2: #475569;          // secondary text
+@color-text-2-dark: #334155;
+@color-faint: #94a3b8;           // separators, placeholder glyphs only
+@color-faint-dark: #64748b;      // placeholder TEXT (faint on paper fails AA)
+@color-paper: #f5f6ff;           // page canvas, field fill
+@color-edge: #e3e7f5;            // card hairline
+@color-field-edge: #e2e8f0;      // secondary button ring
+@color-field-ring: #7c8ca6;      // v2.1: input/select/radio/checkbox ring (3:1)
+@color-secondary-edge: #cbd5e1;  // secondary button offset edge
+
+@color-learning: #0e8a94;        // Learning section, org tile (tint/icon use)
+@color-learning-fill: #0b7c85;   // v2.1: teal behind white text
+@color-learning-tint: #e9f8f9;
+@color-learning-ink: #0b6e76;
+@color-practice: #6d5bd0;        // Practice section, tier 1, Reports
+@color-practice-press: #4b3ba8;
+@color-practice-tint: #f3f1fb;
+@color-quiz: #e0560a;            // Quiz section (tint / icon / ring use)
+@color-quiz-tint: #fff0e6;
+@color-plan: #ffc228;            // Teacher plan, "Changed since publish"
+@color-plan-press: #c98f00;
+@color-plan-tint: #fff6db;
+@color-plan-ink: #7a5800;
+@color-published: #22db8d;       // success, progress bars
+@color-published-press: #17a86b;
+@color-published-tint: #e7fbf1;
+@color-published-ink: #0b6b45;
+
+@color-danger: #c24a05;          // v2.1: filled destructive, danger text, required *
+@color-danger-press: #8f3603;    // v2.1: pressed offset of a filled destructive button
+@color-danger-ring: #e0560a;     // error ring on fields
+@color-danger-tint: #fff6f0;     // error field fill
+
+@color-choose-several: #2563eb;  // v2.1: "choose several" question tiles
+
+// ---- Typography -----------------------------------------------------------
+@font-body: 'Poppins', 'Kantumruy Pro', sans-serif;
+@font-mono: 'Space Mono', ui-monospace, monospace;   // IDs, usernames, keys only
+
+// ---- Radii ----------------------------------------------------------------
+@radius-pill: 999px;
+@radius-card: 24px;     // cards and panels
+@radius-modal: 28px;
+@radius-control: 14px;  // buttons and fields
+@radius-control-sm: 11px; // 36px buttons
+
+// ---- Sizing ---------------------------------------------------------------
+@size-button-lg: 48px;
+@size-button: 44px;
+@size-button-sm: 36px;
+@size-input: 46px;
+@size-nav-item: 44px;
+@size-row-min: 52px;
+@size-touch-min: 44px;
+
+// ---- Elevation ------------------------------------------------------------
+// Only buttons are raised; everything else is flat with a hairline ring.
+@shadow-ring-edge: inset 0 0 0 1.5px @color-edge;
+@shadow-menu: 0 16px 40px rgba(9, 16, 29, 0.12);
+@shadow-modal: 0 24px 60px rgba(9, 16, 29, 0.24);
+@shadow-focus-input: inset 0 0 0 0.5px @color-action, 0 0 0 4px rgba(11, 95, 255, 0.14);
+@shadow-focus-visible: 0 0 0 3px #fff, 0 0 0 6px @color-ink;
+
+:root {
+  --color-action: @color-action;
+  --color-action-press: @color-action-press;
+  --color-action-tint: @color-action-tint;
+  --color-ink: @color-ink;
+  --color-ink-deep: @color-ink-deep;
+  --color-text-2: @color-text-2;
+  --color-text-2-dark: @color-text-2-dark;
+  --color-faint: @color-faint;
+  --color-faint-dark: @color-faint-dark;
+  --color-paper: @color-paper;
+  --color-edge: @color-edge;
+  --color-field-edge: @color-field-edge;
+  --color-field-ring: @color-field-ring;
+  --color-secondary-edge: @color-secondary-edge;
+
+  --color-learning: @color-learning;
+  --color-learning-fill: @color-learning-fill;
+  --color-learning-tint: @color-learning-tint;
+  --color-learning-ink: @color-learning-ink;
+  --color-practice: @color-practice;
+  --color-practice-press: @color-practice-press;
+  --color-practice-tint: @color-practice-tint;
+  --color-quiz: @color-quiz;
+  --color-quiz-tint: @color-quiz-tint;
+  --color-plan: @color-plan;
+  --color-plan-press: @color-plan-press;
+  --color-plan-tint: @color-plan-tint;
+  --color-plan-ink: @color-plan-ink;
+  --color-published: @color-published;
+  --color-published-press: @color-published-press;
+  --color-published-tint: @color-published-tint;
+  --color-published-ink: @color-published-ink;
+  --color-danger: @color-danger;
+  --color-danger-press: @color-danger-press;
+  --color-danger-ring: @color-danger-ring;
+  --color-danger-tint: @color-danger-tint;
+  --color-choose-several: @color-choose-several;
+
+  --font-body: @font-body;
+  --font-mono: @font-mono;
+
+  --radius-pill: @radius-pill;
+  --radius-card: @radius-card;
+  --radius-modal: @radius-modal;
+  --radius-control: @radius-control;
+  --radius-control-sm: @radius-control-sm;
+
+  --size-button-lg: @size-button-lg;
+  --size-button: @size-button;
+  --size-button-sm: @size-button-sm;
+  --size-input: @size-input;
+  --size-nav-item: @size-nav-item;
+  --size-row-min: @size-row-min;
+  --size-touch-min: @size-touch-min;
+
+  --shadow-ring-edge: @shadow-ring-edge;
+  --shadow-menu: @shadow-menu;
+  --shadow-modal: @shadow-modal;
+  --shadow-focus-input: @shadow-focus-input;
+  --shadow-focus-visible: @shadow-focus-visible;
+}
