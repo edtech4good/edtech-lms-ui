@@ -24,20 +24,22 @@ export class ErrorInterceptor implements HttpInterceptor {
     // Signing out clears the session whether or not the server hears about it, so
     // a failed logout request must not put an error toast on the sign-in page.
     const quiet = /\/auth\/logout(\?|$)/.test(req.url);
-    // The sign-in form shows its own rate-limit message beside the form.
-    const ownsRateLimitMessage = /\/auth\/login(\?|$)/.test(req.url);
+    // The sign-in form shows a failed sign-in (400) and a rate limit (429) in an
+    // alert beside the form: that is the one message, so no toast for those two.
+    // (A 500, or no connection, still gets its toast: the form has no words for it.)
+    const formOwnsMessage = /\/auth\/login(\?|$)/.test(req.url);
     const toast = (type: string, data: any): void => {
       if (!quiet) this.createNotification(type, data);
     };
     return next.handle(req).pipe(
       catchError((error: HttpErrorResponse) => {
         this.appStore.dispatch(unsetloadingAction());
-        if (error.status === 429 && !ownsRateLimitMessage) {
+        if (error.status === 429 && !formOwnsMessage) {
           // The API rate-limits sign-in, forgot-password and a few other routes.
           // This used to show nothing, so the action looked dead.
           toast('error', 'Too many attempts. Wait a minute and try again.');
         }
-        if (error.status === 400) {
+        if (error.status === 400 && !formOwnsMessage) {
           toast('error', error.error.errormessage);
         }
         if (error.status === 401) {

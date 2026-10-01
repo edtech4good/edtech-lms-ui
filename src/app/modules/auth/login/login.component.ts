@@ -13,7 +13,6 @@ import { uploadStudentsValidationSchema } from 'src/app/services/validator.servi
 @Component({
     selector: 'app-login',
     templateUrl: './login.component.html',
-    styleUrls: ['./login.component.less'],
     standalone: false
 })
 export class LoginComponent implements OnInit {
@@ -78,17 +77,16 @@ export class LoginComponent implements OnInit {
   }
 
   /**
-   * The message to show beside the form. A failed sign-in (400) carries the
-   * API's own wording; a rate limit (429) used to show nothing at all. Anything
-   * else keeps its existing handling in the error interceptor.
+   * The message to show beside the form (the error interceptor leaves these two
+   * to the form). Always the same words for a failed sign-in: the API's text says
+   * "username", and staff sign in with an email. Anything else keeps its toast.
    */
   private loginErrorMessage(error: HttpErrorResponse): string | null {
     if (error.status === 429) {
       return 'Too many sign-in attempts. Wait a minute and try again.';
     }
     if (error.status === 400) {
-      const message = error.error?.errormessage;
-      return typeof message === 'string' && message ? message : 'The email or password is incorrect.';
+      return 'The email or password is incorrect.';
     }
     return null;
   }

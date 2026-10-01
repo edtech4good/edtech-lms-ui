@@ -86,20 +86,22 @@
   (nzOnCancel)="hideChangePassword()"
 >
   <ng-container *nzModalContent>
-    <p class="dialog-hint">We will email you a link to set a new password.</p>
-    <form class="auth-form" [formGroup]="changePasswordForm" (ngSubmit)="submitchangePasswordForm()">
-      <div class="field">
-        <label class="field-label" for="forgot-email">Email</label>
-        <input
-          id="forgot-email"
-          class="field-input"
-          type="email"
-          formControlName="lmsusername"
-          autocomplete="username"
-          autocapitalize="none"
-          spellcheck="false"
-        />
-      </div>
-    </form>
+    <div class="auth-scope">
+      <p class="dialog-hint">We will email you a link to set a new password.</p>
+      <form class="auth-form" [formGroup]="changePasswordForm" (ngSubmit)="submitchangePasswordForm()">
+        <div class="field">
+          <label class="field-label" for="forgot-email">Email</label>
+          <input
+            id="forgot-email"
+            class="field-input"
+            type="email"
+            formControlName="lmsusername"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+          />
+        </div>
+      </form>
+    </div>
   </ng-container>
 </nz-modal>

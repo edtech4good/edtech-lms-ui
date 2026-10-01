@@ -16,9 +16,11 @@ test.describe('login', () => {
     await email(page).fill(SUPERADMIN.username);
     await password(page).fill('Wrong_Password1');
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-    // The reason is announced next to the form, not only in a toast (the toast
-    // is an alert too, so look inside <main>, which holds the card).
-    await expect(page.getByRole('main').getByRole('alert').filter({ hasText: /incorrect/i })).toBeVisible();
+    // The reason is announced next to the form, and only there: no toast too.
+    // (A toast is an alert as well, so look inside <main>, which holds the card.)
+    await expect(page.getByRole('main').getByRole('alert')).toHaveText('The email or password is incorrect.');
+    await page.waitForTimeout(500);
+    await expect(page.locator('.ant-notification-notice')).toHaveCount(0);
     // Still on /auth: no dashboard, no token.
     await expect(page).toHaveURL(/\/auth/);
     expect(await page.evaluate(() => Object.keys(sessionStorage).filter((k) => k.startsWith('lms_')))).toEqual([]);
