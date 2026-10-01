@@ -558,7 +558,10 @@ test.describe('organisations, signed in as the platform superadmin', () => {
         : route.fallback(),
     );
     await submit();
-    await expect(drawer().getByRole('alert').filter({ hasText: COUNTRY_409 })).toBeVisible();
+    // It is the Countries field's own message (its id, and the select points at it), not a form-level one.
+    await expect(drawer().locator('#org-countries-error')).toHaveText(COUNTRY_409);
+    await expect(drawer().locator('#org-countries')).toHaveAttribute('aria-describedby', /org-countries-error/);
+    await expect(drawer().getByRole('alert')).toHaveCount(1);
     await expect(field('Name')).not.toHaveAttribute('aria-invalid', 'true');
     await expectNoToast();
     await page.unroute(`**/organisation/${o.id}`);
