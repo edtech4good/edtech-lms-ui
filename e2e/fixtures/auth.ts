@@ -69,7 +69,9 @@ async function postLogin(url: string, data: Record<string, string>): Promise<Log
  * honest thing to smoke-test and the only thing that works.
  *
  * On a 429 the sign-in page must say so (that message is part of the product),
- * then this waits out the throttle window and signs in once more.
+ * then this waits out the throttle window and signs in once more. Any other
+ * failure (a wrong password, a second 429) throws a message that says what the
+ * API answered.
  */
 export async function loginViaUi(
   page: Page,
@@ -92,6 +94,15 @@ export async function loginViaUi(
       ).toBeVisible();
       await waitOutThrottle(throttleWaitMs(res.headers()['retry-after']));
       continue;
+    }
+    if (!res.ok()) {
+      // Say what came back, not just that the dashboard never appeared.
+      await page.waitForTimeout(150);
+      const said = await page.getByRole('main').getByRole('alert').allInnerTexts();
+      throw new Error(
+        `sign-in as ${username} failed: the API answered HTTP ${res.status()}` +
+          (said.length ? ` and the form says ${JSON.stringify(said.join(' '))}` : ''),
+      );
     }
     // Login lands on dashboard/index or dashboard/default depending on permissions.
     await page.waitForURL(/\/dashboard\/(index|default)/, { timeout: 15_000 });
