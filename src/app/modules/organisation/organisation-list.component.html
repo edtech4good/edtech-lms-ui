@@ -99,17 +99,17 @@
     [nzPageSizeOptions]="pageSizes"
     [nzHideOnSinglePage]="total() <= pageSizes[0]"
     [nzLoading]="status() === 'loading'"
-    [nzScroll]="{ x: '800px' }"
+    [nzScroll]="{ x: '810px' }"
     (nzPageIndexChange)="onPageIndex($event)"
     (nzPageSizeChange)="onPageSize($event)"
   >
     <thead>
       <tr>
-        <th scope="col">Organisation</th>
-        <th scope="col">Started from</th>
-        <th scope="col">Countries</th>
-        <th scope="col">Status</th>
-        <th scope="col" class="actions-head"><span class="visually-hidden">Actions</span></th>
+        <th scope="col" nzWidth="270px">Organisation</th>
+        <th scope="col" nzWidth="140px">Started from</th>
+        <th scope="col" nzWidth="130px">Countries</th>
+        <th scope="col" nzWidth="130px">Status</th>
+        <th scope="col" nzWidth="140px" class="actions-head"><span class="visually-hidden">Actions</span></th>
       </tr>
     </thead>
     <tbody>
