@@ -286,14 +286,15 @@ test.describe('login', () => {
     expect(await toasts(page).count(), 'one message').toBe(1);
   });
 
-  test('two submits in the same instant send one change', async ({ page }) => {
-    // The disabled button stops a real second click, but only after the view has
-    // updated: two events in one task get past it, so the handler must guard too.
+  test('two submits that bypass the button send one change', async ({ page }) => {
+    // The disabled button stops a real second click or Enter (the view updates
+    // between events). A second submit event on the form itself does not go
+    // through the button, so the handler has to guard too.
     const puts = await openChangePassword(page, { putDelayMs: 800 });
     await submitMatching(page);
-    await changeButton(page).evaluate((button: HTMLButtonElement) => {
-      button.click();
-      button.click();
+    await page.locator('form.auth-form').evaluate((form: HTMLFormElement) => {
+      form.dispatchEvent(new Event('submit', { cancelable: true }));
+      form.dispatchEvent(new Event('submit', { cancelable: true }));
     });
     await expect(page).toHaveURL(/\/auth\/login/);
     await page.waitForTimeout(750);
@@ -345,8 +346,24 @@ test.describe('login', () => {
     test(`a token check that fails (${failure}) ends at sign-in with the interceptor's one message, and logs no token`, async ({
       page,
     }) => {
+      // Everything the page logs, with logged objects spelled out (m.text() alone
+      // shows an error object as just its class name).
       const logged: string[] = [];
-      page.on('console', (m) => logged.push(m.text()));
+      const pending: Promise<void>[] = [];
+      page.on('console', (m) => {
+        logged.push(m.text());
+        pending.push(
+          Promise.all(
+            m.args().map((a) =>
+              a
+                .evaluate((v: unknown) =>
+                  v && typeof v === 'object' ? `${(v as Error).message ?? ''} ${JSON.stringify(v)}` : String(v),
+                )
+                .catch(() => ''),
+            ),
+          ).then((parts) => void logged.push(parts.join(' '))),
+        );
+      });
       page.on('pageerror', (e) => logged.push(`${e.message}\n${e.stack ?? ''}`));
       await page.route('**/auth/token/validate/changepassword*', (route) =>
         failure === 'abort'
@@ -362,6 +379,7 @@ test.describe('login', () => {
       await expect(toasts(page)).toHaveCount(1);
       await page.waitForTimeout(750);
       expect(await toasts(page).count(), 'one message, not two').toBe(1);
+      await Promise.all(pending);
       expect(logged.filter((l) => l.includes(TOKEN)), 'nothing logged contains the token').toEqual([]);
     });
   }
