@@ -1,4 +1,4 @@
-import { APIRequestContext, Locator, Page, expect, test } from '@playwright/test';
+import { APIRequestContext, Locator, Page, Route, expect, test } from '@playwright/test';
 import { ROLE } from '../fixtures/accounts';
 import { apiContext, apiLogin, loginViaUi } from '../fixtures/auth';
 
@@ -211,22 +211,43 @@ test.describe('organisations, signed in as the platform superadmin', () => {
     await expect(rowOf(renamed).getByRole('button', { name: `Edit ${renamed}` })).toBeFocused();
   });
 
-  test('suspend, then reactivate', async () => {
+  test('suspend asks first and says what it does; reactivate is one click', async () => {
     const o = await makeViaApi();
     await page.reload();
     const row = rowOf(o.name);
     await expect(row).toContainText('Active');
+    const puts: string[] = [];
+    page.on('request', (r) => {
+      if (r.method() === 'PUT' && r.url().includes('/organisation/')) puts.push(r.url());
+    });
 
     await row.getByRole('button', { name: `More actions for ${o.name}` }).click();
     await page.getByRole('menuitem', { name: 'Suspend' }).click();
-    await expect(toasts()).toContainText('Organisation suspended');
-    await expect(row).toContainText('Suspended');
-    expect((await (await api.get(`/organisation/${o.id}`)).json()).data.organisationstatus).toBe(false);
+    const confirm = page.getByRole('alertdialog', { name: `Suspend “${o.name}”?` });
+    await expect(confirm).toBeVisible();
+    await expect(confirm).toContainText('Its staff will be signed out and cannot sign in until it is reactivated.');
+    // Cancel sends nothing.
+    await confirm.getByRole('button', { name: 'Cancel' }).click();
+    await expect(confirm).toBeHidden();
+    await page.waitForTimeout(500);
+    expect(puts, 'Cancel sent nothing').toEqual([]);
+    await expect(row).toContainText('Active');
 
     await row.getByRole('button', { name: `More actions for ${o.name}` }).click();
+    await page.getByRole('menuitem', { name: 'Suspend' }).click();
+    await page.getByRole('alertdialog', { name: `Suspend “${o.name}”?` }).getByRole('button', { name: 'Suspend organisation' }).click();
+    await expect(toasts()).toContainText('Organisation suspended');
+    await expect(row).toContainText('Suspended');
+    expect(puts.length, 'confirming sent the change').toBe(1);
+    expect((await (await api.get(`/organisation/${o.id}`)).json()).data.organisationstatus).toBe(false);
+
+    // Reactivating asks nothing.
+    await row.getByRole('button', { name: `More actions for ${o.name}` }).click();
     await page.getByRole('menuitem', { name: 'Reactivate' }).click();
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
     await expect(row).toContainText('Active');
     expect((await (await api.get(`/organisation/${o.id}`)).json()).data.organisationstatus).toBe(true);
+    page.removeAllListeners('request');
   });
 
   test('delete names the organisation, then removes it', async () => {
@@ -419,6 +440,254 @@ test.describe('organisations, signed in as the platform superadmin', () => {
     await page.keyboard.press('Escape');
   });
 
+  // ---- Saves that fail: every status says something, once ------------------------
+  const SAVE_FAILED = "The organisation couldn't be saved. Try again.";
+  const json = (status: number, body: unknown = {}) => ({
+    status,
+    contentType: 'application/json',
+    body: JSON.stringify(body),
+  });
+  /** Answer the create request (POST /organisation) with `handler`; everything else goes through. */
+  async function mockCreate(handler: (route: Route) => Promise<void> | void): Promise<void> {
+    await page.route('**/organisation', (route) =>
+      route.request().method() === 'POST' ? handler(route) : route.fallback(),
+    );
+  }
+  const submitButton = () => drawer().getByRole('button', { name: /Create organisation|Save changes/ });
+
+  for (const status of [401, 502, 503]) {
+    test(`a create answered with HTTP ${status} says it could not be saved, once, in the form`, async () => {
+      await mockCreate((route) => route.fulfill(json(status)));
+      await openNew();
+      await fillValid(sample());
+      await submit();
+      await expect(drawer().getByRole('alert')).toHaveText(SAVE_FAILED);
+      await expectNoToast();
+      await expect(drawer()).toBeVisible();
+      // Focus is back on the button, not lost to the page.
+      await expect(submitButton()).toBeFocused();
+      await expect(submitButton()).toBeEnabled();
+      await page.unroute('**/organisation');
+    });
+  }
+
+  test('a create answered with HTTP 500 is left to the interceptor: one toast, nothing in the form', async () => {
+    await mockCreate((route) => route.fulfill(json(500, { errormessage: 'Mocked.' })));
+    await openNew();
+    await fillValid(sample());
+    await submit();
+    await expect(toasts()).toHaveCount(1);
+    await page.waitForTimeout(750);
+    expect(await toasts().count(), 'one message, not two').toBe(1);
+    await expect(drawer().getByRole('alert')).toHaveCount(0);
+    await expect(submitButton()).toBeFocused();
+    await page.unroute('**/organisation');
+  });
+
+  test('a create that gets no answer is left to the interceptor: one toast, nothing in the form', async () => {
+    await mockCreate((route) => route.abort('connectionrefused'));
+    await openNew();
+    await fillValid(sample());
+    await submit();
+    await expect(toasts()).toHaveCount(1);
+    await page.waitForTimeout(750);
+    expect(await toasts().count(), 'one message, not two').toBe(1);
+    await expect(drawer().getByRole('alert')).toHaveCount(0);
+    await expect(submitButton()).toBeFocused();
+    await page.unroute('**/organisation');
+  });
+
+  // ---- A 409 is read by the API's own sentences -------------------------------------
+  const NAME_409 = 'That organisation name is already in use.';
+  const CODE_409 = 'That organisation code is already in use.';
+  const COUNTRY_409 = 'A school of this organisation is in a country you are removing.';
+
+  test('a 409 for the name sentence is on Name, for the code sentence on Code, for both on both', async () => {
+    await mockCreate((route) => route.fulfill(json(409, { code: 'ALREADY_EXISTS', errormessage: NAME_409 })));
+    await openNew();
+    await fillValid(sample());
+    await submit();
+    await expect(field('Name')).toHaveAttribute('aria-invalid', 'true');
+    await expect(field('Code')).not.toHaveAttribute('aria-invalid', 'true');
+    await page.unroute('**/organisation');
+
+    await mockCreate((route) => route.fulfill(json(409, { code: 'ALREADY_EXISTS', errormessage: CODE_409 })));
+    await field('Code').fill(`${RUN}x1`);
+    await submit();
+    await expect(field('Code')).toHaveAttribute('aria-invalid', 'true');
+    await expect(field('Name')).not.toHaveAttribute('aria-invalid', 'true');
+    await page.unroute('**/organisation');
+
+    await mockCreate((route) => route.fulfill(json(409, { errormessage: `${NAME_409}, ${CODE_409}` })));
+    await field('Code').fill(`${RUN}x2`);
+    await submit();
+    await expect(field('Name')).toHaveAttribute('aria-invalid', 'true');
+    await expect(field('Code')).toHaveAttribute('aria-invalid', 'true');
+    await expectNoToast();
+    await page.unroute('**/organisation');
+  });
+
+  test('a 409 about anything else shows the API\'s message for the form, and an empty one the generic line', async () => {
+    // Words that a substring match would have taken for the code or the name.
+    const other = "Another organisation's code or name is involved.";
+    await mockCreate((route) => route.fulfill(json(409, { errormessage: other })));
+    await openNew();
+    await fillValid(sample());
+    await submit();
+    await expect(drawer().getByRole('alert')).toHaveText(other);
+    await expect(field('Name')).not.toHaveAttribute('aria-invalid', 'true');
+    await expect(field('Code')).not.toHaveAttribute('aria-invalid', 'true');
+    await expect(submitButton()).toBeFocused();
+    await page.unroute('**/organisation');
+
+    await mockCreate((route) => route.fulfill({ status: 409, contentType: 'application/json', body: '' }));
+    await submit();
+    await expect(drawer().getByRole('alert')).toHaveText(SAVE_FAILED);
+    await expectNoToast();
+    await page.unroute('**/organisation');
+  });
+
+  test('removing a country that has a school is shown on Countries, from the API\'s own sentence', async () => {
+    const o = await makeViaApi();
+    await page.reload();
+    await rowOf(o.name).getByRole('button', { name: `Edit ${o.name}` }).click();
+    await expect(drawer()).toBeVisible();
+    await page.route(`**/organisation/${o.id}`, (route) =>
+      route.request().method() === 'PUT'
+        ? route.fulfill(json(409, { code: 'ALREADY_EXISTS', errormessage: COUNTRY_409, hint: 'Move or remove them first, then try again.' }))
+        : route.fallback(),
+    );
+    await submit();
+    await expect(drawer().getByRole('alert').filter({ hasText: COUNTRY_409 })).toBeVisible();
+    await expect(field('Name')).not.toHaveAttribute('aria-invalid', 'true');
+    await expectNoToast();
+    await page.unroute(`**/organisation/${o.id}`);
+  });
+
+  // ---- The look is set at creation only ------------------------------------------------
+  const fakeSaved = (body: Record<string, unknown>) => ({
+    error: false,
+    data: { organisationid: '00000000-0000-4000-8000-0000000000aa', ...body, organisationstatus: true, countries: [] },
+  });
+
+  for (const [label, theme] of [
+    ['Company', 'corporate'],
+    ['School network', 'kids'],
+  ] as const) {
+    test(`creating from ${label} sends uitheme "${theme}"`, async () => {
+      let sent: any;
+      await mockCreate((route) => {
+        sent = route.request().postDataJSON();
+        return route.fulfill(json(200, fakeSaved(sent)));
+      });
+      await openNew();
+      await fillValid(sample());
+      await drawer().getByRole('radio', { name: new RegExp(label) }).check();
+      await submit();
+      await expect(drawer()).toBeHidden();
+      expect(sent.uitheme).toBe(theme);
+      await page.unroute('**/organisation');
+    });
+  }
+
+  test('editing never sends uitheme', async () => {
+    const o = await makeViaApi();
+    await page.reload();
+    await rowOf(o.name).getByRole('button', { name: `Edit ${o.name}` }).click();
+    let sent: any;
+    await page.route(`**/organisation/${o.id}`, (route) => {
+      if (route.request().method() !== 'PUT') return route.fallback();
+      sent = route.request().postDataJSON();
+      return route.fulfill(json(200, fakeSaved(sent)));
+    });
+    await field('Name').fill(`${o.name} again`);
+    await submit();
+    await expect(drawer()).toBeHidden();
+    expect(sent, 'a change was sent').toBeTruthy();
+    expect(Object.keys(sent)).not.toContain('uitheme');
+    await page.unroute(`**/organisation/${o.id}`);
+  });
+
+  // ---- A refused row action says why --------------------------------------------------
+  test('a delete refused with a 409 shows the API\'s message and hint; other failures the generic line', async () => {
+    const o = await makeViaApi();
+    await page.reload();
+    const row = rowOf(o.name);
+    const answer = { status: 409, body: { code: 'ALREADY_EXISTS', errormessage: 'This organisation still has staff users.', hint: 'Move or remove them first, then try again.' } };
+    await page.route(`**/organisation/${o.id}`, (route) =>
+      route.request().method() === 'DELETE' ? route.fulfill(json(answer.status, answer.body)) : route.fallback(),
+    );
+    await row.getByRole('button', { name: `More actions for ${o.name}` }).click();
+    await page.getByRole('menuitem', { name: /Delete/ }).click();
+    await page.getByRole('alertdialog', { name: `Delete “${o.name}”?` }).getByRole('button', { name: 'Delete organisation' }).click();
+    await expect(toasts()).toContainText('This organisation still has staff users.');
+    await expect(toasts()).toContainText('Move or remove them first, then try again.');
+    await expect(toasts()).not.toContainText('Try again in a moment.');
+    await expect(row).toBeVisible();
+    await page.unroute(`**/organisation/${o.id}`);
+
+    // Any other failure: the generic line.
+    await page.locator('.ant-notification-notice-close').first().click();
+    await page.route(`**/organisation/${o.id}`, (route) =>
+      route.request().method() === 'DELETE' ? route.fulfill(json(502)) : route.fallback(),
+    );
+    await row.getByRole('button', { name: `More actions for ${o.name}` }).click();
+    await page.getByRole('menuitem', { name: /Delete/ }).click();
+    await page.getByRole('alertdialog', { name: `Delete “${o.name}”?` }).getByRole('button', { name: 'Delete organisation' }).click();
+    await expect(toasts().filter({ hasText: 'Try again in a moment.' })).toHaveCount(1);
+    await page.unroute(`**/organisation/${o.id}`);
+  });
+
+  test('a suspend refused with a 409 shows the API\'s message', async () => {
+    const o = await makeViaApi();
+    await page.reload();
+    await page.route(`**/organisation/${o.id}`, (route) =>
+      route.request().method() === 'PUT'
+        ? route.fulfill(json(409, { errormessage: 'Something is in the way.', hint: 'Sort it out first.' }))
+        : route.fallback(),
+    );
+    await rowOf(o.name).getByRole('button', { name: `More actions for ${o.name}` }).click();
+    await page.getByRole('menuitem', { name: 'Suspend' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Suspend organisation' }).click();
+    await expect(toasts()).toContainText('Something is in the way. Sort it out first.');
+    await page.unroute(`**/organisation/${o.id}`);
+  });
+
+  // ---- The drawer cannot be closed while a save is on its way ----------------------------
+  test('the drawer does not close while a save is in flight', async () => {
+    await mockCreate(async (route) => {
+      await new Promise((r) => setTimeout(r, 1200));
+      await route.abort('connectionrefused');
+    });
+    await openNew();
+    await field('Name').fill('A name');
+    await fillValid(sample());
+    await submit();
+    await expect(drawer().getByRole('button', { name: 'Saving…' })).toBeDisabled();
+    // Escape, the close button and Cancel are all ignored, and nothing is asked.
+    await page.keyboard.press('Escape');
+    await drawer().getByRole('button', { name: 'Close' }).click();
+    await drawer().getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
+    await expect(drawer()).toBeVisible();
+    // The save fails; the form is still there with what was typed.
+    await expect(toasts()).toHaveCount(1);
+    await expect(field('Name')).toHaveValue(/./);
+    await page.unroute('**/organisation');
+  });
+
+  // ---- Short name: three letters built from too many characters ---------------------------
+  test('a short name of few letters but many characters has its own message', async () => {
+    await openNew();
+    // Two letters, each an "a" with six accents: fourteen characters.
+    await field('Short name').fill(`a${'\u0301'.repeat(6)}b${'\u0301'.repeat(6)}`);
+    await field('Short name').blur();
+    await expect(drawer().getByRole('alert').filter({ hasText: 'That short name is too long. Use simpler letters.' })).toBeVisible();
+    await expect(drawer().getByText('3 letters or fewer')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Discard changes' }).click();
+  });
+
   test('search asks the API for names containing the text', async () => {
     const a = await makeViaApi();
     const b = await makeViaApi();
@@ -520,13 +789,145 @@ test.describe('organisations: list states, with the list mocked', () => {
     await expect(own.getByRole('row').filter({ has: own.getByText('Sample Company 21', { exact: true }) })).toBeVisible();
     expect(seen[seen.length - 1].searchParams.get('pageindex')).toBe('2');
   });
+
+  // ---- Branding: only the keys the form knows are sent back ---------------------------------
+  const withBranding = () => ({
+    ...fake(1)[0],
+    brandingconfig: { tilecolour: '#0B7C85', logourl: 'https://example.com/logo.png', extra: 'must not be sent back' },
+  });
+
+  test('suspending sends the known branding keys only', async () => {
+    await mockList((route) => route.fulfill(json({ error: false, data: { data: [withBranding()], total: 1, pageindex: 1, pagesize: 20 } })));
+    let sent: any;
+    await own.route('**/organisation/*', (route) => {
+      if (route.request().method() !== 'PUT') return route.fallback();
+      sent = route.request().postDataJSON();
+      return route.fulfill(json({ error: false, data: { ...withBranding(), organisationstatus: false } }));
+    });
+    await own.goto('/organisation');
+    await own.getByRole('button', { name: 'More actions for Sample Company 1' }).click();
+    await own.getByRole('menuitem', { name: 'Suspend' }).click();
+    await own.getByRole('alertdialog').getByRole('button', { name: 'Suspend organisation' }).click();
+    await expect.poll(() => sent, 'the change was sent').toBeTruthy();
+    expect(sent.brandingconfig).toEqual({ tilecolour: '#0B7C85', logourl: 'https://example.com/logo.png' });
+    expect(Object.keys(sent)).not.toContain('uitheme');
+    await own.unroute('**/organisation/*');
+  });
+
+  test('editing sends the known branding keys only', async () => {
+    await mockList((route) => route.fulfill(json({ error: false, data: { data: [withBranding()], total: 1, pageindex: 1, pagesize: 20 } })));
+    let sent: any;
+    await own.route('**/organisation/*', (route) => {
+      if (route.request().method() !== 'PUT') return route.fallback();
+      sent = route.request().postDataJSON();
+      return route.fulfill(json({ error: false, data: withBranding() }));
+    });
+    await own.goto('/organisation');
+    await own.getByRole('button', { name: 'Edit Sample Company 1' }).click();
+    await own.getByRole('dialog', { name: 'Edit organisation' }).getByRole('button', { name: 'Save changes' }).click();
+    await expect.poll(() => sent, 'the change was sent').toBeTruthy();
+    expect(sent.brandingconfig).toEqual({ tilecolour: '#0B7C85', logourl: 'https://example.com/logo.png' });
+    await own.unroute('**/organisation/*');
+  });
+});
+
+// ---- Which buttons a person sees follows the permissions they hold -------------------------
+test.describe('organisations: the buttons follow the permissions', () => {
+  test.describe.configure({ mode: 'serial' });
+  let own: Page;
+
+  const row = () => ({
+    organisationid: '00000000-0000-4000-8000-000000000001',
+    organisationname: 'Sample Company 1',
+    organisationcode: 'sample1',
+    organisationshortname: 'SC',
+    organisationpreset: 'company',
+    organisationstatus: true,
+    uitheme: 'kids',
+    brandingconfig: null,
+    countries: [{ countryid: 'c1', countryname: 'Cambodia' }],
+  });
+
+  test.beforeAll(async ({ browser }) => {
+    own = await browser.newPage();
+    await loginViaUi(own);
+    // What is mocked: the list answer, and the permission list inside the access
+    // token the page keeps in sessionStorage (the payload segment, edited in the
+    // browser; the UI reads its permissions from there and never checks the signature).
+    await own.route('**/organisation?*', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: false, data: { data: [row()], total: 1, pageindex: 1, pagesize: 20 } }),
+      }),
+    );
+  });
+  test.afterAll(async () => {
+    await own?.close();
+  });
+
+  /** Hold exactly these permissions, then open the page afresh. */
+  async function holding(permissions: string[]): Promise<void> {
+    await own.evaluate((perms) => {
+      const raw = sessionStorage.getItem('lms_access_payload') as string;
+      const decode = (t: string) => new TextDecoder().decode(Uint8Array.from(atob(t.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0)));
+      const encode = (t: string) => {
+        const bytes = new TextEncoder().encode(t);
+        let bin = '';
+        bytes.forEach((b) => (bin += String.fromCharCode(b)));
+        return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      };
+      const payload = JSON.parse(decode(raw));
+      payload.permissions = perms;
+      sessionStorage.setItem('lms_access_payload', encode(JSON.stringify(payload)));
+    }, permissions);
+    await own.goto('/organisation');
+    await expect(own.getByRole('row').filter({ has: own.getByText('Sample Company 1', { exact: true }) })).toBeVisible();
+  }
+  const newButtons = () => own.getByRole('button', { name: '+ New organisation' });
+  const editButton = () => own.getByRole('button', { name: 'Edit Sample Company 1' });
+  const moreButton = () => own.getByRole('button', { name: 'More actions for Sample Company 1' });
+
+  test('view alone: no New, no Edit, no menu', async () => {
+    await holding(['view_organisation']);
+    await expect(newButtons()).toHaveCount(0);
+    await expect(editButton()).toHaveCount(0);
+    await expect(moreButton()).toHaveCount(0);
+  });
+
+  test('view and create: New, and nothing on the rows', async () => {
+    await holding(['view_organisation', 'create_organisation']);
+    await expect(newButtons().first()).toBeVisible();
+    await expect(editButton()).toHaveCount(0);
+    await expect(moreButton()).toHaveCount(0);
+  });
+
+  test('view and update: Edit and Suspend, but not Delete', async () => {
+    await holding(['view_organisation', 'update_organisation']);
+    await expect(newButtons()).toHaveCount(0);
+    await expect(editButton()).toBeVisible();
+    await moreButton().click();
+    await expect(own.getByRole('menuitem', { name: 'Suspend' })).toBeVisible();
+    await expect(own.getByRole('menuitem', { name: /Delete/ })).toHaveCount(0);
+  });
+
+  test('view and delete: Delete, but not Edit or Suspend', async () => {
+    await holding(['view_organisation', 'delete_organisation']);
+    await expect(newButtons()).toHaveCount(0);
+    await expect(editButton()).toHaveCount(0);
+    await moreButton().click();
+    await expect(own.getByRole('menuitem', { name: /Delete/ })).toBeVisible();
+    await expect(own.getByRole('menuitem', { name: 'Suspend' })).toHaveCount(0);
+    await expect(own.getByRole('menuitem', { name: 'Reactivate' })).toHaveCount(0);
+  });
 });
 
 test.describe('organisations, signed in without the permission', () => {
-  const stamp = Date.now();
-  const TEACHER = { username: `e2e-org-teacher-${stamp}@example.com`, password: 'OrgTeacher_Pass1' };
+  // One fixed account, not one per run: the API can disable a user but cannot list
+  // or re-enable one, so a new account each run only piles up. It holds no
+  // organisation permission, so it is safe to leave enabled.
+  const TEACHER = { username: 'e2e-org-teacher@example.com', password: 'OrgTeacher_Pass1' };
   let superadmin: APIRequestContext;
-  let userId = '';
 
   test.beforeAll(async () => {
     superadmin = await apiContext(await apiLogin());
@@ -539,14 +940,14 @@ test.describe('organisations, signed in without the permission', () => {
         schoolids: [],
       },
     });
-    expect(res.ok(), `could not create the fixture user: ${res.status()}`).toBeTruthy();
-    userId = (await res.json()).data.lmsuserid;
+    if (!res.ok()) {
+      // Already there from an earlier run is fine; anything else is not.
+      const said = JSON.stringify(await res.json().catch(() => ({})));
+      expect(said, `could not create the fixture user (HTTP ${res.status()})`).toContain('already registered');
+    }
   });
 
   test.afterAll(async () => {
-    // Disables the account; the row stays (see shell.spec.ts):
-    //   DELETE FROM lmsusers WHERE lmsusername LIKE 'e2e-org-%';
-    if (userId) await superadmin.delete(`/user/${userId}`);
     await superadmin?.dispose();
   });
 

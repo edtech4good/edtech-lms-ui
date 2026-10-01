@@ -1,7 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
-  ChangeDetectorRef,
   Component,
   ElementRef,
   computed,
@@ -76,7 +75,6 @@ const FIELD_ORDER: FieldKey[] = ['organisationname', 'organisationshortname', 'o
 export class OrganisationDrawerComponent {
   private readonly service = inject(OrganisationService);
   private readonly modal = inject(NzModalService);
-  private readonly cdr = inject(ChangeDetectorRef);
 
   readonly open = input(false);
   /** The organisation to edit; null to create a new one. */
@@ -155,7 +153,7 @@ export class OrganisationDrawerComponent {
   readonly nameInput = viewChild<ElementRef<HTMLInputElement>>('nameInput');
   readonly shortNameInput = viewChild<ElementRef<HTMLInputElement>>('shortNameInput');
   readonly codeInput = viewChild<ElementRef<HTMLInputElement>>('codeInput');
-  readonly submitButton = viewChild<ElementRef<HTMLButtonElement>>('submitButton');
+  readonly submitButton = viewChild('submitButton', { read: ElementRef<HTMLButtonElement> });
 
   constructor() {
     effect(() => {
@@ -323,12 +321,22 @@ export class OrganisationDrawerComponent {
     this.serverErrors.set(fields);
     this.formError.set(form ?? null);
     const first = FIELD_ORDER.find((k) => fields[k]);
-    // The button was disabled while saving: bring the view up to date, then move focus.
-    this.cdr.detectChanges();
+    // The button was disabled while saving, and the drawer's content is refreshed by
+    // the drawer, not by this component's own pass: so focus waits until the button
+    // really is enabled (a field needs no wait).
     if (first) {
       this.focusField(first);
     } else {
-      this.submitButton()?.nativeElement.focus();
+      this.focusSubmitWhenEnabled();
+    }
+  }
+
+  private focusSubmitWhenEnabled(attempt = 0): void {
+    const button = this.submitButton()?.nativeElement;
+    if (button && !button.disabled) {
+      button.focus();
+    } else if (attempt < 20) {
+      setTimeout(() => this.focusSubmitWhenEnabled(attempt + 1), 25);
     }
   }
 
