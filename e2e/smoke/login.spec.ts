@@ -286,6 +286,21 @@ test.describe('login', () => {
     expect(await toasts(page).count(), 'one message').toBe(1);
   });
 
+  test('two submits in the same instant send one change', async ({ page }) => {
+    // The disabled button stops a real second click, but only after the view has
+    // updated: two events in one task get past it, so the handler must guard too.
+    const puts = await openChangePassword(page, { putDelayMs: 800 });
+    await submitMatching(page);
+    await changeButton(page).evaluate((button: HTMLButtonElement) => {
+      button.click();
+      button.click();
+    });
+    await expect(page).toHaveURL(/\/auth\/login/);
+    await page.waitForTimeout(750);
+    expect(puts.length, 'one password change was sent').toBe(1);
+    expect(await toasts(page).count(), 'one message').toBe(1);
+  });
+
   test('Enter twice while it loads sends one change', async ({ page }) => {
     const puts = await openChangePassword(page, { putDelayMs: 800 });
     await submitMatching(page);
