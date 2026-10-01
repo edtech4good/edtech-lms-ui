@@ -74,7 +74,7 @@ export async function loginViaUi(
     const res = await answer;
     if (res.status() === 429 && attempt === 0) {
       await expect(
-        page.getByRole('alert').filter({ hasText: 'Too many sign-in attempts' }),
+        page.getByRole('main').getByRole('alert').filter({ hasText: 'Too many sign-in attempts' }),
         'a throttled sign-in says so',
       ).toBeVisible();
       await waitOutThrottle(throttleWaitMs(res.headers()['retry-after']));

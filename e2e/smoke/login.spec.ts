@@ -16,8 +16,9 @@ test.describe('login', () => {
     await email(page).fill(SUPERADMIN.username);
     await password(page).fill('Wrong_Password1');
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-    // The reason is announced next to the form, not only in a toast.
-    await expect(page.getByRole('alert').filter({ hasText: /incorrect/i })).toBeVisible();
+    // The reason is announced next to the form, not only in a toast (the toast
+    // is an alert too, so look inside <main>, which holds the card).
+    await expect(page.getByRole('main').getByRole('alert').filter({ hasText: /incorrect/i })).toBeVisible();
     // Still on /auth: no dashboard, no token.
     await expect(page).toHaveURL(/\/auth/);
     expect(await page.evaluate(() => Object.keys(sessionStorage).filter((k) => k.startsWith('lms_')))).toEqual([]);
@@ -86,7 +87,7 @@ test.describe('login', () => {
     await password(page).fill('Whatever_Pass1');
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await expect(
-      page.getByRole('alert').filter({ hasText: 'Too many sign-in attempts. Wait a minute and try again.' }),
+      page.getByRole('main').getByRole('alert').filter({ hasText: 'Too many sign-in attempts. Wait a minute and try again.' }),
     ).toBeVisible();
     await expect(page).toHaveURL(/\/auth/);
   });
