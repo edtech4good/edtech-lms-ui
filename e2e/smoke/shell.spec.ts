@@ -446,8 +446,9 @@ test.describe('shell, signed in as a role-limited user', () => {
       expect(await tokenKeys(), 'no tokens left behind').toEqual([]);
       // ...without an error toast: the failure of a request the user cannot act
       // on is not news. (Give a toast the time it would need to appear.)
+      // (Look once: a retrying assertion would pass after the toast faded.)
       await p.waitForTimeout(750);
-      await expect(p.locator('.ant-notification-notice')).toHaveCount(0);
+      expect(await p.locator('.ant-notification-notice').count(), 'no error toast').toBe(0);
     } finally {
       await p.close();
     }

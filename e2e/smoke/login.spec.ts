@@ -19,8 +19,10 @@ test.describe('login', () => {
     // The reason is announced next to the form, and only there: no toast too.
     // (A toast is an alert as well, so look inside <main>, which holds the card.)
     await expect(page.getByRole('main').getByRole('alert')).toHaveText('The email or password is incorrect.');
-    await page.waitForTimeout(500);
-    await expect(page.locator('.ant-notification-notice')).toHaveCount(0);
+    // Give a toast the time it would need to appear, then look once: a retrying
+    // assertion would pass after the toast faded (they last a few seconds).
+    await page.waitForTimeout(750);
+    expect(await page.locator('.ant-notification-notice').count(), 'no error toast').toBe(0);
     // Still on /auth: no dashboard, no token.
     await expect(page).toHaveURL(/\/auth/);
     expect(await page.evaluate(() => Object.keys(sessionStorage).filter((k) => k.startsWith('lms_')))).toEqual([]);
