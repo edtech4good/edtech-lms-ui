@@ -1,0 +1,342 @@
+// The Organisations list. Spec: docs/design/admin/handoff-v2, artboard o1 of
+// "Admin v2.1 Platform and Settings.dc.html".
+
+:host {
+  display: block;
+  font-family: var(--font-body);
+  color: var(--color-ink);
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+// ---- Page header: tile, title, count line, action ----------------------------------
+.page-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 4px;
+  flex-wrap: wrap;
+}
+
+.head-tile {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  background: var(--color-ink);
+}
+
+.head-text {
+  flex: 1;
+  min-width: 200px;
+
+  h1 {
+    margin: 0;
+    font-size: 28px;
+    line-height: 36px;
+    font-weight: 700;
+  }
+
+  .sub {
+    margin: 0;
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--color-text-2);
+  }
+}
+
+.new {
+  height: 48px;
+  padding: 0 22px;
+  font-size: 15px;
+}
+
+// ---- The card -------------------------------------------------------------------------
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 18px 22px;
+  border-radius: var(--radius-card);
+  background: #fff;
+  box-shadow: var(--shadow-ring-edge);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+}
+
+.search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: min(280px, 100%);
+  height: 44px;
+  box-sizing: border-box;
+  padding: 0 18px;
+  gap: 8px;
+  border: 1.5px solid var(--color-field-ring);
+  border-radius: 999px;
+  background: var(--color-paper);
+  color: var(--color-placeholder);
+
+  &:focus-within {
+    border-color: var(--color-action);
+    background: #fff;
+    box-shadow: var(--shadow-focus-input);
+  }
+
+  input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: var(--color-ink);
+    font: inherit;
+    font-size: 14px;
+
+    &::placeholder {
+      color: var(--color-placeholder);
+    }
+
+    // The native clear control would be a second, unstyled, way to clear.
+    &::-webkit-search-cancel-button {
+      display: none;
+    }
+  }
+}
+
+// ---- Table ----------------------------------------------------------------------------
+.grid {
+  display: block;
+}
+
+.org {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  // Wide enough that a name wraps between words, not between letters.
+  min-width: 260px;
+}
+
+.tile {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow: visible;
+}
+
+.org-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.org-name {
+  font-size: 15px;
+  line-height: 1.7;
+  font-weight: 600;
+  overflow-wrap: break-word;
+}
+
+.org-code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--color-text-2);
+}
+
+.kind {
+  display: inline-block;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--color-action-tint);
+  color: var(--color-action-press);
+  font-size: 12px;
+  line-height: 26px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &.school {
+    background: var(--color-practice-tint);
+    color: var(--color-practice-press);
+  }
+}
+
+.countries {
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+
+  &.active {
+    background: var(--color-published-tint);
+    color: var(--color-published-ink);
+  }
+
+  &.suspended {
+    background: var(--color-slate-tint);
+    color: var(--color-text-2-dark);
+  }
+}
+
+.actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.row-button {
+  margin-left: 8px;
+}
+
+.more {
+  width: 36px;
+  padding: 0;
+}
+
+// The row's action menu (CDK menu: roles, arrow keys, Escape and focus are its own).
+.row-menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 168px;
+  padding: 6px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: var(--shadow-ring-edge), var(--shadow-menu);
+  font-family: var(--font-body);
+}
+
+.menu-item {
+  height: 40px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-paper);
+  }
+
+  &:focus-visible {
+    outline: none;
+    background: var(--color-paper);
+    box-shadow: var(--shadow-focus-visible);
+  }
+
+  &.danger {
+    color: var(--color-danger);
+  }
+}
+
+// ---- Empty, error, loading ---------------------------------------------------------------
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 4px;
+  padding: 32px 20px;
+  border-radius: var(--radius-card);
+  background: var(--color-paper);
+  box-shadow: inset 0 0 0 1.5px var(--color-edge);
+  text-align: center;
+
+  h2 {
+    margin: 0;
+    font-size: 17px;
+    line-height: 26px;
+    font-weight: 700;
+  }
+
+  p {
+    margin: 0 0 8px;
+    max-width: 420px;
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--color-text-2-dark);
+  }
+}
+
+.skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+}
+
+.sk-tile {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--color-slate-tint);
+}
+
+.sk-line {
+  width: 40%;
+  height: 12px;
+  border-radius: 6px;
+  background: var(--color-slate-tint);
+}
+
+@media (max-width: 720px) {
+  .card {
+    padding: 14px 12px;
+  }
+
+  .actions {
+    white-space: normal;
+  }
+}

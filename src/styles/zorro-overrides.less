@@ -549,6 +549,42 @@ textarea.ant-input {
 }
 
 // ---------------------------------------------------------------------------
+// nz-drawer  (.ant-drawer), the organisation drawer (class "org-drawer")
+// A floating panel: 16px in from the top, right and bottom, 560px wide (design
+// o2), radius 28 and the modal shadow. The content brings its own header, body
+// and footer, so the drawer's are not used.
+// ---------------------------------------------------------------------------
+// ng-zorro keeps a closed drawer's content in the page, translated off-screen. That
+// leaves it in the accessibility tree and the tab order, so once the slide-out
+// has played it is hidden.
+.ant-drawer:not(.ant-drawer-open) .ant-drawer-content-wrapper.org-drawer {
+  visibility: hidden;
+  transition: visibility 0s linear 0.4s;
+}
+
+// (The class is on .ant-drawer-content-wrapper itself, from nzWrapClassName.)
+.ant-drawer-content-wrapper.org-drawer {
+  top: 16px;
+  right: 16px;
+  bottom: 16px;
+  height: auto !important;
+  max-width: calc(100vw - 32px);
+  border-radius: @radius-modal;
+  box-shadow: @shadow-modal;
+
+  .ant-drawer-content {
+    border-radius: @radius-modal;
+    overflow: hidden;
+  }
+
+  .ant-drawer-body {
+    height: 100%;
+    padding: 0;
+    overflow: hidden;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // nz-dropdown, nz-select dropdown, nz-cascader, date-picker panel  (floating layers)
 // One soft shadow, no ring; items rounded.
 // ---------------------------------------------------------------------------

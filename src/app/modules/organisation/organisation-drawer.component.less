@@ -1,0 +1,391 @@
+// The New / Edit organisation drawer. Spec: docs/design/admin/handoff-v2,
+// "Admin v2.1 Platform and Settings.dc.html" artboard o2. The drawer's own frame
+// (position, radius, shadow) is in styles/zorro-overrides.less (".org-drawer").
+
+:host {
+  display: contents;
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: #fff;
+  color: var(--color-ink);
+  font-family: var(--font-body);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 22px 24px 10px;
+}
+
+.title {
+  flex: 1;
+  margin: 0;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 700;
+}
+
+.close {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--color-ink);
+  box-shadow: 0 3px 0 var(--color-secondary-edge), inset 0 0 0 1.5px var(--color-field-edge);
+  cursor: pointer;
+
+  &:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 var(--color-secondary-edge), inset 0 0 0 1.5px var(--color-field-edge);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 3px 0 var(--color-secondary-edge), inset 0 0 0 1.5px var(--color-field-edge),
+      var(--shadow-focus-visible);
+  }
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 10px 24px 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+
+.label {
+  padding: 0;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--color-text-2-dark);
+}
+
+.req {
+  color: var(--color-danger);
+}
+
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1.5px solid var(--color-field-ring);
+  border-radius: 14px;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  // Khmer must not clip: no fixed height, a Khmer fallback, generous line height.
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.7;
+  transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-action);
+    background: #fff;
+    box-shadow: var(--shadow-focus-input);
+  }
+
+  &.invalid {
+    border-color: var(--color-danger-ring);
+    background: var(--color-danger-tint);
+  }
+
+  &.invalid:focus {
+    box-shadow: var(--shadow-focus-input-error);
+  }
+
+  &.mono {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 14px;
+  }
+
+  // Read-only: flat slate, still readable (the code, once set, is for reference).
+  &.readonly {
+    border-color: var(--color-field-edge);
+    background: var(--color-slate-tint);
+    color: var(--color-text-2-dark);
+  }
+
+  &.short {
+    width: 96px;
+    flex-shrink: 0;
+    letter-spacing: 0.02em;
+  }
+}
+
+.help {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-text-2);
+}
+
+.field-error {
+  margin: 0;
+  font-size: 13px;
+  line-height: 19px;
+  font-weight: 500;
+  color: var(--color-danger);
+}
+
+.link {
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--color-action);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus-visible);
+  }
+}
+
+.form-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--color-danger-tint);
+  box-shadow: inset 0 0 0 1.5px var(--color-danger-ring);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+
+  svg {
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: var(--color-danger);
+  }
+}
+
+// ---- Short name row: input, tile preview, swatches ----------------------------
+.short-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.tile {
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+  overflow: visible;
+}
+
+.swatches {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 6px;
+}
+
+// A 44px target around a 32px swatch (design o2).
+.swatch {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.chip {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+}
+
+.swatch input:checked + .chip {
+  box-shadow: 0 0 0 3px #fff, 0 0 0 5px var(--color-ink);
+}
+
+.swatch input:focus-visible + .chip {
+  box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--color-action);
+}
+
+.swatch input:checked:focus-visible + .chip {
+  box-shadow: 0 0 0 3px #fff, 0 0 0 5px var(--color-ink), 0 0 0 8px var(--color-action);
+}
+
+// A native radio laid over its whole label, invisible: the label looks like the
+// design and the radio is what a pointer, a finger and a screen reader meet.
+.hit {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+// ---- Start from: two selectable cards -------------------------------------------
+.cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1.5px var(--color-field-edge);
+  cursor: pointer;
+
+  &:hover:not(.locked) {
+    background: var(--color-paper);
+  }
+
+  &.selected {
+    background: var(--color-action-tint);
+    box-shadow: inset 0 0 0 2px var(--color-action);
+  }
+
+  &.locked {
+    cursor: default;
+  }
+
+  &:has(input:focus-visible) {
+    box-shadow: inset 0 0 0 2px var(--color-action), var(--shadow-focus-visible);
+  }
+}
+
+.card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.card-icon {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 11px;
+  background: var(--color-learning-fill);
+
+  &.violet {
+    background: var(--color-practice);
+  }
+}
+
+.radio-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: inset 0 0 0 2px var(--color-field-ring);
+
+  &.on {
+    box-shadow: inset 0 0 0 7px var(--color-action);
+  }
+}
+
+.card-title {
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 700;
+}
+
+.card-help {
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--color-text-2-dark);
+}
+
+// ---- Countries (nz-select, multiple) ---------------------------------------------
+.countries {
+  width: 100%;
+}
+
+// ---- Footer ----------------------------------------------------------------------
+.foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1.5px solid #f1f3fa;
+}
+
+.foot-button {
+  height: 48px;
+  padding: 0 22px;
+  font-size: 15px;
+}
+
+@media (max-width: 480px) {
+  .head {
+    padding: 18px 16px 8px;
+  }
+
+  .body {
+    padding: 8px 16px 16px;
+  }
+
+  .foot {
+    padding: 12px 16px;
+  }
+
+  .cards {
+    grid-template-columns: 1fr;
+  }
+
+  .swatches {
+    padding-left: 0;
+  }
+}
