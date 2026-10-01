@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
@@ -20,11 +21,30 @@ export class LoginComponent implements OnInit {
   loginForm!: UntypedFormGroup;
   changePasswordForm!: UntypedFormGroup;
   isloading = false;
+  /** The Show/Hide toggle on the password field. */
+  showPassword = false;
+  /** Why the last attempt failed, shown beside the form (as well as the toast). */
+  loginError: string | null = null;
+
+  @ViewChild('emailInput') private emailInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('passwordInput') private passwordInput?: ElementRef<HTMLInputElement>;
+
+  /** A required field the user has touched or submitted past, and left empty. */
+  showInvalid(name: 'lmsusername' | 'lmsuserpassword'): boolean {
+    const control = this.loginForm.get(name);
+    return !!control && control.invalid && (control.dirty || control.touched);
+  }
 
   async submitLoginForm() {
-    this.isloading = true;
+    this.loginError = null;
     this.utilservice.checkFormDirty(this.loginForm);
+    if (!this.loginForm.valid) {
+      // Put the keyboard on the first field that needs attention.
+      const first = this.loginForm.get('lmsusername')?.invalid ? this.emailInput : this.passwordInput;
+      first?.nativeElement.focus();
+    }
     if (this.loginForm.valid) {
+      this.isloading = true;
       const tempCred = <LoginRequestBody>{
         lmsusername: this.loginForm.getRawValue()['lmsusername'],
         lmsuserpassword: this.loginForm.getRawValue()['lmsuserpassword'],
@@ -45,15 +65,32 @@ export class LoginComponent implements OnInit {
             }
           }
         },
-        (error)=>{
+        (error: HttpErrorResponse)=>{
           if(error){
             this.isloading = false;
+            this.loginError = this.loginErrorMessage(error);
           }
         },
         ()=>{
           this.isloading = false;
         });
     }
+  }
+
+  /**
+   * The message to show beside the form. A failed sign-in (400) carries the
+   * API's own wording; a rate limit (429) used to show nothing at all. Anything
+   * else keeps its existing handling in the error interceptor.
+   */
+  private loginErrorMessage(error: HttpErrorResponse): string | null {
+    if (error.status === 429) {
+      return 'Too many sign-in attempts. Wait a minute and try again.';
+    }
+    if (error.status === 400) {
+      const message = error.error?.errormessage;
+      return typeof message === 'string' && message ? message : 'The email or password is incorrect.';
+    }
+    return null;
   }
 
   constructor(

@@ -19,6 +19,12 @@ export class ChangePasswordComponent implements OnInit {
   changePassworForm!: UntypedFormGroup;
   changePasswordForm!: UntypedFormGroup;
 
+  /** A required field the user has touched or submitted past, and left empty. */
+  showInvalid(name: 'lmsuserpassword' | 'lmsuserconfirmpassword'): boolean {
+    const control = this.changePassworForm.get(name);
+    return !!control && control.invalid && (control.dirty || control.touched);
+  }
+
   async submitLoginForm() {
     this.utilservice.checkFormDirty(this.changePassworForm);
     if (this.changePassworForm.valid) {

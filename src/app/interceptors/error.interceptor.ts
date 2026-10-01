@@ -21,11 +21,24 @@ export class ErrorInterceptor implements HttpInterceptor {
     req: HttpRequest<any>,
     next: HttpHandler
   ): Observable<HttpEvent<any>> {
+    // Signing out clears the session whether or not the server hears about it, so
+    // a failed logout request must not put an error toast on the sign-in page.
+    const quiet = /\/auth\/logout(\?|$)/.test(req.url);
+    // The sign-in form shows its own rate-limit message beside the form.
+    const ownsRateLimitMessage = /\/auth\/login(\?|$)/.test(req.url);
+    const toast = (type: string, data: any): void => {
+      if (!quiet) this.createNotification(type, data);
+    };
     return next.handle(req).pipe(
       catchError((error: HttpErrorResponse) => {
         this.appStore.dispatch(unsetloadingAction());
+        if (error.status === 429 && !ownsRateLimitMessage) {
+          // The API rate-limits sign-in, forgot-password and a few other routes.
+          // This used to show nothing, so the action looked dead.
+          toast('error', 'Too many attempts. Wait a minute and try again.');
+        }
         if (error.status === 400) {
-          this.createNotification('error', error.error.errormessage);
+          toast('error', error.error.errormessage);
         }
         if (error.status === 401) {
           // The API returns 401 for role failures too (access.guard.ts), not just
@@ -36,7 +49,7 @@ export class ErrorInterceptor implements HttpInterceptor {
           }
         }
         if (error.status === 500) {
-          this.createNotification(
+          toast(
             'error',
             error.error.errormessage +
               (error?.error?.logid
@@ -48,7 +61,7 @@ export class ErrorInterceptor implements HttpInterceptor {
           this.router.navigate(['/auth/blocked']);
         }
         if (error.status === 0) {
-          this.createNotification('error', 'Something went wrong..!!');
+          toast('error', 'Something went wrong..!!');
         }
         return throwError(error);
       }),

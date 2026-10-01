@@ -115,7 +115,7 @@
     >
       <span class="avatar" aria-hidden="true">{{ initials }}</span>
       <span class="who">
-        <span class="name">{{ displayName }}</span>
+        <span class="name" [attr.title]="displayName">{{ displayName }}</span>
         @if (email) {
           <span class="email" [attr.title]="email">{{ email }}</span>
         }
