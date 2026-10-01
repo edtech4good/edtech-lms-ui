@@ -34,6 +34,7 @@ const routes: Routes = [
         component: LessonCreateComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'New',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -42,6 +43,7 @@ const routes: Routes = [
         component: LessonUpdateComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Edit',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -50,6 +52,7 @@ const routes: Routes = [
         component: LessonLearningComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Learning',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -58,6 +61,7 @@ const routes: Routes = [
         component: LessonPracticeComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Practice',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -66,6 +70,7 @@ const routes: Routes = [
         component: LessonPracticeQuestionsComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Practice questions',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -74,6 +79,7 @@ const routes: Routes = [
         component: LessonQuizComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Quiz',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -82,6 +88,7 @@ const routes: Routes = [
         component: LessonQuizQuestionsComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Quiz questions',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -90,6 +97,7 @@ const routes: Routes = [
         component: LessonPlanComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Teacher plan',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },

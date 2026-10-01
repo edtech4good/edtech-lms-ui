@@ -1,0 +1,13 @@
+<nav class="crumbs" aria-label="Breadcrumb">
+  <ol>
+    @for (crumb of crumbs(); track $index; let last = $last) {
+      <li [class.last]="last">
+        @if (crumb.link) {
+          <a [routerLink]="crumb.link">{{ crumb.label }}</a>
+        } @else {
+          <span>{{ crumb.label }}</span>
+        }
+      </li>
+    }
+  </ol>
+</nav>

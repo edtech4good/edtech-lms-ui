@@ -14,6 +14,9 @@ const routes: Routes = [
           import('./baseline-curriculum/baseline-curriculum.module').then((m) => m.BaselineCurriculumModule),
         canActivate: [AuthGuard],
         data: {
+          group: 'Content',
+          crumb: 'Assessments',
+          crumbLink: '/baseline-curriculum/index',
           role: [],
         },
       },
@@ -23,6 +26,9 @@ const routes: Routes = [
           import('./dashboard/dashboard.module').then((m) => m.DashboardModule),
         canActivate: [AuthGuard],
         data: {
+          group: 'Reports and settings',
+          crumb: 'Reports',
+          crumbLink: '/report',
           role: [],
         },
       },
@@ -34,6 +40,9 @@ const routes: Routes = [
           ),
         canActivate: [AuthGuard],
         data: {
+          group: 'Administration',
+          crumb: 'Media tags',
+          crumbLink: '/documenttag/index',
           role: [],
         },
       },
@@ -45,6 +54,9 @@ const routes: Routes = [
           ),
         canActivate: [AuthGuard],
         data: {
+          group: 'Administration',
+          crumb: 'Question tags',
+          crumbLink: '/questiontag/index',
           role: [],
         },
       },
@@ -56,6 +68,9 @@ const routes: Routes = [
           ),
         canActivate: [AuthGuard],
         data: {
+          group: 'Administration',
+          crumb: 'Subjects',
+          crumbLink: '/subject/index',
           role: [],
         },
       },
@@ -67,6 +82,9 @@ const routes: Routes = [
           ),
         canActivate: [AuthGuard],
         data: {
+          group: 'Content',
+          crumb: 'Curricula',
+          crumbLink: '/curriculum/index',
           role: [],
         },
       },
@@ -76,6 +94,9 @@ const routes: Routes = [
           import('./grade/grade.module').then((m) => m.GradeModule),
         canActivate: [AuthGuard],
         data: {
+          group: 'Content',
+          crumb: 'Grades',
+          crumbLink: '/grade/index',
           role: [],
         },
       },
@@ -85,6 +106,9 @@ const routes: Routes = [
           import('./level/level.module').then((m) => m.LevelModule),
         canActivate: [AuthGuard],
         data: {
+          group: 'Content',
+          crumb: 'Levels',
+          crumbLink: '/level/index',
           role: [],
         },
       },
@@ -93,6 +117,9 @@ const routes: Routes = [
         loadChildren: () => import('./map/map.module').then((m) => m.MapModule),
         canActivate: [AuthGuard],
         data: {
+          group: 'Content',
+          crumb: 'Map',
+          crumbLink: '/map/index',
           role: [],
         },
       },
@@ -102,6 +129,9 @@ const routes: Routes = [
           import('./lesson/lesson.module').then((m) => m.LessonModule),
         canActivate: [AuthGuard],
         data: {
+          group: 'Content',
+          crumb: 'Lessons',
+          crumbLink: '/lesson/index',
           role: [],
         },
       },
@@ -111,6 +141,9 @@ const routes: Routes = [
           import('./document/document.module').then((m) => m.DocumentModule),
         canActivate: [AuthGuard],
         data: {
+          group: 'Content',
+          crumb: 'Media',
+          crumbLink: '/document/index',
           role: [],
         },
       },
@@ -120,6 +153,9 @@ const routes: Routes = [
           import('./question/question.module').then((m) => m.QuestionModule),
         canActivate: [AuthGuard],
         data: {
+          group: 'Content',
+          crumb: 'Questions',
+          crumbLink: '/question/index',
           role: [],
         },
       },
@@ -129,6 +165,9 @@ const routes: Routes = [
           import('./student/student.module').then((m) => m.StudentModule),
         canActivate: [AuthGuard],
         data: {
+          group: 'People',
+          crumb: 'Learners',
+          crumbLink: '/student/index',
           role: [],
         },
       },
@@ -138,6 +177,9 @@ const routes: Routes = [
           import('./teacher/teacher.module').then((m) => m.TeacherModule),
         canActivate: [AuthGuard],
         data: {
+          group: 'People',
+          crumb: 'Teachers',
+          crumbLink: '/teacher/index',
           role: [],
         },
       },
@@ -147,6 +189,9 @@ const routes: Routes = [
           import('./school/school.module').then((m) => m.SchoolModule),
         canActivate: [AuthGuard],
         data: {
+          group: 'People',
+          crumb: 'Schools',
+          crumbLink: '/school/index',
           role: [],
         },
       },
@@ -156,6 +201,9 @@ const routes: Routes = [
           import('./standard/standard.module').then((m) => m.StandardModule),
         canActivate: [AuthGuard],
         data: {
+          group: 'People',
+          crumb: 'Classes',
+          crumbLink: '/standard/index',
           role: [],
         },
       },
@@ -165,6 +213,9 @@ const routes: Routes = [
           import('./country/country.module').then((m) => m.CountryModule),
         canActivate: [AuthGuard],
         data: {
+          group: 'Administration',
+          crumb: 'Countries',
+          crumbLink: '/country/index',
           role: [],
         },
       },
@@ -174,6 +225,9 @@ const routes: Routes = [
           import('./role-permission/role.module').then((m) => m.RolePermissionModule),
         canActivate: [AuthGuard],
         data: {
+          group: 'Administration',
+          crumb: 'Roles',
+          crumbLink: '/role-perm/index',
           role: [],
         },
       },
@@ -183,6 +237,9 @@ const routes: Routes = [
           import('./user/user.module').then((m) => m.UserModule),
         canActivate: [AuthGuard],
         data: {
+          group: 'Administration',
+          crumb: 'Staff accounts',
+          crumbLink: '/user/index',
           role: [],
         },
       },
@@ -192,6 +249,9 @@ const routes: Routes = [
           import('./feedback/feedback.module').then((m) => m.FeedbackModule),
         canActivate: [AuthGuard],
         data: {
+          group: 'Administration',
+          crumb: 'Feedback',
+          crumbLink: '/feedback/index',
           role: [],
         },
       },
@@ -201,6 +261,9 @@ const routes: Routes = [
           import('./report/report.module').then((m) => m.ReportModule),
         canActivate: [AuthGuard],
         data: {
+          group: 'Reports and settings',
+          crumb: 'Reports',
+          crumbLink: '/report',
           role: [],
         },
       },

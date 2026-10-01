@@ -23,6 +23,7 @@ const routes: Routes = [
         component: DefaultComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Home',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -31,6 +32,7 @@ const routes: Routes = [
         component: IndexComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Reach',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -39,6 +41,7 @@ const routes: Routes = [
         component: SchoolComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Reach by school',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -47,6 +50,7 @@ const routes: Routes = [
         component: AppUsageComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Impact',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -55,6 +59,7 @@ const routes: Routes = [
         component: SchoolContributeComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Fees collection',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -63,6 +68,7 @@ const routes: Routes = [
         component: TechDowntimeComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Tech downtime',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },

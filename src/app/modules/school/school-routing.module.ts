@@ -31,6 +31,7 @@ const routes: Routes = [
         component: SchoolCreateComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'New',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -39,6 +40,7 @@ const routes: Routes = [
         component: SchoolUpdateComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Edit',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -47,6 +49,7 @@ const routes: Routes = [
         component: SchoolcontributeComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Fees',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -55,6 +58,7 @@ const routes: Routes = [
         component: SchoolCreateContributeComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'New fee',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -63,6 +67,7 @@ const routes: Routes = [
         component: SchoolcontributeUpdateComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Edit fee',
           roles: [Role.admin, Role.superadmin, Role.user],
         }
       }

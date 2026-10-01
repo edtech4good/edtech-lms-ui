@@ -28,6 +28,7 @@ const routes: Routes = [
         component: StudentStatsComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Stats',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -36,6 +37,7 @@ const routes: Routes = [
         component: StudentDetailsComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Details',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },

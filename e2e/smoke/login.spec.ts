@@ -24,8 +24,14 @@ test.describe('login', () => {
     // times through *ngxPermissionsOnly, so every cycle scheduled another one.
     // It presented as a silently wedged tab, which is exactly the failure a
     // smoke suite exists to catch.
+    //
+    // Assert on a permission-gated link (Questions needs view_question), not Home:
+    // Home is always rendered, whereas the gated items are the ones the loop
+    // starves of a settled permission check.
     await loginViaUi(page);
-    await expect(page.locator('ul[nz-menu] li').first()).toBeVisible();
+    await expect(
+      page.locator('nav[aria-label="Main"]').getByRole('link', { name: 'Questions', exact: true }),
+    ).toBeVisible();
 
     // A wedged tab still answers a click; it just never settles. Assert the app
     // is responsive rather than merely painted.

@@ -990,18 +990,3 @@ textarea.ant-input {
   border-color: @color-action;
   background: @color-action-tint;
 }
-
-// ---------------------------------------------------------------------------
-// nz-sider menu (the current shell navigation)
-// The shell is rebuilt in a later PR. Until then the sider sizes itself to its
-// content (width: auto) while its layout offset is a fixed 210px, so a wider
-// typeface would push it over the page. Keep the menu on ng-zorro's original
-// system stack and 14px so the shell is pixel-stable. Delete this block when
-// the new nav lands.
-// ---------------------------------------------------------------------------
-nz-sider .ant-menu {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    'Noto Sans', sans-serif;
-  font-size: 14px;
-  line-height: 1.5715;
-}

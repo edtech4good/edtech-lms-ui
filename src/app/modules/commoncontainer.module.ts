@@ -9,10 +9,16 @@ import { StudentIndexComponent } from './student/student-index/student-index.com
 import { StudentStatsComponent } from './student/student-stats/student-stats.component';
 import { TeacherIndexComponent } from './teacher/teacher-index/teacher-index.component';
 import { LessonModule } from "./lesson/lesson.module";
+import { ShellBreadcrumbComponent } from './shell/shell-breadcrumb.component';
+import { ShellIconComponent } from './shell/shell-icon.component';
+import { ShellNavComponent } from './shell/shell-nav.component';
 
 @NgModule({
     declarations: [
         CommonComponent,
+        ShellNavComponent,
+        ShellBreadcrumbComponent,
+        ShellIconComponent,
         StudentIndexComponent,
         TeacherIndexComponent,
         StudentStatsComponent,

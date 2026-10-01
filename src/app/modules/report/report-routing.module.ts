@@ -4,6 +4,7 @@ import { AuthGuard } from 'src/app/guards/auth-guard.service';
 import { Role } from 'src/app/models/enums/role.enum';
 import { ClassCompletedQuizComponent } from './class-completed-quiz/completed-quiz.component';
 import { ClassLevelQuizComponent } from './class-level-quiz/level-quiz.component';
+import { ReportIndexComponent } from './report-index/report-index.component';
 import { StudentActivityComponent } from './student-activity/student-activity.component';
 import { StudentCompletedQuizComponent } from './student-completed-quiz/completed-quiz.component';
 import { StudentLastCompletedQuizComponent } from './student-last-completed-quiz/last-completed-quiz.component';
@@ -18,10 +19,21 @@ const routes: Routes = [
     path: '',
     children: [
       {
+        // The Reports hub: links to every dashboard and report.
+        path: '',
+        pathMatch: 'full',
+        component: ReportIndexComponent,
+        canActivate: [AuthGuard],
+        data: {
+          roles: [Role.admin, Role.superadmin, Role.user],
+        },
+      },
+      {
         path: 'student-completed-quiz',
         component: StudentCompletedQuizComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Quiz scores',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -30,6 +42,7 @@ const routes: Routes = [
         component: ClassCompletedQuizComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Class quiz scores',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -38,6 +51,7 @@ const routes: Routes = [
         component: ClassCompletedQuizComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Class quiz scores (online)',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -46,6 +60,7 @@ const routes: Routes = [
         component: StudentCompletedQuizComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Quiz scores (online)',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -54,6 +69,7 @@ const routes: Routes = [
         component: StudentLevelQuizComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Level quiz',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -62,6 +78,7 @@ const routes: Routes = [
         component: ClassLevelQuizComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Class level quiz',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -70,6 +87,7 @@ const routes: Routes = [
         component: ClassLevelQuizComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Class level quiz (online)',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -78,6 +96,7 @@ const routes: Routes = [
         component: StudentLevelQuizComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Level quiz (online)',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -86,6 +105,7 @@ const routes: Routes = [
         component: StudentLastCompletedQuizComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Current level',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -94,6 +114,7 @@ const routes: Routes = [
         component: StudentLastCompletedQuizComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Current level (online)',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -102,6 +123,7 @@ const routes: Routes = [
         component: StudentActivityComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Active status',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -110,6 +132,7 @@ const routes: Routes = [
         component: StudentActivityComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Active status (online)',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -118,6 +141,7 @@ const routes: Routes = [
         component: SyncRecordComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Sync record',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -126,6 +150,7 @@ const routes: Routes = [
         component: StudentGradeProgressComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Grade progress',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -134,6 +159,7 @@ const routes: Routes = [
         component: StudentGradeProgressComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Grade progress (online)',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -142,6 +168,7 @@ const routes: Routes = [
         component: StudentLevelProgressComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Level progress',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -150,6 +177,7 @@ const routes: Routes = [
         component: StudentLevelProgressComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Level progress (online)',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -158,6 +186,7 @@ const routes: Routes = [
         component: StudentLessonProgressComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Lesson progress',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -166,6 +195,7 @@ const routes: Routes = [
         component: StudentLessonProgressComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Lesson progress (online)',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },

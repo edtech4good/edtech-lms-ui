@@ -29,6 +29,7 @@ const routes: Routes = [
         component: LevelCreateComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'New',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -37,6 +38,7 @@ const routes: Routes = [
         component: LevelUpdateComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Edit',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },
@@ -45,6 +47,7 @@ const routes: Routes = [
         component: LevelQuizComponent,
         canActivate: [AuthGuard],
         data: {
+          crumb: 'Quiz',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       }
