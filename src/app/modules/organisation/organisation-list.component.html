@@ -87,6 +87,7 @@
 </div>
 
 <ng-template #table>
+  <div class="scroll">
   <nz-table
     #grid
     class="grid"
@@ -99,7 +100,6 @@
     [nzPageSizeOptions]="pageSizes"
     [nzHideOnSinglePage]="total() <= pageSizes[0]"
     [nzLoading]="status() === 'loading'"
-    [nzScroll]="{ x: '810px' }"
     (nzPageIndexChange)="onPageIndex($event)"
     (nzPageSizeChange)="onPageSize($event)"
   >
@@ -186,6 +186,7 @@
       }
     </tbody>
   </nz-table>
+  </div>
 </ng-template>
 
 <app-organisation-drawer

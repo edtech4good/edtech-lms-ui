@@ -483,6 +483,7 @@ test.describe('organisations: list states, with the list mocked', () => {
     await mockList((route) => route.fulfill(json({ error: false, data: { data: fake(3), total: 3, pageindex: 1, pagesize: 20 } })));
     await own.goto('/organisation');
     await expect(own.locator('.sub')).toHaveText('3 organisations · 1 country');
+    // The header row and the three organisations, and no empty row.
     await expect(own.getByRole('row')).toHaveCount(4);
   });
 

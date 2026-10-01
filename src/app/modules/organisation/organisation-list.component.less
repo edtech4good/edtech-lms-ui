@@ -130,8 +130,19 @@
 }
 
 // ---- Table ----------------------------------------------------------------------------
+// Below the table's width it scrolls sideways inside its card (a plain wrapper: ng-zorro's
+// own scroll option adds an empty measuring row that a screen reader would announce).
+.scroll {
+  overflow-x: auto;
+}
+
 .grid {
   display: block;
+
+  ::ng-deep table {
+    min-width: 800px;
+    table-layout: fixed;
+  }
 }
 
 .org {
