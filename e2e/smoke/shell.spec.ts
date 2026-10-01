@@ -308,13 +308,50 @@ test.describe('shell, signed in as a role-limited user', () => {
     createdUserIds.push((await created.json()).data.lmsuserid);
   }
 
+  // The API allows 10 logins a minute per client (5 for some routes) and the
+  // whole smoke suite logs in often, so by the time these tests run the budget
+  // may be spent. On a 429, wait out the window and try once more.
+  const THROTTLE_WINDOW_MS = 61_000;
+  // When this block's logins began. They (and the superadmin API login) use up
+  // the budget the specs after this file need, so afterAll waits the window out.
+  let loginsBeganAt = 0;
+
+  async function apiLoginPatiently(): Promise<string> {
+    try {
+      return await apiLogin();
+    } catch (e) {
+      if (!String(e).includes('429')) throw e;
+      await new Promise((r) => setTimeout(r, THROTTLE_WINDOW_MS));
+      loginsBeganAt = Date.now();
+      return apiLogin();
+    }
+  }
+
+  async function signInPatiently(p: Page, account: { username: string; password: string }): Promise<void> {
+    let status = 0;
+    p.on('response', (r) => {
+      if (r.url().includes('/auth/login')) status = r.status();
+    });
+    try {
+      await loginViaUi(p, account.username, account.password);
+    } catch (e) {
+      if (status !== 429) throw e;
+      await p.waitForTimeout(THROTTLE_WINDOW_MS);
+      loginsBeganAt = Date.now();
+      await loginViaUi(p, account.username, account.password);
+    }
+  }
+
   test.beforeAll(async () => {
-    superadmin = await apiContext(await apiLogin());
+    test.setTimeout(150_000);
+    loginsBeganAt = Date.now();
+    superadmin = await apiContext(await apiLoginPatiently());
     await makeUser(TEACHER, ROLE.teacher);
     await makeUser(NOBODY, ROLE.user);
   });
 
   test.afterAll(async () => {
+    test.setTimeout(150_000);
     // DELETE /user/:id disables the account rather than removing it (same as
     // role-grants.spec.ts), so these rows stay in lmsusers, uniquely named:
     //   DELETE FROM lmsusers WHERE lmsusername LIKE 'e2e-shell-%';
@@ -323,6 +360,9 @@ test.describe('shell, signed in as a role-limited user', () => {
       if (!res.ok()) throw new Error(`failed to disable fixture user ${id}: HTTP ${res.status()}`);
     }
     await superadmin?.dispose();
+    // Leave the login budget as we found it for the next spec file.
+    const remaining = loginsBeganAt + THROTTLE_WINDOW_MS - Date.now();
+    if (remaining > 0) await new Promise((r) => setTimeout(r, remaining));
   });
 
   // Written out here, not read from shell-nav.config.ts, so a change to the
@@ -350,9 +390,10 @@ test.describe('shell, signed in as a role-limited user', () => {
   ];
 
   test('a Teacher sees exactly the items their permissions allow', async ({ browser }) => {
+    test.setTimeout(150_000);
     const p = await browser.newPage();
     try {
-      await loginViaUi(p, TEACHER.username, TEACHER.password);
+      await signInPatiently(p, TEACHER);
       const side = p.locator('nav[aria-label="Main"]');
       // The token the app holds is the source of truth for what this user may see.
       const token = await p.evaluate(() => {
@@ -391,9 +432,10 @@ test.describe('shell, signed in as a role-limited user', () => {
   test('with no permissions, every group disappears with its label and Home leads to the default page', async ({
     browser,
   }) => {
+    test.setTimeout(150_000);
     const p = await browser.newPage();
     try {
-      await loginViaUi(p, NOBODY.username, NOBODY.password);
+      await signInPatiently(p, NOBODY);
       await expect(p).toHaveURL(/\/dashboard\/default$/);
       const side = p.locator('nav[aria-label="Main"]');
       await expect(side).toBeVisible();
