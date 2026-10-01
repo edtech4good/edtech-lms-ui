@@ -15,7 +15,6 @@
 @import (css) url("../node_modules/@fontsource/poppins/700.css");
 @import (css) url("../node_modules/@fontsource/kantumruy-pro/400.css");
 @import (css) url("../node_modules/@fontsource/kantumruy-pro/600.css");
-@import (css) url("../node_modules/@fontsource/space-mono/400.css");
 @import (css) url("../node_modules/@fontsource/space-mono/700.css");
 
 // Override less variables to here
@@ -24,10 +23,18 @@
 // ---- Brand and status colours --------------------------------------------
 @primary-color: @color-action;
 @primary-color-active: @color-action-press;
+// ng-zorro derives hover/focus from a lighter palette step (#3381FF, 3.7:1 under
+// white text). Use a darker hover so white text stays >= 4.5:1 in every state.
+@primary-color-hover: @color-action-hover;
+@primary-5: @color-action-hover;
+@link-hover-color: @color-action-press;
+@link-active-color: @color-action-press;
 @primary-1: @color-action-tint;
 @info-color: @color-action;
-@success-color: @color-published-press;
-@warning-color: @color-plan;
+// Success/warning feed both icons and text. Use the INK values (text >= 4.5:1);
+// the amber warning icon is set separately in zorro-overrides.less.
+@success-color: @color-published-ink;
+@warning-color: @color-warning-icon;
 @error-color: @color-danger;
 @highlight-color: @color-danger;           // required-field asterisk
 @link-color: @color-action;
@@ -43,10 +50,10 @@
 @component-background: #fff;
 @item-hover-bg: @color-paper;
 @background-color-light: @color-paper;
-@background-color-base: #f1f5f9;
+@background-color-base: @color-slate-tint;
 @disabled-color: @color-faint;
-@disabled-bg: #f1f5f9;
-@input-placeholder-color: @color-faint-dark;
+@disabled-bg: @color-slate-tint;
+@input-placeholder-color: @color-placeholder;
 
 // ---- Type ----------------------------------------------------------------
 @font-family: @font-body;
@@ -84,7 +91,7 @@
 @input-bg: @color-paper;
 @select-background: @color-paper;
 @picker-bg: @color-paper;
-@input-disabled-bg: #f1f5f9;
+@input-disabled-bg: @color-slate-tint;
 
 // ---- Control heights -----------------------------------------------------
 @btn-height-lg: @size-button-lg;
@@ -137,7 +144,7 @@
 @radio-size: 20px;
 @radio-border-width: 2px;
 @tag-line-height: 22px;
-@tag-default-bg: #f1f5f9;
+@tag-default-bg: @color-slate-tint;
 @tag-default-color: @color-text-2-dark;
 @breadcrumb-base-color: @color-text-2;
 @breadcrumb-link-color: @color-text-2;

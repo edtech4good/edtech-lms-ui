@@ -15,13 +15,17 @@
 // ---- Colour ---------------------------------------------------------------
 @color-action: #0b5fff;          // primary actions, active nav, focus
 @color-action-press: #0846bf;    // pressed / offset edge of primary buttons
+@color-action-hover: #0a52e0;    // primary hover/focus: white text stays >= 6:1 (ng-zorro's #3381FF is 3.7:1)
 @color-action-tint: #eaf2ff;     // selected rows, info notes
+@color-action-tint-press: #dde9ff; // selected row under the pointer
 @color-ink: #1e293b;             // text, dark pills
 @color-ink-deep: #09101d;        // learner-app ink, shadow base
 @color-text-2: #475569;          // secondary text
 @color-text-2-dark: #334155;
 @color-faint: #94a3b8;           // separators, placeholder glyphs only
-@color-faint-dark: #64748b;      // placeholder TEXT (faint on paper fails AA)
+@color-faint-dark: #64748b;      // dark faint (secondary glyphs)
+@color-placeholder: #5b6b82;     // placeholder TEXT: 5.0:1 on paper and 5.1:1 on the error fill
+@color-slate-tint: #f1f5f9;      // draft pill, disabled fill, default tag
 @color-paper: #f5f6ff;           // page canvas, field fill
 @color-edge: #e3e7f5;            // card hairline
 @color-field-edge: #e2e8f0;      // secondary button ring
@@ -32,15 +36,18 @@
 @color-learning-fill: #0b7c85;   // v2.1: teal behind white text
 @color-learning-tint: #e9f8f9;
 @color-learning-ink: #0b6e76;
+@color-learning-press: #086870;
 @color-practice: #6d5bd0;        // Practice section, tier 1, Reports
 @color-practice-press: #4b3ba8;
 @color-practice-tint: #f3f1fb;
 @color-quiz: #e0560a;            // Quiz section (tint / icon / ring use)
+@color-quiz-press: #a83d04;
 @color-quiz-tint: #fff0e6;
 @color-plan: #ffc228;            // Teacher plan, "Changed since publish"
 @color-plan-press: #c98f00;
 @color-plan-tint: #fff6db;
-@color-plan-ink: #7a5800;
+@color-plan-ink: #7a5800;        // warning TEXT (6.5:1 on white)
+@color-warning-icon: #b07a00;    // warning ICON on white: 3.7:1 (plan #FFC228 is 1.6:1)
 @color-published: #22db8d;       // success, progress bars
 @color-published-press: #17a86b;
 @color-published-tint: #e7fbf1;
@@ -50,6 +57,9 @@
 @color-danger-press: #8f3603;    // v2.1: pressed offset of a filled destructive button
 @color-danger-ring: #e0560a;     // error ring on fields
 @color-danger-tint: #fff6f0;     // error field fill
+@color-danger-edge: #f3c4a6;     // offset of an outline destructive button
+@color-danger-hover: @color-quiz-press; // filled destructive hover (white text 6.3:1)
+@color-danger-halo: rgba(224, 86, 10, 0.16); // error focus halo
 
 @color-choose-several: #2563eb;  // v2.1: "choose several" question tiles
 
@@ -76,21 +86,27 @@
 // ---- Elevation ------------------------------------------------------------
 // Only buttons are raised; everything else is flat with a hairline ring.
 @shadow-ring-edge: inset 0 0 0 1.5px @color-edge;
+@color-scrim: rgba(9, 16, 29, 0.45); // modal mask
 @shadow-menu: 0 16px 40px rgba(9, 16, 29, 0.12);
 @shadow-modal: 0 24px 60px rgba(9, 16, 29, 0.24);
 @shadow-focus-input: inset 0 0 0 0.5px @color-action, 0 0 0 4px rgba(11, 95, 255, 0.14);
+@shadow-focus-input-error: inset 0 0 0 0.5px @color-danger-ring, 0 0 0 4px @color-danger-halo;
 @shadow-focus-visible: 0 0 0 3px #fff, 0 0 0 6px @color-ink;
 
 :root {
   --color-action: @color-action;
   --color-action-press: @color-action-press;
+  --color-action-hover: @color-action-hover;
   --color-action-tint: @color-action-tint;
+  --color-action-tint-press: @color-action-tint-press;
   --color-ink: @color-ink;
   --color-ink-deep: @color-ink-deep;
   --color-text-2: @color-text-2;
   --color-text-2-dark: @color-text-2-dark;
   --color-faint: @color-faint;
   --color-faint-dark: @color-faint-dark;
+  --color-placeholder: @color-placeholder;
+  --color-slate-tint: @color-slate-tint;
   --color-paper: @color-paper;
   --color-edge: @color-edge;
   --color-field-edge: @color-field-edge;
@@ -101,15 +117,18 @@
   --color-learning-fill: @color-learning-fill;
   --color-learning-tint: @color-learning-tint;
   --color-learning-ink: @color-learning-ink;
+  --color-learning-press: @color-learning-press;
   --color-practice: @color-practice;
   --color-practice-press: @color-practice-press;
   --color-practice-tint: @color-practice-tint;
   --color-quiz: @color-quiz;
+  --color-quiz-press: @color-quiz-press;
   --color-quiz-tint: @color-quiz-tint;
   --color-plan: @color-plan;
   --color-plan-press: @color-plan-press;
   --color-plan-tint: @color-plan-tint;
   --color-plan-ink: @color-plan-ink;
+  --color-warning-icon: @color-warning-icon;
   --color-published: @color-published;
   --color-published-press: @color-published-press;
   --color-published-tint: @color-published-tint;
@@ -118,6 +137,9 @@
   --color-danger-press: @color-danger-press;
   --color-danger-ring: @color-danger-ring;
   --color-danger-tint: @color-danger-tint;
+  --color-danger-edge: @color-danger-edge;
+  --color-danger-hover: @color-danger-hover;
+  --color-danger-halo: @color-danger-halo;
   --color-choose-several: @color-choose-several;
 
   --font-body: @font-body;
@@ -137,9 +159,11 @@
   --size-row-min: @size-row-min;
   --size-touch-min: @size-touch-min;
 
+  --color-scrim: @color-scrim;
   --shadow-ring-edge: @shadow-ring-edge;
   --shadow-menu: @shadow-menu;
   --shadow-modal: @shadow-modal;
   --shadow-focus-input: @shadow-focus-input;
+  --shadow-focus-input-error: @shadow-focus-input-error;
   --shadow-focus-visible: @shadow-focus-visible;
 }
