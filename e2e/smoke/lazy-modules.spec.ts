@@ -11,6 +11,7 @@ import { loginViaUi } from '../fixtures/auth';
  * scaffolded unit specs.
  */
 const LAZY_ROUTES = [
+  'organisation',
   'baseline-curriculum',
   'dashboard',
   'documenttag',
