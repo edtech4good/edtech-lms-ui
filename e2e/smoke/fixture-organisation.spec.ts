@@ -46,8 +46,10 @@ test.describe('fixture organisation', () => {
 
   test('a staff account goes in the fixture organisation, and a platform account in none', async () => {
     const { api } = fakeApi([{ organisationid: 'org-9', organisationcode: FIXTURE_ORGANISATION.code }]);
-    // (cached per host: a new port keeps this independent of the tests above)
-    expect(await organisationFor(api, [ROLE.teacher])).toEqual({ organisationid: 'org-9' });
-    expect(await organisationFor(api, [ROLE.superadmin, ROLE.admin])).toEqual({});
+    // The ids are cached per API URL for the whole worker: a URL of its own keeps this fake
+    // from answering for the real API in any spec that runs after it.
+    const url = 'http://localhost:3103';
+    expect(await organisationFor(api, [ROLE.teacher], url)).toEqual({ organisationid: 'org-9' });
+    expect(await organisationFor(api, [ROLE.superadmin, ROLE.admin], url)).toEqual({});
   });
 });

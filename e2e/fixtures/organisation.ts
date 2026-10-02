@@ -89,7 +89,8 @@ async function findOrCreate(superadmin: APIRequestContext, apiUrl: string, fixtu
 export async function organisationFor(
   superadmin: APIRequestContext,
   roles: readonly string[],
+  apiUrl: string = API_URL,
 ): Promise<{ organisationid?: string }> {
   if (roles.includes(ROLE.superadmin)) return {};
-  return { organisationid: await fixtureOrganisationId(superadmin) };
+  return { organisationid: await fixtureOrganisationId(superadmin, apiUrl) };
 }
