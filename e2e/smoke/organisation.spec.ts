@@ -476,6 +476,28 @@ test.describe('organisations, signed in as the platform superadmin', () => {
     });
   }
 
+  test('on a phone the save-failed message is on screen after the failure, with focus on the button', async () => {
+    await page.setViewportSize({ width: 360, height: 740 });
+    try {
+      await mockCreate((route) => route.fulfill(json(503)));
+      await openNew();
+      await fillValid(sample());
+      await submit();
+      const alert = drawer().getByRole('alert');
+      await expect(alert).toHaveText(SAVE_FAILED);
+      await expect(submitButton()).toBeFocused();
+      await page.waitForTimeout(500); // let any scrolling settle
+      const box = await alert.boundingBox();
+      const view = page.viewportSize()!;
+      expect(box, 'the message has a box').not.toBeNull();
+      expect(box!.y, 'the message starts inside the screen').toBeGreaterThanOrEqual(0);
+      expect(box!.y + box!.height, 'the message ends inside the screen').toBeLessThanOrEqual(view.height);
+      await page.unroute('**/organisation');
+    } finally {
+      await page.setViewportSize({ width: 1280, height: 720 });
+    }
+  });
+
   test('a create answered with HTTP 500 is left to the interceptor: one toast, nothing in the form', async () => {
     await mockCreate((route) => route.fulfill(json(500, { errormessage: 'Mocked.' })));
     await openNew();

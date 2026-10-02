@@ -334,7 +334,10 @@ export class OrganisationDrawerComponent {
   private focusSubmitWhenEnabled(attempt = 0): void {
     const button = this.submitButton()?.nativeElement;
     if (button && !button.disabled) {
-      button.focus();
+      // Focus the button without letting it scroll the form to the bottom, then bring
+      // the message into view: on a phone the message is above the fold otherwise.
+      button.focus({ preventScroll: true });
+      button.closest('.dialog')?.querySelector('.form-error')?.scrollIntoView({ block: 'nearest' });
     } else if (attempt < 20) {
       setTimeout(() => this.focusSubmitWhenEnabled(attempt + 1), 25);
     }
