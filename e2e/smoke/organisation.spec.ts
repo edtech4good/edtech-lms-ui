@@ -829,7 +829,11 @@ test.describe('organisations, signed in as the platform superadmin', () => {
     await page.getByRole('searchbox', { name: 'Search organisations by name' }).fill('zzzz no such organisation');
     await expect(page.getByRole('heading', { name: /No organisations match/ })).toBeVisible();
     await page.getByRole('button', { name: 'Clear search' }).click();
-    await expect(rowOf(a.name)).toBeVisible();
+    // The whole list is back (this run's rows may be on a later page when many organisations are live).
+    await expect(page.getByRole('heading', { name: /No organisations match/ })).toHaveCount(0);
+    await expect(page.getByRole('searchbox', { name: 'Search organisations by name' })).toHaveValue('');
+    await expect(page.getByRole('row').nth(1)).toBeVisible();
+    await expect(page.locator('.sub')).not.toContainText('match');
   });
 });
 
