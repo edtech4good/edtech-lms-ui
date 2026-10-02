@@ -56,4 +56,31 @@ test.describe('local fixture user', () => {
     await ensureLocalFixtureUser(fake, { username: 'someone@example.com', password: 'x', roles: [] }, 'http://127.0.0.1:3000');
     expect(sent).toEqual(['/user/create']);
   });
+
+  test('an account made before organisations existed is moved into the organisation', async () => {
+    const calls: Array<{ method: string; path: string; data?: any }> = [];
+    const answer = (ok: boolean, status: number, body: unknown) =>
+      ({ ok: () => ok, status: () => status, json: async () => body }) as never;
+    const fake = {
+      post: async (path: string, options?: { data?: any }) => {
+        calls.push({ method: 'POST', path, data: options?.data });
+        if (path === '/user/create') return answer(false, 409, { errormessage: 'That email is already registered.' });
+        return answer(true, 200, { data: { data: [{ lmsuserid: 'u1', lmsusername: 'someone@example.com', organisationid: null }] } });
+      },
+      put: async (path: string, options?: { data?: any }) => {
+        calls.push({ method: 'PUT', path, data: options?.data });
+        return answer(true, 200, {});
+      },
+      get: async () => answer(true, 200, {}),
+    };
+    await ensureLocalFixtureUser(
+      fake as never,
+      { username: 'someone@example.com', password: 'x', roles: ['r1'], organisationid: 'org-1' },
+      'http://localhost:3000',
+    );
+    const put = calls.find((c) => c.method === 'PUT');
+    expect(put?.path).toBe('/user/u1');
+    expect(put?.data.organisationid).toBe('org-1');
+    expect(put?.data.lmsuserroles).toEqual(['r1']);
+  });
 });

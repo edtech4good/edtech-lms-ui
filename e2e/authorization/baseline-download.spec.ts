@@ -1,6 +1,8 @@
 import { APIRequestContext, expect, test } from '@playwright/test';
 import { ROLE } from '../fixtures/accounts';
 import { apiContext, apiLogin } from '../fixtures/auth';
+import { skipUnlessLocalApi } from '../fixtures/local-only';
+import { organisationFor } from '../fixtures/organisation';
 
 /**
  * GET /curriculumbaseline/:id/download — see PILOT.md hardening.
@@ -32,6 +34,11 @@ import { apiContext, apiLogin } from '../fixtures/auth';
  *
  * If the anonymous test fails, the guard came off again and children's names are
  * downloadable by anyone. Do not weaken it.
+ *
+ * Against a real server (E2E_API_URL not on localhost, 127.0.0.1 or [::1]) only the anonymous
+ * test runs: the Teacher and Admin accounts are made with passwords written in this public
+ * repository, so that group is skipped there (fixtures/local-only.ts). Teardown throws if an
+ * account cannot be disabled; until then a Teacher and an Admin account stay enabled.
  */
 
 const BOGUS_BASELINE_ID = '00000000-0000-4000-8000-0000000000aa';
@@ -53,48 +60,6 @@ let adminToken: string;
 
 test.describe.configure({ mode: 'serial' });
 
-async function makeUser(
-  ctx: APIRequestContext,
-  account: { username: string; password: string },
-  roles: string[],
-): Promise<string> {
-  const created = await ctx.post('/user/create', {
-    data: {
-      lmsusername: account.username,
-      lmsuserpasswordhash: account.password,
-      lmsuserroles: roles,
-      countryids: [],
-      schoolids: [],
-    },
-  });
-  expect(
-    created.ok(),
-    `could not create fixture ${account.username}: ${created.status()}`,
-  ).toBeTruthy();
-  return (await created.json()).data.lmsuserid;
-}
-
-test.beforeAll(async () => {
-  superadmin = await apiContext(await apiLogin());
-  createdUserIds.push(await makeUser(superadmin, TEACHER, [ROLE.teacher]));
-  createdUserIds.push(await makeUser(superadmin, ADMIN, [ROLE.admin]));
-  teacherToken = await apiLogin(TEACHER.username, TEACHER.password);
-  adminToken = await apiLogin(ADMIN.username, ADMIN.password);
-});
-
-test.afterAll(async () => {
-  // DELETE /user/:id disables rather than removes — same caveat as the other
-  // authorization specs. Clear with:
-  //   DELETE FROM lmsusers WHERE lmsusername LIKE 'e2e-cbdl-%';
-  for (const id of createdUserIds) {
-    const res = await superadmin.delete(`/user/${id}`);
-    if (!res.ok()) {
-      throw new Error(`failed to disable fixture user ${id}: HTTP ${res.status()}`);
-    }
-  }
-  await superadmin?.dispose();
-});
-
 test('an unauthenticated caller cannot download baseline results', async () => {
   // The bug. This returned 200 and a CSV of children's names and scores.
   const ctx = await apiContext('not-a-token');
@@ -106,28 +71,80 @@ test('an unauthenticated caller cannot download baseline results', async () => {
   ).toBe(401);
 });
 
-test('a Teacher cannot download baseline results', async () => {
-  // Teacher holds view_baseline-endline but not view_download_student. The CSV
-  // carries studentfirstname, which Teacher is deliberately denied.
-  const ctx = await apiContext(teacherToken);
-  const res = await ctx.get(DOWNLOAD);
-  await ctx.dispose();
-  expect(
-    res.status(),
-    'a Teacher reached the baseline results download — it contains learner identity',
-  ).toBe(403);
-});
+/**
+ * The refusals that need a Teacher and an Admin account. They make accounts with passwords
+ * written in this public repository, so they run only against a local API; on any other host
+ * this group is skipped and the anonymous test above is the only one that runs.
+ */
+test.describe('with staff accounts', () => {
+  skipUnlessLocalApi('creates a Teacher and an Admin account');
 
-test('an Admin can still reach the baseline results download', async () => {
-  // The control: proves the two refusals above are the guard doing its job and
-  // not the endpoint being broken for everyone. A bogus id means the handler
-  // may fail downstream — irrelevant here; what matters is that authorization
-  // let it through.
-  const ctx = await apiContext(adminToken);
-  const res = await ctx.get(DOWNLOAD);
-  await ctx.dispose();
-  expect(
-    [401, 403],
-    `an Admin was refused the download (${res.status()}) — the guard is too tight`,
-  ).not.toContain(res.status());
+  async function makeUser(
+    ctx: APIRequestContext,
+    account: { username: string; password: string },
+    roles: string[],
+  ): Promise<string> {
+    const created = await ctx.post('/user/create', {
+      data: {
+        lmsusername: account.username,
+        lmsuserpasswordhash: account.password,
+        lmsuserroles: roles,
+        ...(await organisationFor(ctx, roles)),
+        countryids: [],
+        schoolids: [],
+      },
+    });
+    expect(
+      created.ok(),
+      `could not create fixture ${account.username}: ${created.status()}`,
+    ).toBeTruthy();
+    return (await created.json()).data.lmsuserid;
+  }
+
+  test.beforeAll(async () => {
+    superadmin = await apiContext(await apiLogin());
+    createdUserIds.push(await makeUser(superadmin, TEACHER, [ROLE.teacher]));
+    createdUserIds.push(await makeUser(superadmin, ADMIN, [ROLE.admin]));
+    teacherToken = await apiLogin(TEACHER.username, TEACHER.password);
+    adminToken = await apiLogin(ADMIN.username, ADMIN.password);
+  });
+
+  test.afterAll(async () => {
+    // DELETE /user/:id disables rather than removes — same caveat as the other
+    // authorization specs. Clear with:
+    //   DELETE FROM lmsusers WHERE lmsusername LIKE 'e2e-cbdl-%';
+    for (const id of createdUserIds) {
+      const res = await superadmin.delete(`/user/${id}`);
+      if (!res.ok()) {
+        throw new Error(`failed to disable fixture user ${id}: HTTP ${res.status()}`);
+      }
+    }
+    await superadmin?.dispose();
+  });
+
+  test('a Teacher cannot download baseline results', async () => {
+    // Teacher holds view_baseline-endline but not view_download_student. The CSV
+    // carries studentfirstname, which Teacher is deliberately denied.
+    const ctx = await apiContext(teacherToken);
+    const res = await ctx.get(DOWNLOAD);
+    await ctx.dispose();
+    expect(
+      res.status(),
+      'a Teacher reached the baseline results download — it contains learner identity',
+    ).toBe(403);
+  });
+
+  test('an Admin can still reach the baseline results download', async () => {
+    // The control: proves the two refusals above are the guard doing its job and
+    // not the endpoint being broken for everyone. A bogus id means the handler
+    // may fail downstream — irrelevant here; what matters is that authorization
+    // let it through.
+    const ctx = await apiContext(adminToken);
+    const res = await ctx.get(DOWNLOAD);
+    await ctx.dispose();
+    expect(
+      [401, 403],
+      `an Admin was refused the download (${res.status()}) — the guard is too tight`,
+    ).not.toContain(res.status());
+  });
 });

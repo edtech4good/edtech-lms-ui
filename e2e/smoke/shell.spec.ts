@@ -1,6 +1,8 @@
 import { APIRequestContext, Locator, Page, expect, test } from '@playwright/test';
 import { ROLE, SUPERADMIN } from '../fixtures/accounts';
 import { apiContext, apiLogin, jwtClaims, loginViaUi } from '../fixtures/auth';
+import { skipUnlessLocalApi } from '../fixtures/local-only';
+import { organisationFor } from '../fixtures/organisation';
 
 /**
  * The navigation shell: floating nav panel, breadcrumb row, account menu.
@@ -291,6 +293,10 @@ test('Sign out ends the session and returns to the login page', async () => {
 
 test.describe('shell, signed in as a role-limited user', () => {
   test.describe.configure({ mode: 'serial' });
+  // Makes a Teacher and a User-role staff account with passwords written in this public
+  // repository: only against a local API. If teardown fails (it throws), those two accounts
+  // stay enabled in the fixture organisation until someone disables them.
+  skipUnlessLocalApi('creates a Teacher and a User-role staff account');
 
   const stamp = Date.now();
   const TEACHER = { username: `e2e-shell-teacher-${stamp}@example.com`, password: 'ShellTeacher_Pass1' };
@@ -306,6 +312,7 @@ test.describe('shell, signed in as a role-limited user', () => {
         lmsusername: account.username,
         lmsuserpasswordhash: account.password,
         lmsuserroles: [role],
+        ...(await organisationFor(superadmin, [role])),
         countryids: [],
         schoolids: [],
       },

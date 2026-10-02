@@ -2,6 +2,7 @@ import { APIRequestContext, Locator, Page, Route, expect, test } from '@playwrig
 import { ROLE } from '../fixtures/accounts';
 import { apiContext, apiLogin, loginViaUi } from '../fixtures/auth';
 import { API_URL } from '../fixtures/env';
+import { fixtureOrganisationId } from '../fixtures/organisation';
 import { ensureLocalFixtureUser, isLocalHost } from '../fixtures/local-fixture-user';
 
 /**
@@ -814,9 +815,8 @@ test.describe('organisations, signed in as the platform superadmin', () => {
   test('search asks the API for names containing the text', async () => {
     const a = await makeViaApi();
     const b = await makeViaApi();
+    // (Not asserted before the search: by now this run has many live rows, and these two may be on a later page.)
     await page.reload();
-    await expect(rowOf(a.name)).toBeVisible();
-    await expect(rowOf(b.name)).toBeVisible();
     const asked = page.waitForRequest((r) => r.url().includes('/organisation?') && r.url().includes('organisationname='));
     await page.getByRole('searchbox', { name: 'Search organisations by name' }).fill(`${RUN}-${counter}`);
     const request = await asked;
@@ -828,7 +828,11 @@ test.describe('organisations, signed in as the platform superadmin', () => {
     await page.getByRole('searchbox', { name: 'Search organisations by name' }).fill('zzzz no such organisation');
     await expect(page.getByRole('heading', { name: /No organisations match/ })).toBeVisible();
     await page.getByRole('button', { name: 'Clear search' }).click();
-    await expect(rowOf(a.name)).toBeVisible();
+    // The whole list is back (this run's rows may be on a later page when many organisations are live).
+    await expect(page.getByRole('heading', { name: /No organisations match/ })).toHaveCount(0);
+    await expect(page.getByRole('searchbox', { name: 'Search organisations by name' })).toHaveValue('');
+    await expect(page.getByRole('row').nth(1)).toBeVisible();
+    await expect(page.locator('.sub')).not.toContainText('match');
   });
 });
 
@@ -1071,7 +1075,12 @@ test.describe('organisations, signed in without the permission', () => {
 
   test.beforeAll(async () => {
     superadmin = await apiContext(await apiLogin());
-    await ensureLocalFixtureUser(superadmin, { ...TEACHER, roles: [ROLE.teacher] });
+    // In the fixture organisation: a staff account with none cannot sign in.
+    await ensureLocalFixtureUser(superadmin, {
+      ...TEACHER,
+      roles: [ROLE.teacher],
+      organisationid: await fixtureOrganisationId(superadmin),
+    });
   });
 
   test.afterAll(async () => {

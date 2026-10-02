@@ -1,6 +1,8 @@
 import { APIRequestContext, expect, test } from '@playwright/test';
 import { ROLE } from '../fixtures/accounts';
 import { apiContext, apiLogin, jwtClaims } from '../fixtures/auth';
+import { skipUnlessLocalApi } from '../fixtures/local-only';
+import { organisationFor } from '../fixtures/organisation';
 
 /**
  * Authorization enforcement — see docs/authorization-model.md.
@@ -19,6 +21,11 @@ import { apiContext, apiLogin, jwtClaims } from '../fixtures/auth';
  *
  * If one of these fails, do not weaken the expectation — something is letting
  * a bearer through that should not be.
+ *
+ * Against a real server (E2E_API_URL not on localhost, 127.0.0.1 or [::1]) only the anonymous
+ * and /auth/register tests run: the User-role account is made with a password written in this
+ * public repository, so that group is skipped there (fixtures/local-only.ts). Teardown throws
+ * if it cannot be disabled; until then a User-role account (no permissions) stays enabled.
  */
 
 const LOW_PRIV = {
@@ -31,94 +38,6 @@ let lowPrivToken: string;
 let lowPrivUserId: string;
 
 test.describe.configure({ mode: 'serial' });
-
-test.beforeAll(async () => {
-  admin = await apiContext(await apiLogin());
-
-  const created = await admin.post('/user/create', {
-    data: {
-      lmsusername: LOW_PRIV.username,
-      lmsuserpasswordhash: LOW_PRIV.password,
-      lmsuserroles: [ROLE.user], // the lowest-privilege RBAC role
-      countryids: [],
-      schoolids: [],
-    },
-  });
-  expect(created.ok(), `could not create the fixture user: ${created.status()}`).toBeTruthy();
-  lowPrivUserId = (await created.json()).data.lmsuserid;
-
-  lowPrivToken = await apiLogin(LOW_PRIV.username, LOW_PRIV.password);
-});
-
-test.afterAll(async () => {
-  if (lowPrivUserId) {
-    // DELETE /user/:id disables rather than removes (UserBusiness
-    // .disableuserbyid), so the row survives — disabled, unable to log in, and
-    // harmless. The account is uniquely named per run, so runs never collide;
-    // the cost is that a long-lived database slowly collects disabled
-    // e2e-lowpriv-* rows. Clear them with:
-    //   DELETE FROM lmsusers WHERE lmsusername LIKE 'e2e-lowpriv-%' AND isdisabled = 1;
-    const res = await admin.delete(`/user/${lowPrivUserId}`);
-    if (!res.ok()) {
-      // Don't swallow this: a silent failure here is how the fixture user
-      // stays enabled and the next run's assertions get murky.
-      throw new Error(
-        `failed to disable fixture user ${lowPrivUserId}: HTTP ${res.status()}`,
-      );
-    }
-  }
-  await admin?.dispose();
-});
-
-test('the fixture user really was given the lowest-privilege role', async () => {
-  // Guard the guard: if this account silently gained permissions, every
-  // assertion below would pass for the wrong reason.
-  const claims = jwtClaims(lowPrivToken);
-  expect(claims.permissions, 'fixture user should hold no permissions').toEqual([]);
-});
-
-test('a user without the role is refused by /student/create', async () => {
-  // /student/create is guarded by AccessGuard roles alone
-  // (apikey/superadmin/admin) with no @RequirePermissions. This account holds
-  // only the "User" role, so the guard must refuse it.
-  //
-  // The body is deliberately invalid, which is what makes this test safe to
-  // run. Nest runs guards before interceptors, so the status says exactly which
-  // layer answered:
-  //   403 — the guard refused. Correct.
-  //   400 — the guard let it through and the schema validator caught it.
-  //         That was the bug: lmsuserrole was stamped superadmin for every
-  //         account, so the role check passed for anyone.
-  // Sending a *valid* body would prove the same thing by creating a real
-  // student on every run, polluting the disability report's "not collected"
-  // bucket. Asking for the refusal is enough.
-  //
-  // /student/create has no @RequirePermissions, so AccessGuard's role list is
-  // the only guard in play here. A valid token that fails that role check is a
-  // ForbiddenException (edtech-lms-api#52): a dead session and a denied role
-  // are no longer both reported as 401, so this pins 403 rather than accepting
-  // either.
-  const ctx = await apiContext(lowPrivToken);
-  const res = await ctx.post('/student/create?online=true', {
-    data: { students: [] },
-  });
-  await ctx.dispose();
-  expect(
-    res.status(),
-    `a "User"-role account reached /student/create (${res.status()}) — see docs/authorization-model.md`,
-  ).toBe(403);
-});
-
-test('a user with no permissions cannot list users', async () => {
-  // The control. /user is permission-gated (@RequirePermissions +
-  // CheckPermissionsGuard), so it correctly refuses — which is what proves the
-  // failure above is AccessGuard's role check specifically, and not something
-  // wrong with the fixture.
-  const ctx = await apiContext(lowPrivToken);
-  const res = await ctx.post('/user', { data: { pageindex: 0, pagesize: 10 } });
-  await ctx.dispose();
-  expect(res.status()).toBe(403);
-});
 
 test('an unauthenticated caller cannot create students', async () => {
   const ctx = await apiContext('not-a-token');
@@ -141,4 +60,102 @@ test('POST /auth/register is gone and cannot mint an account', async () => {
   });
   await ctx.dispose();
   expect(res.status(), 'POST /auth/register should not exist').toBe(404);
+});
+
+/**
+ * The refusals that need a low-privilege account. It is made with a password written in this
+ * public repository, so this group runs only against a local API; on any other host it is
+ * skipped and the two tests above (anonymous, and /auth/register gone) are the ones that run.
+ */
+test.describe('with a low-privilege staff account', () => {
+  skipUnlessLocalApi('creates a User-role staff account');
+
+  test.beforeAll(async () => {
+    admin = await apiContext(await apiLogin());
+
+    const created = await admin.post('/user/create', {
+      data: {
+        lmsusername: LOW_PRIV.username,
+        lmsuserpasswordhash: LOW_PRIV.password,
+        lmsuserroles: [ROLE.user], // the lowest-privilege RBAC role
+        ...(await organisationFor(admin, [ROLE.user])),
+        countryids: [],
+        schoolids: [],
+      },
+    });
+    expect(created.ok(), `could not create the fixture user: ${created.status()}`).toBeTruthy();
+    lowPrivUserId = (await created.json()).data.lmsuserid;
+
+    lowPrivToken = await apiLogin(LOW_PRIV.username, LOW_PRIV.password);
+  });
+
+  test.afterAll(async () => {
+    if (lowPrivUserId) {
+      // DELETE /user/:id disables rather than removes (UserBusiness
+      // .disableuserbyid), so the row survives — disabled, unable to log in, and
+      // harmless. The account is uniquely named per run, so runs never collide;
+      // the cost is that a long-lived database slowly collects disabled
+      // e2e-lowpriv-* rows. Clear them with:
+      //   DELETE FROM lmsusers WHERE lmsusername LIKE 'e2e-lowpriv-%' AND isdisabled = 1;
+      const res = await admin.delete(`/user/${lowPrivUserId}`);
+      if (!res.ok()) {
+        // Don't swallow this: a silent failure here is how the fixture user
+        // stays enabled and the next run's assertions get murky.
+        throw new Error(
+          `failed to disable fixture user ${lowPrivUserId}: HTTP ${res.status()}`,
+        );
+      }
+    }
+    await admin?.dispose();
+  });
+
+  test('the fixture user really was given the lowest-privilege role', async () => {
+    // Guard the guard: if this account silently gained permissions, every
+    // assertion below would pass for the wrong reason.
+    const claims = jwtClaims(lowPrivToken);
+    expect(claims.permissions, 'fixture user should hold no permissions').toEqual([]);
+  });
+
+  test('a user without the role is refused by /student/create', async () => {
+    // /student/create is guarded by AccessGuard roles alone
+    // (apikey/superadmin/admin) with no @RequirePermissions. This account holds
+    // only the "User" role, so the guard must refuse it.
+    //
+    // The body is deliberately invalid, which is what makes this test safe to
+    // run. Nest runs guards before interceptors, so the status says exactly which
+    // layer answered:
+    //   403 — the guard refused. Correct.
+    //   400 — the guard let it through and the schema validator caught it.
+    //         That was the bug: lmsuserrole was stamped superadmin for every
+    //         account, so the role check passed for anyone.
+    // Sending a *valid* body would prove the same thing by creating a real
+    // student on every run, polluting the disability report's "not collected"
+    // bucket. Asking for the refusal is enough.
+    //
+    // /student/create has no @RequirePermissions, so AccessGuard's role list is
+    // the only guard in play here. A valid token that fails that role check is a
+    // ForbiddenException (edtech-lms-api#52): a dead session and a denied role
+    // are no longer both reported as 401, so this pins 403 rather than accepting
+    // either.
+    const ctx = await apiContext(lowPrivToken);
+    const res = await ctx.post('/student/create?online=true', {
+      data: { students: [] },
+    });
+    await ctx.dispose();
+    expect(
+      res.status(),
+      `a "User"-role account reached /student/create (${res.status()}) — see docs/authorization-model.md`,
+    ).toBe(403);
+  });
+
+  test('a user with no permissions cannot list users', async () => {
+    // The control. /user is permission-gated (@RequirePermissions +
+    // CheckPermissionsGuard), so it correctly refuses — which is what proves the
+    // failure above is AccessGuard's role check specifically, and not something
+    // wrong with the fixture.
+    const ctx = await apiContext(lowPrivToken);
+    const res = await ctx.post('/user', { data: { pageindex: 0, pagesize: 10 } });
+    await ctx.dispose();
+    expect(res.status()).toBe(403);
+  });
 });

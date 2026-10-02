@@ -7,7 +7,7 @@ import { Observable, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { unsetloadingAction } from '../store/appstate/appstate.action';
 import { appState } from '../store/appstate/appstate.reducer';
-import { FIELD_ERRORS_INLINE } from './error-context';
+import { FIELD_ERRORS_INLINE, FORBIDDEN_HANDLED } from './error-context';
 
 @Injectable({ providedIn: 'root' })
 export class ErrorInterceptor implements HttpInterceptor {
@@ -41,6 +41,13 @@ export class ErrorInterceptor implements HttpInterceptor {
         }
         if (error.status === 400 && !req.context.get(FIELD_ERRORS_INLINE)) {
           toast('error', error.error.errormessage);
+        }
+        if (error.status === 403 && !req.context.get(FIELD_ERRORS_INLINE) && !req.context.get(FORBIDDEN_HANDLED)) {
+          // The API refuses what the person's role does not allow with a 403. Most
+          // screens do not say anything about it, so the action looked dead. A
+          // screen that says it itself opts out (the two tokens above), so a
+          // refusal is one message, never two.
+          toast('error', "You don't have permission to do that.");
         }
         if (error.status === 401) {
           // The API returns 401 for role failures too (access.guard.ts), not just

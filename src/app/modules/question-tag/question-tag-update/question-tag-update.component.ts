@@ -57,7 +57,8 @@ export class QuestionTagUpdateComponent implements OnInit {
     (error) => {
       if(error){
         this.dataloading = false;
-        this.notification.create("error", 'error', "Invalid link");
+        // A 403 is already said by the error interceptor (one message, not two).
+        if (error?.status !== 403) this.notification.create("error", 'error', "Invalid link");
         this.router.navigate(['questiontag/index']);
       }
     },

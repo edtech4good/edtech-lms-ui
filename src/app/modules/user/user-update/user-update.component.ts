@@ -1,15 +1,39 @@
-import { Component, OnInit } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { UntypedFormArray, UntypedFormBuilder, UntypedFormControl, UntypedFormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { NzModalService } from 'ng-zorro-antd/modal';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { BehaviorSubject, Observable, of } from 'rxjs';
 import { catchError, debounceTime, first, map, switchMap } from 'rxjs/operators';
+import { AuthService } from 'src/app/services/auth.service';
 import { CountryService } from 'src/app/services/country.service';
 import { RolePermService } from 'src/app/services/role-permission.service';
 import { SchoolService } from 'src/app/services/school.service';
-import { StandardService } from 'src/app/services/standard.service';
 import { UserService } from 'src/app/services/user.service';
-import { UtilService } from 'src/app/services/util.service';
+import { confirmDialog } from '../../organisation/confirm-dialog';
+import { Organisation } from '../../organisation/organisation.model';
+import {
+  CHOOSE_ORGANISATION,
+  MARKED_ROLES_NOTE,
+  NO_ORGANISATION_NOTE,
+  OWN_ROLES_CONFIRM,
+  SIGN_IN_LOCKED_NOTE,
+  STAFF_FIELD_ORDER,
+  STAFF_NOT_FOUND,
+  StaffErrors,
+  StaffField,
+  holdsSuperAdmin,
+  serverStaffErrors,
+} from '../staff-form';
+
+interface RoleChoice {
+  id: string;
+  text: string;
+  checked: boolean;
+  /** false: the caller could not give this role (it is kept ticked, and marked *). */
+  canadd?: boolean;
+}
 
 @Component({
     selector: 'app-user-update',
@@ -18,51 +42,126 @@ import { UtilService } from 'src/app/services/util.service';
     standalone: false
 })
 export class UserUpdateComponent implements OnInit {
-  initData = true;
   dataloading = false;
+  submitting = false;
+  /** The account is not there for this caller: gone, or in another organisation, or a platform account. */
+  notFound = false;
+  readonly notFoundText = STAFF_NOT_FOUND;
   updateForm!: UntypedFormGroup;
-  allChecked = false;
-  indeterminate = true;
   lmsuser: any;
-  roles: Array<{id: string, text:string, checked: boolean}> = [];
+  roles: RoleChoice[] = [];
   selectedCountry = true;
   countries$?: Observable<any>;
   schools$?: Observable<any>;
 
-  async submitcreateForm() {
-    this.utilservice.checkFormDirty(this.updateForm);
-    if (this.updateForm.valid) {
-      await this.dts
-        .update(
-          {
-            lmsuserid: this.lmsuser.lmsuserid,
-            lmsusername: this.updateForm.getRawValue()['lmsusername'],
-            lmsuserpasswordhash: this.updateForm.getRawValue()['lmsuserpasswordhash'],
-            lmsuserroles: this.updateForm.getRawValue()['lmsuserroles'],
-            countryids: this.updateForm.getRawValue()['countryids'],
-            schoolids: this.updateForm.getRawValue()['schoolids'],
-          }
-        )
-        .pipe(first())
-        .toPromise();
-      this.notification.create(
-        'success',
-        'Success',
-        'User updated successfully'
-      );
-      this.router.navigate(['user/index']);
-    }
+  private readonly scope = this.auth.staffScope();
+  readonly isPlatform = this.scope.isPlatform;
+  organisations: Organisation[] = [];
+  organisationsFailed = false;
+  readonly noOrganisationNote = NO_ORGANISATION_NOTE;
+  readonly markedRolesNote = MARKED_ROLES_NOTE;
+  readonly signInLockedNote = SIGN_IN_LOCKED_NOTE;
+  errors: StaffErrors = { fields: {} };
+  /** The roles ticked when the account was opened, to tell whether the set changed. */
+  private initialRoleIds: string[] = [];
+
+  @ViewChild('submitButton', { read: ElementRef }) submitButton?: ElementRef<HTMLButtonElement>;
+
+  /** Does the account hold a role this caller could not give? Then it is wider than the caller. */
+  get holdsRoleBeyondCaller(): boolean {
+    return this.roles.some((r) => r.canadd === false && r.checked);
   }
+
+  /** The email and password stay as they are when the account is wider than a caller who is not platform staff. */
+  get signInLocked(): boolean {
+    return !this.isPlatform && this.holdsRoleBeyondCaller;
+  }
+
+  get hasMarkedRoles(): boolean {
+    return this.roles.some((r) => r.canadd === false);
+  }
+
+  get platformAccount(): boolean {
+    return holdsSuperAdmin(this.updateForm?.get('lmsuserroles')?.value ?? []);
+  }
+
+  get isSelf(): boolean {
+    return !!this.lmsuser && this.lmsuser.lmsuserid === this.scope.lmsuserid;
+  }
+
+  private rolesChanged(): boolean {
+    const now = [...(this.updateForm.get('lmsuserroles')?.value ?? [])].sort();
+    const before = [...this.initialRoleIds].sort();
+    return now.length !== before.length || now.some((id, i) => id !== before[i]);
+  }
+
+  submitcreateForm() {
+    if (this.submitting) return;
+    const value = this.updateForm.getRawValue();
+    const fields: StaffErrors['fields'] = {};
+    if (!value.lmsusername) fields.lmsusername = 'Enter the email address.';
+    if (this.isPlatform && !this.platformAccount && !value.organisationid) fields.organisationid = CHOOSE_ORGANISATION;
+    this.errors = { fields };
+    if (Object.keys(fields).length > 0) {
+      this.focusFirstError();
+      return;
+    }
+    if (this.isSelf && this.rolesChanged()) {
+      confirmDialog(this.modal, {
+        nzTitle: OWN_ROLES_CONFIRM,
+        nzOkText: 'Continue',
+        nzCancelText: 'Cancel',
+        nzOnOk: () => this.save(value, true),
+      });
+      return;
+    }
+    this.save(value, false);
+  }
+
+  private save(value: any, endsOwnSession: boolean) {
+    this.submitting = true;
+    this.dts
+      .update(this.lmsuser.lmsuserid, {
+        lmsusername: value.lmsusername,
+        lmsuserpasswordhash: value.lmsuserpasswordhash,
+        lmsuserroles: value.lmsuserroles,
+        countryids: value.countryids,
+        schoolids: value.schoolids,
+        // Only a platform caller names the organisation (none for a platform account).
+        ...(this.isPlatform ? { organisationid: this.platformAccount ? null : value.organisationid } : {}),
+      })
+      .pipe(first())
+      .subscribe({
+        next: () => {
+          this.submitting = false;
+          if (endsOwnSession) {
+            // The API ended this person's sessions with the role change: say so once, on the sign-in page.
+            this.notification.create('info', 'Your roles changed', 'Sign in again to continue.');
+            this.auth.logout();
+            return;
+          }
+          this.notification.create('success', 'Success', 'User updated successfully');
+          this.router.navigate(['user/index']);
+        },
+        error: (error: HttpErrorResponse) => {
+          this.submitting = false;
+          this.errors = serverStaffErrors(error);
+          this.focusFirstError();
+        },
+      });
+  }
+
   constructor(
     private fb: UntypedFormBuilder,
     private dts: UserService,
     private roleService: RolePermService,
     private router: Router,
     private readonly notification: NzNotificationService,
-    private utilservice: UtilService,
     private route: ActivatedRoute,
     private schoolService: SchoolService,
     private readonly countryService: CountryService,
+    private readonly auth: AuthService,
+    private readonly modal: NzModalService
   ) {}
 
   ngOnInit(): void {
@@ -70,6 +169,7 @@ export class UserUpdateComponent implements OnInit {
     this.updateForm = this.fb.group({
       lmsusername: [null, [Validators.required]],
       lmsuserpasswordhash: [null],
+      organisationid: [null],
       lmsuserroles: this.fb.array([]),
       countryids: [[]],
       schoolids: [[]],
@@ -82,17 +182,33 @@ export class UserUpdateComponent implements OnInit {
       this.router.navigate(['user/index']);
       return;
     }
+    if (this.isPlatform) {
+      this.dts
+        .liveOrganisations()
+        .pipe(first())
+        .subscribe({
+          next: (all) => (this.organisations = all),
+          error: () => (this.organisationsFailed = true),
+        });
+    }
     this.dts.get(lmsuserid)
       .pipe(first())
       .subscribe((tempdata: any) => {
         this.roles = tempdata.data.roles;
         this.lmsuser = tempdata.data.user;
         this.updateForm.get('lmsusername')?.setValue(this.lmsuser.lmsusername);
+        this.updateForm.get('organisationid')?.setValue(this.lmsuser.organisationid ?? null);
         const lmsuserroles = < UntypedFormArray> this.updateForm.get('lmsuserroles');
         const selectedroles = this.roles.filter(rl => rl.checked === true);
         selectedroles.forEach(role => {
           lmsuserroles.push(new UntypedFormControl(role.id));
         });
+        this.initialRoleIds = selectedroles.map((r) => r.id);
+        this.updateForm.get('schoolids')?.setValue(this.lmsuser.schools ?? []);
+        if (this.signInLocked) {
+          this.updateForm.get('lmsusername')?.disable();
+          this.updateForm.get('lmsuserpasswordhash')?.disable();
+        }
 
         // load all country
         this.countries$ = this.countryService.getall({ pagesize: 200 }).pipe(
@@ -105,9 +221,11 @@ export class UserUpdateComponent implements OnInit {
         );
         this.countries$?.subscribe();
       },
-      (error) => {
-        if(error) {
-          this.dataloading = false;
+      (error: HttpErrorResponse) => {
+        this.dataloading = false;
+        // An account that is not there for this caller is a state of its own, not an empty form.
+        if (error?.status === 404) {
+          this.notFound = true;
         }
       },
       () => {
@@ -126,22 +244,33 @@ export class UserUpdateComponent implements OnInit {
       let idx = chkArray.controls.findIndex((x: { value: any; }) => x.value == id);
       chkArray.removeAt(idx);
     }
+    if (key === 'lmsuserroles' && this.platformAccount) {
+      // A platform account has no organisation: clear the choice (it is disabled while Super Admin is ticked).
+      this.updateForm.get('organisationid')?.setValue(null);
+      if (this.errors.fields.organisationid) this.errors = { ...this.errors, fields: { ...this.errors.fields, organisationid: undefined } };
+    }
+  }
+
+  /** Focus the first field with a message, or the submit button when the message is for the form. */
+  private focusFirstError(): void {
+    const first = STAFF_FIELD_ORDER.find((k) => this.errors.fields[k]);
+    setTimeout(() => this.focusWhenReady(first, 0), 0);
+  }
+
+  private focusWhenReady(field: StaffField | undefined, attempt: number): void {
+    const target = field
+      ? document.getElementById(`staff-${field}`)
+      : this.submitButton?.nativeElement;
+    if (target && !(target as HTMLButtonElement).disabled) {
+      target.focus({ preventScroll: true });
+      (field ? target : document.querySelector('.form-error') ?? target).scrollIntoView({ block: 'nearest' });
+    } else if (attempt < 20) {
+      setTimeout(() => this.focusWhenReady(field, attempt + 1), 25);
+    }
   }
 
   onSelected(countryid: any) {
     if(countryid) this.selectedCountry = false;
-    // this.schools$ = this.schoolService
-    //   .getAllSchools('', countryid)
-    //   .pipe(
-    //     catchError(() => of({ results: [] })),
-    //     map((res: any) => res.data)
-    //   )
-    //   .pipe(
-    //     map((list: any) => {
-    //       return list;
-    //     })
-    // );
-    // this.schools$.subscribe();
     this.onSearchSchool('');
   }
 
@@ -160,10 +289,6 @@ export class UserUpdateComponent implements OnInit {
       .pipe(switchMap(this.getSchoolList));
     schoolList$.subscribe((data) => {
       this.schoolList = data;
-      if(this.initData) {
-        this.updateForm.get('schoolids')?.setValue(this.lmsuser.schools);
-        this.initData = false;
-      }
       this.isSchoolLoading = false;
     });
   }

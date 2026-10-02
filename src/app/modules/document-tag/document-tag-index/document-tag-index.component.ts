@@ -59,16 +59,23 @@ export class DocumentTagIndexComponent {
   }
 
   deletetag = async (documenttagid: string) => {
+    let failed = false;
     await this.documentTagService
       .delete(documenttagid)
       .pipe(
         first(),
         catchError(async (error) => {
-          this.dataloading = false,
-          this.notification.create('error','Server Error',error)
+          failed = true;
+          this.dataloading = false;
+          // A 403 is already said by the error interceptor (one message, not two).
+          if (error?.status !== 403) {
+            this.notification.create('error','Server Error',error)
+          }
         })
       )
       .toPromise();
+    // Nothing was deleted: no list reload and no success message.
+    if (failed) return;
     this.loadDataFromServer({
       filter: [...this.filter],
       pageindex: this.pageIndex,

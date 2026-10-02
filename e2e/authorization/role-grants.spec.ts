@@ -1,6 +1,8 @@
 import { APIRequestContext, expect, test } from '@playwright/test';
 import { ROLE } from '../fixtures/accounts';
 import { apiContext, apiLogin, jwtClaims } from '../fixtures/auth';
+import { skipUnlessLocalApi } from '../fixtures/local-only';
+import { organisationFor } from '../fixtures/organisation';
 
 /**
  * What the Admin and Teacher roles hold, and what that must never include.
@@ -19,7 +21,13 @@ import { apiContext, apiLogin, jwtClaims } from '../fixtures/auth';
  * nobody accidentally earns the superadmin wildcard.
  *
  * If one of these fails, do not weaken the expectation.
+ *
+ * It makes accounts with passwords that are written in this public repository, so it
+ * runs only against a local API (E2E_API_URL on localhost, 127.0.0.1 or [::1]); on any
+ * other host the whole file is skipped (fixtures/local-only.ts). If teardown fails on a
+ * local database, a Teacher, an Admin, a Teacher+Admin and a Super Admin account (all in the fixture organisation but the Super Admin) stay enabled there; teardown throws rather than say nothing.
  */
+skipUnlessLocalApi('creates Teacher, Admin and Super Admin accounts');
 
 const TEACHER = {
   username: `e2e-teacher-${Date.now()}@example.com`,
@@ -59,6 +67,7 @@ async function makeUser(
       lmsusername: account.username,
       lmsuserpasswordhash: account.password,
       lmsuserroles: roles,
+      ...(await organisationFor(admin, roles)),
       countryids: [],
       schoolids: [],
     },

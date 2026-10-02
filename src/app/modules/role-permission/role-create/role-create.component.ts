@@ -45,11 +45,14 @@ export class RoleCreateComponent implements OnInit {
       this.nodes = nodes;
     },
     (error) => {
-      this.notification.create(
-        'error',
-        'Error',
-        error
-      )
+      // A 403 is already said by the error interceptor (one message, not two).
+      if (error?.status !== 403) {
+        this.notification.create(
+          'error',
+          'Error',
+          error
+        )
+      }
       setTimeout(() => {
         this.dataLoading = false;
       }, 400);
