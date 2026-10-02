@@ -279,6 +279,54 @@ test.describe('staff accounts, signed in as the platform superadmin', () => {
     expect((await userDetail(sa, id)).user.organisationid).toBeNull();
   });
 
+  test('clearing the organisation on an edit shows the field error and sends nothing', async () => {
+    const { id } = await makeViaApi('clear', [ROLE.teacher], fixtureOrg);
+    await page.goto(`/user/update/${id}`);
+    const select = page.locator('nz-select').filter({ has: page.locator('#staff-organisationid') });
+    await expect(select).toContainText('E2E Fixture Organisation');
+    await select.hover();
+    await select.locator('.ant-select-clear').click();
+    const rec = recordStaffWrites(page);
+    await submit(page).click();
+    await expect(page.locator('#staff-organisationid-error')).toHaveText(CHOOSE_ORG);
+    await page.waitForTimeout(500);
+    rec.stop();
+    expect(rec.writes, 'nothing was sent').toEqual([]);
+    expect((await userDetail(sa, id)).user.organisationid).toBe(fixtureOrg);
+  });
+
+  test('the Organisation select lists every page of organisations, not just the first', async () => {
+    const org = (n: string, i: number) => ({
+      organisationid: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`,
+      organisationname: n,
+      organisationcode: `filler${i}`,
+      organisationshortname: 'F',
+      organisationpreset: 'company',
+      organisationstatus: true,
+      uitheme: 'corporate',
+      brandingconfig: null,
+      countries: [],
+    });
+    const asked: number[] = [];
+    await page.route(`${API_URL}/organisation?*`, (route) => {
+      const index = Number(new URL(route.request().url()).searchParams.get('pageindex'));
+      asked.push(index);
+      const rows = index === 1 ? Array.from({ length: 200 }, (_, i) => org(`Filler ${i}`, i + 1)) : [org('Second Page Organisation', 999)];
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: false, data: { data: rows, total: 201, pageindex: index, pagesize: 200 } }),
+      });
+    });
+    await page.goto('/user/create');
+    await expect(orgSelect(page)).toBeVisible();
+    await page.locator('nz-select').filter({ has: page.locator('#staff-organisationid') }).click();
+    await page.keyboard.type('Second Page');
+    await expect(page.locator('.ant-select-item-option', { hasText: 'Second Page Organisation' })).toBeVisible();
+    expect(asked, 'both pages were asked for').toEqual([1, 2]);
+    await page.unroute(`${API_URL}/organisation?*`);
+  });
+
   test('an id that is not an account shows the not-found state, with a way back, not an empty form', async () => {
     await page.goto('/user/update/00000000-0000-4000-8000-0000000000aa');
     await expect(page.getByRole('alert').filter({ hasText: NOT_FOUND })).toBeVisible();
