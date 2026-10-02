@@ -51,8 +51,9 @@ test.describe('loginViaUi', () => {
  */
 test.describe('waitOutThrottle lends time that adds up', () => {
   test.describe('in a hook', () => {
+    // The hook's budget is the configured timeout (a hook cannot be given its own).
+    test.describe.configure({ timeout: 1_000 });
     test.beforeAll(async () => {
-      test.info().setTimeout(1_000);
       for (const ms of [700, 600, 500]) await waitOutThrottle(ms);
     });
     test('three waits that together outlast the hook\'s own budget', () => {
@@ -61,7 +62,7 @@ test.describe('waitOutThrottle lends time that adds up', () => {
   });
 
   test('in a test', async () => {
-    test.info().setTimeout(1_000);
+    test.setTimeout(1_000);
     for (const ms of [700, 600, 500]) await waitOutThrottle(ms);
   });
 });
