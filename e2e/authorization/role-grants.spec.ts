@@ -1,6 +1,7 @@
 import { APIRequestContext, expect, test } from '@playwright/test';
 import { ROLE } from '../fixtures/accounts';
 import { apiContext, apiLogin, jwtClaims } from '../fixtures/auth';
+import { organisationFor } from '../fixtures/organisation';
 
 /**
  * What the Admin and Teacher roles hold, and what that must never include.
@@ -59,6 +60,7 @@ async function makeUser(
       lmsusername: account.username,
       lmsuserpasswordhash: account.password,
       lmsuserroles: roles,
+      ...(await organisationFor(admin, roles)),
       countryids: [],
       schoolids: [],
     },

@@ -1,6 +1,7 @@
 import { APIRequestContext, expect, test } from '@playwright/test';
 import { ROLE } from '../fixtures/accounts';
 import { apiContext, apiLogin } from '../fixtures/auth';
+import { organisationFor } from '../fixtures/organisation';
 
 /**
  * GET /curriculumbaseline/:id/download — see PILOT.md hardening.
@@ -63,6 +64,7 @@ async function makeUser(
       lmsusername: account.username,
       lmsuserpasswordhash: account.password,
       lmsuserroles: roles,
+      ...(await organisationFor(ctx, roles)),
       countryids: [],
       schoolids: [],
     },

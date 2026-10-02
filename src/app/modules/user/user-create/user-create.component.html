@@ -1,31 +1,61 @@
 <div nz-row>
   <div nz-col nzSpan="12">
     <nz-card [nzBordered]="true" nzTitle="User" [nzLoading]="dataloading">
-      <form nz-form [formGroup]="createForm">
+      <form nz-form [formGroup]="createForm" novalidate (ngSubmit)="submitcreateForm()">
+        <p class="form-error" role="alert" *ngIf="errors.form">{{ errors.form }}</p>
         <nz-form-item>
-          <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="lmsusername"
-            >User Email</nz-form-label
-          >
-          <nz-form-control nzErrorTip="Please enter user email!">
+          <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="staff-lmsusername">User Email</nz-form-label>
+          <nz-form-control>
             <input
+              id="staff-lmsusername"
               type="text"
               nz-input
               formControlName="lmsusername"
               placeholder="Enter user email"
+              autocomplete="off"
+              [attr.aria-invalid]="errors.fields.lmsusername ? 'true' : null"
+              [attr.aria-describedby]="errors.fields.lmsusername ? 'staff-lmsusername-error' : null"
             />
+            <p class="field-error" id="staff-lmsusername-error" role="alert" *ngIf="errors.fields.lmsusername">{{ errors.fields.lmsusername }}</p>
           </nz-form-control>
         </nz-form-item>
         <nz-form-item>
-          <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="lmsuserpasswordhash"
-            >User Password</nz-form-label
-          >
-          <nz-form-control nzErrorTip="Please enter the user password!">
+          <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="staff-lmsuserpasswordhash">User Password</nz-form-label>
+          <nz-form-control>
             <input
+              id="staff-lmsuserpasswordhash"
               type="text"
               nz-input
               formControlName="lmsuserpasswordhash"
               placeholder="Enter user password"
+              autocomplete="off"
+              [attr.aria-invalid]="errors.fields.lmsuserpasswordhash ? 'true' : null"
+              [attr.aria-describedby]="errors.fields.lmsuserpasswordhash ? 'staff-lmsuserpasswordhash-error' : null"
             />
+            <p class="field-error" id="staff-lmsuserpasswordhash-error" role="alert" *ngIf="errors.fields.lmsuserpasswordhash">{{ errors.fields.lmsuserpasswordhash }}</p>
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item *ngIf="isPlatform">
+          <nz-form-label [nzSm]="6" [nzXs]="24" [nzRequired]="!platformAccount" nzFor="staff-organisationid">Organisation</nz-form-label>
+          <nz-form-control>
+            <nz-select
+              nzId="staff-organisationid"
+              formControlName="organisationid"
+              nzPlaceHolder="Choose an organisation"
+              nzShowSearch
+              nzAllowClear
+              [nzDisabled]="platformAccount"
+              [attr.aria-describedby]="errors.fields.organisationid ? 'staff-organisationid-error' : platformAccount ? 'staff-organisationid-note' : null"
+            >
+              <nz-option
+                *ngFor="let org of organisations"
+                [nzLabel]="org.organisationname + (org.organisationstatus ? '' : ' (suspended)')"
+                [nzValue]="org.organisationid"
+              ></nz-option>
+            </nz-select>
+            <p class="help" id="staff-organisationid-note" *ngIf="platformAccount">{{ noOrganisationNote }}</p>
+            <p class="help" *ngIf="organisationsFailed">Couldn't load the organisations. Reload the page to try again.</p>
+            <p class="field-error" id="staff-organisationid-error" role="alert" *ngIf="errors.fields.organisationid">{{ errors.fields.organisationid }}</p>
           </nz-form-control>
         </nz-form-item>
         <nz-form-item>
@@ -66,26 +96,36 @@
           </nz-form-control>
         </nz-form-item>
         <nz-form-item>
-          <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="lmsuserroles"
-            >User Roles</nz-form-label
-          >
-          <nz-form-control nzErrorTip="Please enter user password!">
+          <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired id="staff-roles-label">User Roles</nz-form-label>
+          <nz-form-control>
             <div class="col-md-12">
-              <section class="checkbox-section text-center" *ngIf="roles  && roles.length > 0">
-                <p *ngFor="let n of roles; let i = index" formArrayName="lmsuserroles">
-                  <input class="checkbox-margin" (change)="updateChkbxArray(n.id, $event, 'lmsuserroles')" type="checkbox" value="{{n.id}}" [checked]="n.checked"/>
-                  <label>{{n.text}}</label>
+              <section
+                id="staff-lmsuserroles"
+                class="checkbox-section text-center"
+                role="group"
+                aria-labelledby="staff-roles-label"
+                tabindex="-1"
+                *ngIf="roles && roles.length > 0"
+                formArrayName="lmsuserroles"
+              >
+                <p *ngFor="let n of roles; let i = index">
+                  <label class="role">
+                    <input class="checkbox-margin" (change)="updateChkbxArray(n.id, $event, 'lmsuserroles')" type="checkbox" value="{{n.id}}" [checked]="n.checked"/>
+                    {{n.text}}
+                  </label>
                 </p>
               </section>
             </div>
+            <p class="field-error" id="staff-lmsuserroles-error" role="alert" *ngIf="errors.fields.lmsuserroles">{{ errors.fields.lmsuserroles }}</p>
           </nz-form-control>
         </nz-form-item>
 
         <button
+          #submitButton
           nz-button style="float: right;"
-          type="button"
+          type="submit"
           [nzType]="'primary'"
-          (click)="submitcreateForm()"
+          [disabled]="submitting"
         >
           Submit
         </button>

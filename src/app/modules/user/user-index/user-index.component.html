@@ -29,6 +29,7 @@
                 <i nz-icon nzType="search"></i>
               </nz-filter-trigger>
             </th>
+            <th nzColumnKey="" *ngIf="isPlatform">Organisation</th>
             <th nzColumnKey="">Roles</th>
             <th nzColumnKey="">Tools</th>
           </tr>
@@ -36,6 +37,7 @@
         <tbody>
           <tr *ngFor="let data of data">
             <td>{{ data.lmsusername }}</td>
+            <td *ngIf="isPlatform">{{ data.organisation?.organisationname || 'Platform' }}</td>
             <td>{{ data.formattedroles }}</td>
             <td>
               <a

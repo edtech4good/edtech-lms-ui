@@ -3,6 +3,7 @@ import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
 import { first } from 'rxjs/operators';
 import { IFilter, IPaging } from 'src/app/models/IPaging';
+import { AuthService } from 'src/app/services/auth.service';
 import { UserService } from 'src/app/services/user.service';
 
 @Component({
@@ -13,6 +14,8 @@ import { UserService } from 'src/app/services/user.service';
 })
 export class UserIndexComponent {
   dataloading = false;
+  /** A platform caller sees every organisation's staff, so the list says which organisation each belongs to. */
+  readonly isPlatform = this.auth.staffScope().isPlatform;
   searchValue = '';
   total = 1;
   data: Array<any> = [];
@@ -71,7 +74,8 @@ export class UserIndexComponent {
 
   constructor(
     private readonly userService: UserService,
-    private readonly notification: NzNotificationService
+    private readonly notification: NzNotificationService,
+    private readonly auth: AuthService
   ) {}
 
   async search() {

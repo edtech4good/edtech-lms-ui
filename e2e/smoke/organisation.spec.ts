@@ -2,6 +2,7 @@ import { APIRequestContext, Locator, Page, Route, expect, test } from '@playwrig
 import { ROLE } from '../fixtures/accounts';
 import { apiContext, apiLogin, loginViaUi } from '../fixtures/auth';
 import { API_URL } from '../fixtures/env';
+import { fixtureOrganisationId } from '../fixtures/organisation';
 import { ensureLocalFixtureUser, isLocalHost } from '../fixtures/local-fixture-user';
 
 /**
@@ -1071,7 +1072,12 @@ test.describe('organisations, signed in without the permission', () => {
 
   test.beforeAll(async () => {
     superadmin = await apiContext(await apiLogin());
-    await ensureLocalFixtureUser(superadmin, { ...TEACHER, roles: [ROLE.teacher] });
+    // In the fixture organisation: a staff account with none cannot sign in.
+    await ensureLocalFixtureUser(superadmin, {
+      ...TEACHER,
+      roles: [ROLE.teacher],
+      organisationid: await fixtureOrganisationId(superadmin),
+    });
   });
 
   test.afterAll(async () => {

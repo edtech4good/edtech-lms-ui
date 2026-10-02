@@ -207,4 +207,20 @@ export class AuthService {
   getLmsUser(){
     return this.lmsuser;
   }
+
+  /**
+   * Who the signed-in staff account is, in organisation terms, from the access token.
+   * `isPlatform` is true only for a platform account that is not acting inside an
+   * organisation (the token carries no organisationid): that caller chooses an
+   * organisation for the accounts it creates; anyone else works inside their own.
+   */
+  staffScope(): { lmsuserid: string; isPlatform: boolean; organisationid: string | null } {
+    const user = this.getLmsUser() ?? this.getuser();
+    const organisationid = typeof user?.organisationid === 'string' ? user.organisationid : null;
+    return {
+      lmsuserid: user?.lmsuserid ?? '',
+      isPlatform: user?.isplatform === true && organisationid === null,
+      organisationid,
+    };
+  }
 }

@@ -1,7 +1,7 @@
 import { HttpClient, HttpContext, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import { FIELD_ERRORS_INLINE } from 'src/app/interceptors/error-context';
+import { FIELD_ERRORS_INLINE, FORBIDDEN_HANDLED } from 'src/app/interceptors/error-context';
 import { CoreService } from 'src/app/services/core.service';
 import {
   Country,
@@ -28,7 +28,8 @@ export class OrganisationService {
       params = params.set('organisationname', query.organisationname.trim());
     }
     return this.http
-      .get<{ data: OrganisationPage }>(this.url(), { params })
+      // A 403 here is said by the screen itself (organisations are for platform staff).
+      .get<{ data: OrganisationPage }>(this.url(), { params, context: new HttpContext().set(FORBIDDEN_HANDLED, true) })
       .pipe(map((r) => r.data));
   }
 
@@ -49,7 +50,9 @@ export class OrganisationService {
   }
 
   delete(organisationid: string): Observable<unknown> {
-    return this.http.delete(this.url(`/${organisationid}`));
+    return this.http.delete(this.url(`/${organisationid}`), {
+      context: new HttpContext().set(FORBIDDEN_HANDLED, true),
+    });
   }
 
   /** The platform's countries, for the multi-select. */

@@ -1,6 +1,7 @@
 import { APIRequestContext, Locator, Page, expect, test } from '@playwright/test';
 import { ROLE, SUPERADMIN } from '../fixtures/accounts';
 import { apiContext, apiLogin, jwtClaims, loginViaUi } from '../fixtures/auth';
+import { organisationFor } from '../fixtures/organisation';
 
 /**
  * The navigation shell: floating nav panel, breadcrumb row, account menu.
@@ -306,6 +307,7 @@ test.describe('shell, signed in as a role-limited user', () => {
         lmsusername: account.username,
         lmsuserpasswordhash: account.password,
         lmsuserroles: [role],
+        ...(await organisationFor(superadmin, [role])),
         countryids: [],
         schoolids: [],
       },

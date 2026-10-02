@@ -1,6 +1,7 @@
 import { APIRequestContext, expect, test } from '@playwright/test';
 import { ROLE } from '../fixtures/accounts';
 import { apiContext, apiLogin, jwtClaims } from '../fixtures/auth';
+import { organisationFor } from '../fixtures/organisation';
 
 /**
  * Authorization enforcement — see docs/authorization-model.md.
@@ -40,6 +41,7 @@ test.beforeAll(async () => {
       lmsusername: LOW_PRIV.username,
       lmsuserpasswordhash: LOW_PRIV.password,
       lmsuserroles: [ROLE.user], // the lowest-privilege RBAC role
+      ...(await organisationFor(admin, [ROLE.user])),
       countryids: [],
       schoolids: [],
     },
