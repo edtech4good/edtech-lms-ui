@@ -1,0 +1,217 @@
+<nz-drawer
+  [nzVisible]="open()"
+  nzPlacement="right"
+  nzWidth="560px"
+  [nzClosable]="false"
+  [nzMaskClosable]="true"
+  nzWrapClassName="org-drawer"
+  [nzMaskStyle]="{ background: 'rgba(30, 41, 59, 0.35)' }"
+  (nzOnClose)="requestClose()"
+>
+  <ng-container *nzDrawerContent>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="org-drawer-title">
+      <header class="head">
+        <h2 id="org-drawer-title" class="title">{{ title() }}</h2>
+        <button type="button" class="close" aria-label="Close" (click)="requestClose()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" focusable="false">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </header>
+
+      <form id="org-form" class="body" novalidate (ngSubmit)="submit()">
+        @if (formError(); as message) {
+          <p class="form-error" role="alert">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 8v4M12 16h.01" />
+            </svg>
+            <span>{{ message }}</span>
+          </p>
+        }
+
+        <!-- Name -->
+        <div class="field">
+          <label class="label" for="org-name">Name <span class="req" aria-hidden="true">*</span></label>
+          <input
+            #nameInput
+            id="org-name"
+            class="input"
+            [class.invalid]="errors().organisationname"
+            type="text"
+            autocomplete="off"
+            aria-required="true"
+            [attr.aria-invalid]="errors().organisationname ? 'true' : null"
+            [attr.aria-describedby]="errors().organisationname ? 'org-name-error' : null"
+            [ngModel]="name()"
+            (ngModelChange)="setName($event)"
+            (blur)="touch('organisationname')"
+            name="organisationname"
+          />
+          @if (errors().organisationname; as message) {
+            <p class="field-error" id="org-name-error" role="alert">{{ message }}</p>
+          }
+        </div>
+
+        <!-- Short name, tile preview and colour -->
+        <div class="field">
+          <label class="label" for="org-shortname">Short name <span class="req" aria-hidden="true">*</span></label>
+          <div class="short-row">
+            <input
+              #shortNameInput
+              id="org-shortname"
+              class="input short"
+              [class.invalid]="errors().organisationshortname"
+              type="text"
+              autocomplete="off"
+              aria-required="true"
+              [attr.aria-invalid]="errors().organisationshortname ? 'true' : null"
+              [attr.aria-describedby]="'org-shortname-help' + (errors().organisationshortname ? ' org-shortname-error' : '')"
+              [ngModel]="shortName()"
+              (ngModelChange)="setShortName($event)"
+              (blur)="touch('organisationshortname')"
+              name="organisationshortname"
+            />
+            <span class="tile" role="img" aria-label="Tile preview" [style.background]="colour()" [style.color]="tileInk()">{{ shortName() || '?' }}</span>
+            <div class="swatches" role="radiogroup" aria-label="Tile colour">
+              @for (s of choices(); track s.colour) {
+                <label class="swatch" [attr.title]="s.name">
+                  <input
+                    class="hit"
+                    type="radio"
+                    name="tilecolour"
+                    [value]="s.colour"
+                    [attr.aria-label]="s.name"
+                    [checked]="colour().toLowerCase() === s.colour.toLowerCase()"
+                    (change)="colour.set(s.colour)"
+                  />
+                  <span class="chip" [style.background]="s.colour"></span>
+                </label>
+              }
+            </div>
+          </div>
+          @if (errors().organisationshortname; as message) {
+            <p class="field-error" id="org-shortname-error" role="alert">{{ message }}</p>
+          }
+          <p class="help" id="org-shortname-help">One to three letters. Shown on the organisation tile in the menu.</p>
+        </div>
+
+        <!-- Start from -->
+        <fieldset class="field fieldset">
+          <legend class="label">Start from</legend>
+          <div class="cards">
+            @for (p of presets; track p.value) {
+              <label class="card" [class.selected]="preset() === p.value" [class.locked]="isEdit()">
+                <input
+                  class="hit"
+                  type="radio"
+                  name="organisationpreset"
+                  [value]="p.value"
+                  [checked]="preset() === p.value"
+                  [disabled]="isEdit()"
+                  aria-describedby="org-preset-help"
+                  (change)="preset.set(p.value)"
+                />
+                <span class="card-top">
+                  <span class="card-icon" [class.violet]="p.tone === 'violet'" aria-hidden="true">
+                    @if (p.value === 'company') {
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                        <path d="M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2zM16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                      </svg>
+                    } @else {
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                        <path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6" />
+                      </svg>
+                    }
+                  </span>
+                  <span class="radio-dot" [class.on]="preset() === p.value" aria-hidden="true"></span>
+                </span>
+                <span class="card-title">{{ p.title }}</span>
+                <span class="card-help">{{ p.help }}</span>
+              </label>
+            }
+          </div>
+          <p class="help" id="org-preset-help">
+            @if (isEdit()) {
+              What it started from. This can't be changed.
+            } @else {
+              A starting point. Every name can be changed later.
+            }
+          </p>
+        </fieldset>
+
+        <!-- Code -->
+        <div class="field">
+          <label class="label" for="org-code">Code @if (!isEdit()) {<span class="req" aria-hidden="true">*</span>}</label>
+          @if (isEdit()) {
+            <input id="org-code" class="input readonly mono" type="text" readonly aria-readonly="true" aria-describedby="org-code-help" [value]="code()" />
+          } @else {
+            <input
+              #codeInput
+              id="org-code"
+              class="input mono"
+              [class.invalid]="errors().organisationcode"
+              type="text"
+              autocomplete="off"
+              autocapitalize="none"
+              spellcheck="false"
+              aria-required="true"
+              [attr.aria-invalid]="errors().organisationcode ? 'true' : null"
+              [attr.aria-describedby]="'org-code-help' + (errors().organisationcode ? ' org-code-error' : '')"
+              [ngModel]="code()"
+              (ngModelChange)="setCode($event)"
+              (blur)="touch('organisationcode')"
+              name="organisationcode"
+            />
+            @if (errors().organisationcode; as message) {
+              <p class="field-error" id="org-code-error" role="alert">{{ message }}</p>
+            }
+          }
+          <p class="help" id="org-code-help">
+            @if (isEdit()) {
+              The code can't be changed.
+            } @else {
+              Typed at learner sign-in. Lowercase letters and digits, 2 to 16. It can't be changed later.
+            }
+          </p>
+        </div>
+
+        <!-- Countries -->
+        <div class="field">
+          <label class="label" for="org-countries-input">Countries <span class="req" aria-hidden="true">*</span></label>
+          @if (countriesState() === 'error') {
+            <p class="field-error" role="alert">
+              The countries couldn't be loaded.
+              <button type="button" class="link" (click)="loadCountries()">Try again</button>
+            </p>
+          } @else {
+            <nz-select
+              id="org-countries"
+              nzId="org-countries-input"
+              class="countries"
+              [class.invalid]="errors().countryids"
+              nzMode="multiple"
+              nzPlaceHolder="Add a country"
+              [nzLoading]="countriesState() === 'loading'"
+              [nzOptions]="countryOptions()"
+              [ngModel]="countryIds()"
+              (ngModelChange)="setCountries($event)"
+              [ngModelOptions]="{ standalone: true }"
+              [attr.aria-describedby]="'org-countries-help' + (errors().countryids ? ' org-countries-error' : '')"
+            />
+          }
+          @if (errors().countryids; as message) {
+            <p class="field-error" id="org-countries-error" role="alert">{{ message }}</p>
+          }
+          <p class="help" id="org-countries-help">Pick from the countries on the platform list.</p>
+        </div>
+      </form>
+
+      <footer class="foot">
+        <button nz-button type="button" class="foot-button" (click)="requestClose()">Cancel</button>
+        <button #submitButton nz-button nzType="primary" class="foot-button" type="submit" form="org-form" [disabled]="submitting()">
+          {{ submitting() ? 'Saving…' : isEdit() ? 'Save changes' : 'Create organisation' }}
+        </button>
+      </footer>
+    </div>
+  </ng-container>
+</nz-drawer>

@@ -1,0 +1,205 @@
+<div class="page">
+  <div class="page-head">
+    <div class="head-tile" aria-hidden="true">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+        <path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6" />
+      </svg>
+    </div>
+    <div class="head-text">
+      <h1>Organisations</h1>
+      <p class="sub" aria-live="polite">
+        @if (status() === 'error') {
+          Couldn't load the organisations.
+        } @else if (status() === 'forbidden') {
+          <!-- nothing to count: the state below says why -->
+        } @else if (status() === 'loading' && rows().length === 0) {
+          Loading…
+        } @else {
+          {{ summary() }}
+        }
+      </p>
+    </div>
+    @if (canCreate) {
+      <button nz-button nzType="primary" nzSize="large" class="new" type="button" data-focus-key="new" (click)="openNew()">
+        + New organisation
+      </button>
+    }
+  </div>
+
+  <section class="card" aria-label="Organisations">
+    <div class="toolbar">
+      <div class="search">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false">
+          <path d="M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35" />
+        </svg>
+        <label class="visually-hidden" for="org-search">Search organisations by name</label>
+        <input
+          id="org-search"
+          type="search"
+          placeholder="Search organisations"
+          autocomplete="off"
+          [ngModel]="search()"
+          (ngModelChange)="onSearch($event)"
+        />
+      </div>
+    </div>
+
+    @switch (status()) {
+      @case ('forbidden') {
+        <div class="state" role="alert">
+          <h2>{{ noAccess.heading }}</h2>
+          <p>{{ noAccess.line }}</p>
+        </div>
+      }
+      @case ('error') {
+        <div class="state" role="alert">
+          <h2>Couldn't load the organisations</h2>
+          <p>Check your connection and try again.</p>
+          <button nz-button nzType="primary" type="button" (click)="reload()">Try again</button>
+        </div>
+      }
+      @case ('loading') {
+        @if (rows().length === 0) {
+          <div class="skeleton" role="status" aria-label="Loading organisations">
+            @for (n of [1, 2, 3]; track n) {
+              <div class="skeleton-row" aria-hidden="true"><span class="sk-tile"></span><span class="sk-line"></span></div>
+            }
+          </div>
+        } @else {
+          <ng-container *ngTemplateOutlet="table" />
+        }
+      }
+      @default {
+        @if (rows().length === 0) {
+          @if (searched().trim()) {
+            <div class="state">
+              <h2>No organisations match “{{ searched().trim() }}”</h2>
+              <p>Try a different name, or clear the search.</p>
+              <button nz-button nzType="primary" type="button" (click)="clearSearch()">Clear search</button>
+            </div>
+          } @else {
+            <div class="state">
+              <h2>No organisations yet</h2>
+              <p>Each client is an organisation. You choose whether it starts from Company or School network.</p>
+              @if (canCreate) {
+                <button nz-button nzType="primary" type="button" (click)="openNew()">+ New organisation</button>
+              }
+            </div>
+          }
+        } @else {
+          <ng-container *ngTemplateOutlet="table" />
+        }
+      }
+    }
+  </section>
+</div>
+
+<ng-template #table>
+  <div class="scroll">
+  <nz-table
+    #grid
+    class="grid"
+    [nzData]="rows()"
+    [nzFrontPagination]="false"
+    [nzTotal]="total()"
+    [nzPageIndex]="pageIndex()"
+    [nzPageSize]="pageSize()"
+    [nzShowSizeChanger]="true"
+    [nzPageSizeOptions]="pageSizes"
+    [nzHideOnSinglePage]="total() <= pageSizes[0]"
+    [nzLoading]="status() === 'loading'"
+    (nzPageIndexChange)="onPageIndex($event)"
+    (nzPageSizeChange)="onPageSize($event)"
+  >
+    <thead>
+      <tr>
+        <th scope="col" nzWidth="270px">Organisation</th>
+        <th scope="col" nzWidth="140px">Started from</th>
+        <th scope="col" nzWidth="130px">Countries</th>
+        <th scope="col" nzWidth="130px">Status</th>
+        <th scope="col" nzWidth="140px" class="actions-head"><span class="visually-hidden">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (o of grid.data; track o.organisationid) {
+        <tr>
+          <td>
+            <div class="org">
+              <span class="tile" aria-hidden="true" [style.background]="tileColour(o)" [style.color]="tileInk(o)">{{ o.organisationshortname }}</span>
+              <span class="org-text">
+                <span class="org-name">{{ o.organisationname }}</span>
+                <span class="org-code">{{ o.organisationcode }}</span>
+              </span>
+            </div>
+          </td>
+          <td>
+            <span class="kind" [class.school]="o.organisationpreset === 'schoolnetwork'">
+              {{ o.organisationpreset === 'schoolnetwork' ? 'School network' : 'Company' }}
+            </span>
+          </td>
+          <td class="countries">{{ countries(o) }}</td>
+          <td>
+            @if (o.organisationstatus) {
+              <span class="pill active">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12l5 5L20 7" /></svg>
+                Active
+              </span>
+            } @else {
+              <span class="pill suspended">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M9 6v12M15 6v12" /></svg>
+                Suspended
+              </span>
+            }
+          </td>
+          <td class="actions">
+            @if (canUpdate) {
+              <button
+                nz-button
+                nzSize="small"
+                type="button"
+                class="row-button"
+                [attr.data-focus-key]="'edit:' + o.organisationid"
+                [attr.aria-label]="'Edit ' + o.organisationname"
+                (click)="openEdit(o)"
+              >
+                Edit
+              </button>
+            }
+            @if (canUpdate || canDelete) {
+              <button
+                nz-button
+                nzSize="small"
+                type="button"
+                class="row-button more"
+                [cdkMenuTriggerFor]="menu"
+                [attr.aria-label]="'More actions for ' + o.organisationname"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" /></svg>
+              </button>
+              <ng-template #menu>
+                <div class="row-menu" cdkMenu [attr.aria-label]="'Actions for ' + o.organisationname">
+                  @if (canUpdate) {
+                    <button type="button" class="menu-item" cdkMenuItem (cdkMenuItemTriggered)="toggleStatus(o)">
+                      {{ o.organisationstatus ? 'Suspend' : 'Reactivate' }}
+                    </button>
+                  }
+                  @if (canDelete) {
+                    <button type="button" class="menu-item danger" cdkMenuItem (cdkMenuItemTriggered)="confirmDelete(o)">Delete…</button>
+                  }
+                </div>
+              </ng-template>
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </nz-table>
+  </div>
+</ng-template>
+
+<app-organisation-drawer
+  [open]="drawerOpen()"
+  [organisation]="editing()"
+  (saved)="onSaved($event)"
+  (closed)="closeDrawer()"
+/>

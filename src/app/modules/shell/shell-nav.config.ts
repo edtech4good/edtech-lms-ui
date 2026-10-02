@@ -250,7 +250,33 @@ export const SHELL_HOME: ShellNavItem = {
 
 const reportsKeys = REPORT_HUB.flatMap((s) => s.permissions.filter((p) => p !== 'superadmin'));
 
+/**
+ * The Platform group's only permission. Unlike every other entry it is NOT widened
+ * with the synthetic `superadmin` permission (sidebarPerm): the Organisations
+ * routes are platform-only on the API and need view_organisation itself, so the
+ * item is for the holders of that permission and nobody else. A stable array, for
+ * the reason given at sidebarPerm.
+ */
+const ORGANISATION_PERMISSIONS = ['view_organisation'];
+
 export const SHELL_GROUPS: ShellNavGroup[] = [
+  {
+    key: 'platform',
+    label: 'Platform',
+    tone: 'admin',
+    railDivider: true,
+    permissions: ORGANISATION_PERMISSIONS,
+    entries: [
+      {
+        key: 'organisation',
+        label: 'Organisations',
+        icon: 'organisations',
+        route: '/organisation',
+        match: ['/organisation'],
+        permissions: ORGANISATION_PERMISSIONS,
+      },
+    ],
+  },
   group('content', 'Content', 'content', [
     // TEMPORARY: the Curricula workspace will replace these five screens with one
     // entry. Until then Curricula expands in place, like Administration.

@@ -13,6 +13,8 @@ export const SHELL_ICONS = {
   assessments:
     'M9 2h6v4H9zM16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M9 14l2 2 4-4',
   schools: 'M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6',
+  // Platform: organisations (AdminNav.dc.html).
+  organisations: 'M3 21h18M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16M10 8h4M10 12h4M10 16h4',
   // Presentation board: a class.
   classes: 'M2 3h20M21 3v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3M7 21l5-5 5 5',
   learners:

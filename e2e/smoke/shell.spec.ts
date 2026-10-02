@@ -57,10 +57,10 @@ test('the permitted groups render', async () => {
 
   // The superadmin holds every permission, so all of the labelled groups show
   // (a group with nothing visible is hidden along with its label).
-  for (const label of ['Content', 'People', 'Reports and settings']) {
+  for (const label of ['Platform', 'Content', 'People', 'Reports and settings']) {
     await expect(nav.getByRole('group', { name: label, exact: true })).toBeVisible();
   }
-  await expect(nav.getByRole('group')).toHaveCount(3);
+  await expect(nav.getByRole('group')).toHaveCount(4);
 
   // Administration is the fifth group: an expander with no label above it.
   await expect(nav.getByRole('button', { name: 'Administration', exact: true })).toBeVisible();
@@ -98,6 +98,7 @@ test('the window scrolls and the nav panel stays in view', async () => {
 test('every link navigates and becomes the one current page', async () => {
   const top: Array<[string, RegExp]> = [
     ['Home', /\/dashboard\/index$/],
+    ['Organisations', /\/organisation$/],
     ['Questions', /\/question\/index(\?|$)/],
     ['Media', /\/document\/index$/],
     ['Assessments', /\/baseline-curriculum\/index$/],
@@ -335,6 +336,7 @@ test.describe('shell, signed in as a role-limited user', () => {
   // Written out here, not read from shell-nav.config.ts, so a change to the
   // menu's permissions cannot quietly rewrite what this test expects.
   const LINKS: Array<{ label: string; keys: string[]; parent?: string }> = [
+    { label: 'Organisations', keys: ['view_organisation'] },
     { label: 'Curriculum list', keys: ['view_curriculum'], parent: 'Curricula' },
     { label: 'Grades', keys: ['view_grade'], parent: 'Curricula' },
     { label: 'Levels', keys: ['view_level'], parent: 'Curricula' },
@@ -412,7 +414,7 @@ test.describe('shell, signed in as a role-limited user', () => {
 
       // Nothing else: no group, no group label, no expander, no other link.
       await expect(side.getByRole('group')).toHaveCount(0);
-      for (const label of ['Content', 'People', 'Reports and settings']) {
+      for (const label of ['Platform', 'Content', 'People', 'Reports and settings']) {
         await expect(side.getByText(label, { exact: true })).toHaveCount(0);
       }
       await expect(side.getByRole('button', { name: 'Curricula', exact: true })).toHaveCount(0);
