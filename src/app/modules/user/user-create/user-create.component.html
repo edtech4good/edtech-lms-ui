@@ -1,5 +1,5 @@
 <div nz-row>
-  <div nz-col nzSpan="12">
+  <div nz-col nzXs="24" nzLg="12">
     <nz-card [nzBordered]="true" nzTitle="User" [nzLoading]="dataloading">
       <form nz-form [formGroup]="createForm" novalidate (ngSubmit)="submitcreateForm()">
         <p class="form-error" role="alert" *ngIf="errors.form">{{ errors.form }}</p>
