@@ -14,6 +14,12 @@ import { API_URL, BASE_URL } from './e2e/fixtures/env';
  * MySQL, the central API and `ng serve`, with `seed:local` and `seed:demo`
  * applied. See LOCAL_DEVELOPMENT.md. Pointing BASE_URL / API_URL elsewhere runs
  * it against staging.
+ *
+ * Specs that create staff accounts with passwords written in this public repository
+ * (staff, shell's role-limited group, the authorization specs' account groups, the
+ * no-permission organisation group) run only against a local API: on any other host
+ * they skip themselves (e2e/fixtures/local-only.ts), so against staging the suite is
+ * narrower than it is locally.
  */
 export default defineConfig({
   testDir: './e2e',
