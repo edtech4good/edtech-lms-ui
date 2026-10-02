@@ -11,6 +11,11 @@ import { apiContext, apiLogin, loginViaUi } from '../fixtures/auth';
  * in teardown. Deletes are soft: each run leaves its rows, invisible to the API,
  * in the organisations table:
  *   SELECT organisationcode FROM organisations WHERE organisationcode LIKE 'e2e%';
+ *
+ * The no-permission describe uses one fixed account, e2e-org-teacher@example.com:
+ * created if missing, never disabled. That is accepted: the API can disable a user
+ * but cannot list or re-enable one, so disabling it in teardown would make the next
+ * run fail, and an account per run only piles up. It holds no organisation permission.
  */
 
 const RUN = `e2e${Math.random().toString(36).slice(2, 8)}`;
