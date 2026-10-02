@@ -43,7 +43,8 @@ async function chooseOrganisation(p: Page, name: string): Promise<void> {
   // The select's own box: its search input is hidden while a value is chosen.
   await p.locator('nz-select').filter({ has: p.locator('#staff-organisationid') }).click();
   await p.keyboard.type(name);
-  await p.locator('.ant-select-item-option', { hasText: name }).first().click();
+  // The whole option text, not a part of it: other organisations may have names that start the same way.
+  await p.locator('.ant-select-item-option').filter({ has: p.getByText(name, { exact: true }) }).click();
 }
 
 /** The staff writes the page sends, bodies parsed. */
