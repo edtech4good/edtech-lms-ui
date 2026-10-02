@@ -815,9 +815,8 @@ test.describe('organisations, signed in as the platform superadmin', () => {
   test('search asks the API for names containing the text', async () => {
     const a = await makeViaApi();
     const b = await makeViaApi();
+    // (Not asserted before the search: by now this run has many live rows, and these two may be on a later page.)
     await page.reload();
-    await expect(rowOf(a.name)).toBeVisible();
-    await expect(rowOf(b.name)).toBeVisible();
     const asked = page.waitForRequest((r) => r.url().includes('/organisation?') && r.url().includes('organisationname='));
     await page.getByRole('searchbox', { name: 'Search organisations by name' }).fill(`${RUN}-${counter}`);
     const request = await asked;
