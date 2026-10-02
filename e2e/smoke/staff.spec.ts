@@ -2,6 +2,7 @@ import { APIRequestContext, Page, Request, expect, test } from '@playwright/test
 import { ROLE } from '../fixtures/accounts';
 import { apiContext, jwtClaims, loginViaUi } from '../fixtures/auth';
 import { API_URL } from '../fixtures/env';
+import { skipUnlessLocalApi } from '../fixtures/local-only';
 import { SECOND_FIXTURE_ORGANISATION, fixtureOrganisationId, organisationFor } from '../fixtures/organisation';
 
 /**
@@ -14,7 +15,13 @@ import { SECOND_FIXTURE_ORGANISATION, fixtureOrganisationId, organisationFor } f
  * stays behind besides those rows: the two fixed fixture organisations ("e2efixture"
  * and "e2efixturekm", Khmer named; fixtures/organisation.ts), which are found, never
  * recreated, and cannot be deleted once they have had staff.
+ *
+ * It makes accounts (Super Admin among them) with a password that is written in this
+ * public repository, so it runs only against a local API (E2E_API_URL on localhost,
+ * 127.0.0.1 or [::1]); on any other host the whole file is skipped. Teardown fails
+ * loudly if an account it made cannot be disabled.
  */
+skipUnlessLocalApi('creates staff accounts, a Super Admin among them');
 
 const RUN = `e2e${Math.random().toString(36).slice(2, 8)}`;
 const PASSWORD = 'Staff_Pass1';
@@ -115,8 +122,8 @@ test.beforeAll(async ({ browser }) => {
 test.afterAll(async () => {
   for (const id of madeUserIds) {
     const res = await sa.delete(`/user/${id}`);
-    // Already disabled by a test (an account that removed its own roles is fine too).
-    if (!res.ok() && res.status() !== 404 && res.status() !== 400) throw new Error(`failed to disable ${id}: HTTP ${res.status()}`);
+    // Never swallowed: an account left enabled has a password anyone can read here.
+    if (!res.ok()) throw new Error(`failed to disable ${id}: HTTP ${res.status()}`);
   }
   await sa.dispose();
   await saPage?.close();
@@ -263,6 +270,88 @@ test.describe('staff accounts, signed in as the platform superadmin', () => {
     expect(await toastCountAfterPause(page), 'one message, not two').toBe(1);
     await expect(page.getByRole('alert')).toHaveCount(0);
     await page.unroute(`${API_URL}/user/create`);
+  });
+
+  test('two submit events at the create form send one request', async () => {
+    let requests = 0;
+    await page.route(`${API_URL}/user/create`, async (route) => {
+      requests++;
+      await new Promise((resolve) => setTimeout(resolve, 1_200));
+      await route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+    });
+    await fillCreate(email('twice'));
+    // Two submits in the same instant, as a double click or a held Enter can make: the form's own
+    // guard, not the button (which is disabled only after the first).
+    await page.locator('form').evaluate((form) => {
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+    await expect(page.getByRole('alert')).toHaveText("The account couldn't be saved. Try again.");
+    await page.waitForTimeout(500);
+    expect(requests, 'one request, not two').toBe(1);
+    await page.unroute(`${API_URL}/user/create`);
+  });
+
+  test('two submit events at the edit form send one request', async () => {
+    const { id } = await makeViaApi('twiceedit', [ROLE.teacher], fixtureOrg);
+    let requests = 0;
+    await page.route(`${API_URL}/user/${id}`, async (route) => {
+      if (route.request().method() !== 'PUT') return route.fallback();
+      requests++;
+      await new Promise((resolve) => setTimeout(resolve, 1_200));
+      await route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+    });
+    await page.goto(`/user/update/${id}`);
+    await expect(roleBox(page, 'Teacher')).toBeChecked();
+    await page.locator('form').evaluate((form) => {
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+      form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+    await expect(page.getByRole('alert')).toHaveText("The account couldn't be saved. Try again.");
+    await page.waitForTimeout(500);
+    expect(requests, 'one request, not two').toBe(1);
+    await page.unroute(`${API_URL}/user/${id}`);
+  });
+
+  test('a suspended organisation is listed with its label, on create and on edit', async () => {
+    // A throwaway organisation, suspended here and deleted here: the fixtures are never suspended.
+    const country = (await (await sa.get('/country/all?country=')).json()).data[0].countryid;
+    const name = `Suspended sample ${RUN}`;
+    const created = await sa.post('/organisation', {
+      data: {
+        organisationname: name,
+        organisationcode: `${RUN}s`,
+        organisationshortname: 'SS',
+        organisationpreset: 'company',
+        uitheme: 'corporate',
+        countryids: [country],
+      },
+    });
+    expect(created.ok(), `could not create the throwaway organisation: ${created.status()}`).toBeTruthy();
+    const orgId = (await created.json()).data.organisationid;
+    try {
+      const off = await sa.put(`/organisation/${orgId}`, {
+        data: { organisationname: name, organisationshortname: 'SS', countryids: [country], organisationstatus: false },
+      });
+      expect(off.ok(), `could not suspend it: ${off.status()}`).toBeTruthy();
+      const { id } = await makeViaApi('suslabel', [ROLE.teacher], fixtureOrg);
+      for (const url of ['/user/create', `/user/update/${id}`]) {
+        await page.goto(url);
+        await page.locator('nz-select').filter({ has: page.locator('#staff-organisationid') }).click();
+        await page.keyboard.type(name);
+        const option = page.locator('.ant-select-item-option', { hasText: name });
+        await expect(option).toHaveText(`${name} (suspended)`);
+        await page.keyboard.press('Escape');
+        // A live organisation has no label.
+        await page.locator('nz-select').filter({ has: page.locator('#staff-organisationid') }).click();
+        await page.keyboard.type('E2E Fixture Organisation');
+        await expect(page.locator('.ant-select-item-option', { hasText: 'E2E Fixture Organisation' })).toHaveText('E2E Fixture Organisation');
+        await page.keyboard.press('Escape');
+      }
+    } finally {
+      const gone = await sa.delete(`/organisation/${orgId}`);
+      expect(gone.ok(), `the throwaway organisation was not deleted: ${gone.status()}`).toBeTruthy();
+    }
   });
 
   test('ticking Super Admin on an existing account clears its organisation: it becomes a platform account', async () => {
