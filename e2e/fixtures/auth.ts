@@ -19,15 +19,30 @@ function throttleWaitMs(retryAfter: string | undefined): number {
 }
 
 /**
- * Wait for a throttle window to pass. The wait is longer than a spec's default
- * timeout, so lend the running test (or hook) the time it is about to spend.
+ * How much time each running test or hook has been lent so far, and the timeout it
+ * started with. `testInfo.timeout` does not report the time already lent inside a
+ * hook, so "timeout + this wait" on every wait set the same deadline again instead of
+ * adding up: a hook that signed in five times and was throttled three times ran out
+ * of time after the last short wait. The running total is kept here, per test or hook.
  */
-async function waitOutThrottle(ms: number): Promise<void> {
+const lent = new WeakMap<object, { base: number; extra: number }>();
+
+/**
+ * Wait for a throttle window to pass. The wait is longer than a spec's default
+ * timeout, so lend the running test (or hook) the time it is about to spend: every
+ * wait adds to the deadline, in a test and in a hook.
+ *
+ * Exported for the fixture's own tests (auth-fixture.spec.ts).
+ */
+export async function waitOutThrottle(ms: number): Promise<void> {
   // Say so, so a slow run can be told apart from a throttled one.
   console.warn(`[e2e] sign-in was rate-limited (429): waiting ${Math.round(ms / 1000)}s, then trying once more`);
   try {
     const info = test.info();
-    info.setTimeout(info.timeout + ms);
+    const entry = lent.get(info) ?? { base: info.timeout, extra: 0 };
+    entry.extra += ms;
+    lent.set(info, entry);
+    info.setTimeout(entry.base + entry.extra);
   } catch {
     /* not inside a test or hook (a global setup): no timeout to extend */
   }
