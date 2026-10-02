@@ -12,7 +12,7 @@ import { NgxPermissionsService } from 'ngx-permissions';
 import { EMPTY, Subject, catchError, debounceTime, lastValueFrom, switchMap, tap } from 'rxjs';
 import { confirmDialog } from './confirm-dialog';
 import { OrganisationDrawerComponent } from './organisation-drawer.component';
-import { DEFAULT_TILE_COLOUR, knownBranding, tileTextColour } from './organisation-form';
+import { DEFAULT_TILE_COLOUR, NO_ACCESS_HEADING, NO_ACCESS_LINE, knownBranding, tileTextColour } from './organisation-form';
 import { ApiErrorBody, Organisation, OrganisationWrite } from './organisation.model';
 import { OrganisationService } from './organisation.service';
 
@@ -53,7 +53,7 @@ export class OrganisationListComponent {
   readonly canDelete = !!this.permissions.getPermission('delete_organisation');
 
   // ---- The list -------------------------------------------------------------
-  readonly status = signal<'loading' | 'ready' | 'error'>('loading');
+  readonly status = signal<'loading' | 'ready' | 'error' | 'forbidden'>('loading');
   readonly rows = signal<Organisation[]>([]);
   readonly total = signal(0);
   readonly pageIndex = signal(1);
@@ -63,6 +63,8 @@ export class OrganisationListComponent {
   /** What the list was last asked for. */
   readonly searched = signal('');
   readonly pageSizes = [20, 50, 100, 200];
+  /** What the list says when the API refuses it (403), and no way to retry. */
+  readonly noAccess = { heading: NO_ACCESS_HEADING, line: NO_ACCESS_LINE };
 
   /** "3 organisations", and the countries they cover when the page shows every one of them. */
   readonly summary = computed(() => {
@@ -99,8 +101,8 @@ export class OrganisationListComponent {
               organisationname: this.searched(),
             })
             .pipe(
-              catchError(() => {
-                this.status.set('error');
+              catchError((error: HttpErrorResponse) => {
+                this.status.set(error.status === 403 ? 'forbidden' : 'error');
                 return EMPTY;
               }),
             ),
@@ -292,7 +294,7 @@ export class OrganisationListComponent {
       this.notification.error(title, 'It no longer exists.');
       this.reload();
     } else if (error.status === 403) {
-      this.notification.error(title, "You don't have permission to do that.");
+      this.notification.error(NO_ACCESS_HEADING, NO_ACCESS_LINE);
     } else if (error.status === 409) {
       const body = (error.error ?? {}) as ApiErrorBody;
       const said = [body.errormessage, body.hint].filter((t) => typeof t === 'string' && t.trim()).join(' ');

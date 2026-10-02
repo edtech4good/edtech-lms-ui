@@ -78,6 +78,13 @@ export interface ServerFieldErrors {
 }
 
 /** Shown when a save failed and the API gave nothing more specific. */
+/**
+ * A 403 from the organisation API: the person holds an organisation permission but is
+ * not platform staff. Said the same way on the list, in the form and in a toast.
+ */
+export const NO_ACCESS_HEADING = "You don't have access to organisations.";
+export const NO_ACCESS_LINE = 'Organisations are managed by platform staff.';
+
 export const SAVE_FAILED = "The organisation couldn't be saved. Try again.";
 
 /**
@@ -137,7 +144,7 @@ export function serverFieldErrors(error: HttpErrorResponse): ServerFieldErrors {
   if (error.status === 404) {
     out.form = 'That organisation no longer exists.';
   } else if (error.status === 403) {
-    out.form = "You don't have permission to do that.";
+    out.form = `${NO_ACCESS_HEADING} ${NO_ACCESS_LINE}`;
   } else if (error.status === 400) {
     out.form = "Some of the information isn't valid. Check the form and try again.";
   } else {

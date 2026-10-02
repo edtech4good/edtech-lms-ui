@@ -10,6 +10,8 @@
       <p class="sub" aria-live="polite">
         @if (status() === 'error') {
           Couldn't load the organisations.
+        } @else if (status() === 'forbidden') {
+          <!-- nothing to count: the state below says why -->
         } @else if (status() === 'loading' && rows().length === 0) {
           Loading…
         } @else {
@@ -43,6 +45,12 @@
     </div>
 
     @switch (status()) {
+      @case ('forbidden') {
+        <div class="state" role="alert">
+          <h2>{{ noAccess.heading }}</h2>
+          <p>{{ noAccess.line }}</p>
+        </div>
+      }
       @case ('error') {
         <div class="state" role="alert">
           <h2>Couldn't load the organisations</h2>

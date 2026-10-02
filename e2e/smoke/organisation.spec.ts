@@ -1,6 +1,8 @@
 import { APIRequestContext, Locator, Page, Route, expect, test } from '@playwright/test';
 import { ROLE } from '../fixtures/accounts';
 import { apiContext, apiLogin, loginViaUi } from '../fixtures/auth';
+import { API_URL } from '../fixtures/env';
+import { ensureLocalFixtureUser, isLocalHost } from '../fixtures/local-fixture-user';
 
 /**
  * Platform Organisations: list, and the New / Edit drawer. Real API.
@@ -16,6 +18,10 @@ import { apiContext, apiLogin, loginViaUi } from '../fixtures/auth';
  * created if missing, never disabled. That is accepted: the API can disable a user
  * but cannot list or re-enable one, so disabling it in teardown would make the next
  * run fail, and an account per run only piles up. It holds no organisation permission.
+ * Its password is in this public repository, so it is created only when the API URL's
+ * host is localhost, 127.0.0.1 or [::1] (fixtures/local-fixture-user.ts, tested in
+ * local-fixture-user.spec.ts): on any other host that describe is skipped and the
+ * helper throws.
  */
 
 const RUN = `e2e${Math.random().toString(36).slice(2, 8)}`;
@@ -511,6 +517,19 @@ test.describe('organisations, signed in as the platform superadmin', () => {
     await page.unroute('**/organisation');
   });
 
+  test('a create answered with HTTP 429 is left to the interceptor: one toast, nothing in the form', async () => {
+    await mockCreate((route) => route.fulfill(json(429, { errormessage: 'Mocked.' })));
+    await openNew();
+    await fillValid(sample());
+    await submit();
+    await expect(toasts()).toHaveCount(1);
+    await page.waitForTimeout(750);
+    expect(await toasts().count(), 'one message, not two').toBe(1);
+    await expect(drawer().getByRole('alert')).toHaveCount(0);
+    await expect(submitButton()).toBeFocused();
+    await page.unroute('**/organisation');
+  });
+
   test('a create that gets no answer is left to the interceptor: one toast, nothing in the form', async () => {
     await mockCreate((route) => route.abort('connectionrefused'));
     await openNew();
@@ -683,6 +702,80 @@ test.describe('organisations, signed in as the platform superadmin', () => {
     await page.unroute(`**/organisation/${o.id}`);
   });
 
+  // ---- A row action the interceptor already reports says nothing more -----------------------
+  /** Do `action` on a fresh organisation while the API answers `answer` to its request. */
+  async function rowAction(
+    action: 'delete' | 'suspend' | 'reactivate',
+    answer: (route: Route) => Promise<void> | void,
+  ): Promise<void> {
+    const o = await makeViaApi();
+    if (action === 'reactivate') {
+      const off = await api.put(`/organisation/${o.id}`, {
+        data: { organisationname: o.name, organisationshortname: o.short, countryids: [await countryId()], organisationstatus: false },
+      });
+      expect(off.ok(), 'the organisation was suspended first').toBeTruthy();
+    }
+    await page.reload();
+    const method = action === 'delete' ? 'DELETE' : 'PUT';
+    await page.route(`**/organisation/${o.id}`, (route) => (route.request().method() === method ? answer(route) : route.fallback()));
+    await rowOf(o.name).getByRole('button', { name: `More actions for ${o.name}` }).click();
+    if (action === 'delete') {
+      await page.getByRole('menuitem', { name: /Delete/ }).click();
+      await page.getByRole('alertdialog', { name: `Delete “${o.name}”?` }).getByRole('button', { name: 'Delete organisation' }).click();
+    } else if (action === 'suspend') {
+      await page.getByRole('menuitem', { name: 'Suspend' }).click();
+      await page.getByRole('alertdialog').getByRole('button', { name: 'Suspend organisation' }).click();
+    } else {
+      await page.getByRole('menuitem', { name: 'Reactivate' }).click();
+    }
+  }
+
+  const ROW_ANSWERS: Array<[string, (route: Route) => Promise<void> | void]> = [
+    ['HTTP 500', (route) => route.fulfill(json(500, { errormessage: 'Mocked.' }))],
+    ['HTTP 429', (route) => route.fulfill(json(429, { errormessage: 'Mocked.' }))],
+    ['a dropped connection', (route) => route.abort('connectionrefused')],
+  ];
+  for (const action of ['delete', 'suspend'] as const) {
+    for (const [label, answer] of ROW_ANSWERS) {
+      test(`a ${action} answered with ${label} is left to the interceptor: exactly one message`, async () => {
+        await rowAction(action, answer);
+        await expect(toasts()).toHaveCount(1);
+        await page.waitForTimeout(750);
+        expect(await toasts().count(), 'one message, not two').toBe(1);
+        // The one message is the interceptor's, not the list's own "Couldn't ...".
+        await expect(toasts().filter({ hasText: /Couldn.t (delete|suspend)/ })).toHaveCount(0);
+        await page.unroute(/\/organisation\/[0-9a-f-]+$/);
+      });
+    }
+  }
+
+  // ---- A 403 says organisations are for platform staff, once --------------------------------
+  const NO_ACCESS_HEADING = "You don't have access to organisations.";
+  const NO_ACCESS_LINE = 'Organisations are managed by platform staff.';
+
+  test('a create answered with HTTP 403 says organisations are for platform staff, in the form, once', async () => {
+    await mockCreate((route) => route.fulfill(json(403, { errormessage: 'Mocked.' })));
+    await openNew();
+    await fillValid(sample());
+    await submit();
+    await expect(drawer().getByRole('alert')).toHaveText(`${NO_ACCESS_HEADING} ${NO_ACCESS_LINE}`);
+    await expectNoToast();
+    await expect(drawer().getByRole('alert')).toHaveCount(1);
+    await page.unroute('**/organisation');
+  });
+
+  for (const action of ['delete', 'suspend', 'reactivate'] as const) {
+    test(`a ${action} answered with HTTP 403 says organisations are for platform staff, in one toast`, async () => {
+      await rowAction(action, (route) => route.fulfill(json(403, { errormessage: 'Mocked.' })));
+      await expect(toasts().filter({ hasText: NO_ACCESS_HEADING })).toHaveCount(1);
+      await page.waitForTimeout(750);
+      expect(await toasts().count(), 'one message, not two').toBe(1);
+      await expect(toasts()).toContainText(NO_ACCESS_LINE);
+      await expect(toasts()).not.toContainText('Try again in a moment.');
+      await page.unroute(/\/organisation\/[0-9a-f-]+$/);
+    });
+  }
+
   // ---- The drawer cannot be closed while a save is on its way ----------------------------
   test('the drawer does not close while a save is in flight', async () => {
     await mockCreate(async (route) => {
@@ -799,6 +892,18 @@ test.describe('organisations: list states, with the list mocked', () => {
     await own.getByRole('button', { name: 'Try again' }).click();
     await expect(own.getByRole('row').filter({ has: own.getByText('Sample Company 1', { exact: true }) })).toBeVisible();
     expect(attempts).toBe(2);
+  });
+
+  test('a 403 on the list says organisations are for platform staff: no retry, no connection advice', async () => {
+    await mockList((route) => route.fulfill(json({ error: true, errormessage: 'Mocked.' }, 403)));
+    await own.goto('/organisation');
+    const state = own.getByRole('alert').filter({ has: own.getByRole('heading', { name: "You don't have access to organisations." }) });
+    await expect(state).toBeVisible();
+    await expect(state).toContainText('Organisations are managed by platform staff.');
+    await expect(own.getByRole('button', { name: 'Try again' })).toHaveCount(0);
+    await expect(own.getByText(/Couldn.t load the organisations|Check your connection/)).toHaveCount(0);
+    await own.waitForTimeout(750);
+    expect(await own.locator('.ant-notification-notice').count(), 'no toast: the screen says it').toBe(0);
   });
 
   test('paging asks the API for the page, one-based, and the size', async () => {
@@ -959,22 +1064,14 @@ test.describe('organisations, signed in without the permission', () => {
   const TEACHER = { username: 'e2e-org-teacher@example.com', password: 'OrgTeacher_Pass1' };
   let superadmin: APIRequestContext;
 
+  // A standing login whose password is in a public repository belongs on a developer's
+  // own machine only: on any other host (E2E_API_URL pointing elsewhere) this is skipped,
+  // and ensureLocalFixtureUser would refuse anyway.
+  test.skip(!isLocalHost(API_URL), `the fixed no-permission account is only created on a local API (E2E_API_URL is ${API_URL})`);
+
   test.beforeAll(async () => {
     superadmin = await apiContext(await apiLogin());
-    const res = await superadmin.post('/user/create', {
-      data: {
-        lmsusername: TEACHER.username,
-        lmsuserpasswordhash: TEACHER.password,
-        lmsuserroles: [ROLE.teacher],
-        countryids: [],
-        schoolids: [],
-      },
-    });
-    if (!res.ok()) {
-      // Already there from an earlier run is fine; anything else is not.
-      const said = JSON.stringify(await res.json().catch(() => ({})));
-      expect(said, `could not create the fixture user (HTTP ${res.status()})`).toContain('already registered');
-    }
+    await ensureLocalFixtureUser(superadmin, { ...TEACHER, roles: [ROLE.teacher] });
   });
 
   test.afterAll(async () => {
