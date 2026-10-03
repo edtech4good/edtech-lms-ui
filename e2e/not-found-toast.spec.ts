@@ -18,6 +18,8 @@ const STAFF_ID = '00000000-0000-4000-8000-0000000000e2';
 const STAFF_NOT_FOUND = "That person doesn't exist, or isn't in your organisation.";
 
 const toasts = (page: Page) => page.locator('.ant-notification-notice');
+/** The words of each toast, without its "Error" title. */
+const texts = (page: Page) => page.locator('.ant-notification-notice-description');
 const json = (status: number, body: unknown) => ({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
 // A toast fades after a few seconds, and `toHaveCount` keeps retrying until it has: a "none"
@@ -62,18 +64,49 @@ test.describe('a 404 is one message', () => {
   test('a stale school delete answers 404 with words: the toast says them, once', async () => {
     const said = 'That school was not found.';
     await deleteSchoolAnswering(page, json(404, { code: 'NOT_FOUND', errormessage: said }));
-    await expect(toasts(page).filter({ hasText: said })).toHaveCount(1);
+    await expect(texts(page)).toHaveText(said);
     await settled(page);
     expect(await toasts(page).count(), 'one message, not two').toBe(1);
-    await expect(toasts(page).first()).toContainText(said);
+    await expect(texts(page)).toHaveText(said);
   });
 
   test('a 404 without words says the neutral line, once', async () => {
     await deleteSchoolAnswering(page, json(404, {}));
-    await expect(toasts(page).filter({ hasText: NEUTRAL })).toHaveCount(1);
+    await expect(texts(page)).toHaveText(NEUTRAL);
     await settled(page);
     expect(await toasts(page).count(), 'one message, not two').toBe(1);
-    await expect(toasts(page).first()).toContainText(NEUTRAL);
+    await expect(texts(page)).toHaveText(NEUTRAL);
+  });
+
+  test('an edit page opened on a missing school toasts once, with the API\'s words (not "Invalid link" as well)', async () => {
+    const said = 'That school was not found.';
+    const id = '00000000-0000-4000-8000-0000000000e3';
+    await page.route(`${API_URL}/school/${id}`, (route) =>
+      route.request().method() === 'GET' ? route.fulfill(json(404, { code: 'NOT_FOUND', errormessage: said })) : route.fallback(),
+    );
+    await page.goto(`/school/update/${id}`);
+    await expect(texts(page)).toHaveText(said);
+    // The screen still leaves the edit page for the list.
+    await expect(page).not.toHaveURL(/\/school\/update\//);
+    await settled(page);
+    expect(await toasts(page).count(), 'one message, not "Invalid link" as well').toBe(1);
+    await expect(texts(page)).toHaveText(said);
+  });
+
+  test('four requests for the same missing record show one toast', async () => {
+    // Learner stats sends four GETs at once for one id; all four are mocked 404.
+    const id = '00000000-0000-4000-8000-0000000000e4';
+    let asked = 0;
+    await page.route(`${API_URL}/student/**`, (route) => {
+      if (route.request().method() !== 'GET') return route.fallback();
+      asked++;
+      return route.fulfill(json(404, { code: 'NOT_FOUND', errormessage: 'That learner was not found.' }));
+    });
+    await page.goto(`/student/stats/${id}`);
+    await expect.poll(() => asked, 'the screen asked four times').toBeGreaterThanOrEqual(4);
+    await expect(texts(page)).toHaveText('That learner was not found.');
+    await settled(page);
+    expect(await toasts(page).count(), 'one toast for four 404s').toBe(1);
   });
 
   test('a request that says its own 404 (NOT_FOUND_HANDLED) shows no toast', async () => {
