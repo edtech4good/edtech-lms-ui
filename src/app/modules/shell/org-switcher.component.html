@@ -2,7 +2,7 @@
   @if (canSwitch()) {
     <button
       type="button"
-      class="chip"
+      class="org-chip"
       [class.open]="open()"
       [class.rail]="collapsed"
       aria-haspopup="menu"
@@ -20,24 +20,18 @@
         }
       </span>
       <span class="who">
-        <span class="name">{{ shown().name }}</span>
-        <span class="sub">{{ shown().sub }}</span>
+        <span class="org-name">{{ shown().name }}</span>
+        <span class="org-sub">{{ shown().sub }}</span>
       </span>
       <span class="chev"><app-shell-icon name="chevronsUpDown" [size]="18" /></span>
     </button>
   } @else {
     <!-- An organisation's own staff: where they work, nothing to switch. -->
-    <div
-      class="chip static"
-      [class.rail]="collapsed"
-      role="group"
-      [attr.aria-label]="'Organisation: ' + shown().name"
-      [attr.title]="collapsed ? shown().name : null"
-    >
+    <div class="org-chip static" [class.rail]="collapsed" [attr.title]="collapsed ? shown().name : null">
       <span class="tile" [style.background]="shown().colour" [style.color]="shown().ink" aria-hidden="true">{{ shown().tile }}</span>
       <span class="who">
-        <span class="name">{{ shown().name }}</span>
-        <span class="sub">{{ shown().sub }}</span>
+        <span class="org-name">{{ shown().name }}</span>
+        <span class="org-sub">{{ shown().sub }}</span>
       </span>
     </div>
   }
@@ -69,8 +63,8 @@
         >
           <span class="tile" style="background: #1e293b; color: #fff" aria-hidden="true"><app-shell-icon name="globe" [size]="18" /></span>
           <span class="who">
-            <span class="name">All organisations</span>
-            <span class="sub">Platform view, read across all</span>
+            <span class="org-name">All organisations</span>
+            <span class="org-sub">Platform view, read across all</span>
           </span>
           @if (isCurrent(null)) {
             <span class="tick"><app-shell-icon name="check" [size]="20" /></span>
@@ -102,8 +96,8 @@
             >
               <span class="tile" [style.background]="tileOf(o).background" [style.color]="tileOf(o).color" aria-hidden="true">{{ o.organisationshortname }}</span>
               <span class="who">
-                <span class="name">{{ o.organisationname }}</span>
-                <span class="sub">{{ kindOf(o) }}</span>
+                <span class="org-name">{{ o.organisationname }}</span>
+                <span class="org-sub">{{ kindOf(o) }}</span>
               </span>
               @if (isCurrent(o.organisationid)) {
                 <span class="tick"><app-shell-icon name="check" [size]="20" /></span>

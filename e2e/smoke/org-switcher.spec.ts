@@ -159,8 +159,8 @@ test.describe('the switcher, signed in as the platform superadmin', () => {
     }
     await expect(row(saPage, STYLED)).toContainText('School network');
     // The suspended one is shown, labelled, and cannot be chosen.
-    await expect(row(saPage, SUSPENDED).locator('.sub')).toHaveText('Company · suspended');
-    await expect(row(saPage, FIXTURE_NAME).locator('.sub')).toHaveText('Company');
+    await expect(row(saPage, SUSPENDED).locator('.org-sub')).toHaveText('Company · suspended');
+    await expect(row(saPage, FIXTURE_NAME).locator('.org-sub')).toHaveText('Company');
     await expect(row(saPage, SUSPENDED)).toHaveAttribute('aria-disabled', 'true');
     // The menu is wider than the nav: its right edge is over the page, and the page must not cover it.
     const box = (await row(saPage, 'All organisations').boundingBox())!;
@@ -399,7 +399,7 @@ test.describe('an organisation\'s own staff see their organisation and no switch
     const page = await browser.newPage();
     try {
       await loginViaUi(page, TEACHER.username, TEACHER.password);
-      const here = page.getByRole('group', { name: /^Organisation: / });
+      const here = page.locator('app-org-switcher .org-chip.static');
       await expect(here).toBeVisible();
       // Without permission to read staff, a Teacher has no way to learn its organisation's name:
       // the token carries only the id.
@@ -416,7 +416,7 @@ test.describe('an organisation\'s own staff see their organisation and no switch
     const page = await browser.newPage();
     try {
       await loginViaUi(page, admin.username, PASSWORD);
-      const here = page.getByRole('group', { name: 'Organisation: E2E Fixture Organisation' });
+      const here = page.locator('app-org-switcher .org-chip.static');
       await expect(here).toBeVisible();
       await expect(here).toContainText('E2E Fixture Organisation');
       await expect(chip(page)).toHaveCount(0);
