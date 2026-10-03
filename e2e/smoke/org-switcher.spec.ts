@@ -343,8 +343,17 @@ test.describe('the switcher, signed in as the platform superadmin', () => {
 
   test('a switch the person asked for gives no "back to the platform view" notice', async () => {
     await saPage.goto('/user/index');
-    await chooseAndSettle(saPage, FIXTURE_NAME, /^Organisation: E2E Fixture Organisation, Company\./);
-    await chooseAndSettle(saPage, 'All organisations', /^Organisation: All organisations, Platform view\./);
+    // Each switch is followed by a reload; a notice (if one wrongly waited) would show after it.
+    for (const [name, after] of [
+      [FIXTURE_NAME, /^Organisation: E2E Fixture Organisation, Company\./],
+      ['All organisations', /^Organisation: All organisations, Platform view\./],
+    ] as const) {
+      await openSwitcher();
+      const reloaded = saPage.waitForEvent('load');
+      await row(saPage, name).click();
+      await reloaded;
+      await expect(chip(saPage)).toHaveAccessibleName(after);
+    }
     await saPage.waitForTimeout(750);
     await expect(toasts(saPage).filter({ hasText: PLATFORM_BACK })).toHaveCount(0);
   });
