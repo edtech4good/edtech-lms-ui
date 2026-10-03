@@ -161,6 +161,13 @@ test.describe('the switcher, signed in as the platform superadmin', () => {
     await expect(row(saPage, SUSPENDED).locator('.sub')).toHaveText('Company · suspended');
     await expect(row(saPage, FIXTURE_NAME).locator('.sub')).toHaveText('Company');
     await expect(row(saPage, SUSPENDED)).toHaveAttribute('aria-disabled', 'true');
+    // The menu is wider than the nav: its right edge is over the page, and the page must not cover it.
+    const box = (await row(saPage, 'All organisations').boundingBox())!;
+    const covered = await saPage.evaluate(
+      ({ x, y }) => !document.elementFromPoint(x, y)?.closest('[role="menu"]'),
+      { x: box.x + box.width - 8, y: box.y + box.height / 2 },
+    );
+    expect(covered, 'the page covers the open menu').toBe(false);
     await saPage.keyboard.press('Escape');
     await expect(menu(saPage)).toBeHidden();
     await expect(chip(saPage)).toBeFocused();
