@@ -150,6 +150,7 @@ test.describe('the switcher, signed in as the platform superadmin', () => {
   });
 
   test('the switcher lists All organisations and every live organisation, marks the current one, labels the suspended', async () => {
+    await saPage.goto('/user/index');
     await openSwitcher();
     await expect(row(saPage, 'All organisations')).toHaveAttribute('aria-checked', 'true');
     for (const name of [FIXTURE_NAME, SECOND_FIXTURE_ORGANISATION.name, STYLED]) {
@@ -163,11 +164,17 @@ test.describe('the switcher, signed in as the platform superadmin', () => {
     await expect(row(saPage, SUSPENDED)).toHaveAttribute('aria-disabled', 'true');
     // The menu is wider than the nav: its right edge is over the page, and the page must not cover it.
     const box = (await row(saPage, 'All organisations').boundingBox())!;
-    const covered = await saPage.evaluate(
-      ({ x, y }) => !document.elementFromPoint(x, y)?.closest('[role="menu"]'),
-      { x: box.x + box.width - 8, y: box.y + box.height / 2 },
-    );
-    expect(covered, 'the page covers the open menu').toBe(false);
+    // (Polled: the page's loading spinner fades out over everything for a moment first.)
+    await expect
+      .poll(
+        () =>
+          saPage.evaluate(({ x, y }) => !document.elementFromPoint(x, y)?.closest('[role="menu"]'), {
+            x: box.x + box.width - 8,
+            y: box.y + box.height / 2,
+          }),
+        { message: 'the page covers the open menu' },
+      )
+      .toBe(false);
     await saPage.keyboard.press('Escape');
     await expect(menu(saPage)).toBeHidden();
     await expect(chip(saPage)).toBeFocused();
