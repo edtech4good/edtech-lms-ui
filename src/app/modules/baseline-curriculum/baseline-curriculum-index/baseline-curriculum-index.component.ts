@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
+import { EMPTY } from 'rxjs';
 import { catchError, first } from 'rxjs/operators';
 import { IFilter, IPaging } from 'src/app/models/IPaging';
 import { BaseCurriculumService } from 'src/app/services/base-curriculum.service';
@@ -187,7 +188,9 @@ export class BaselineCurriculumIndexComponent {
         first(),
         catchError((x) => {
           this.downloading = false;
-          return x;
+          // The error interceptor has already said what went wrong; a catchError
+          // must return an observable (returning the error threw a second one).
+          return EMPTY;
         })
       )
       .subscribe((x: any) => {

@@ -6,7 +6,7 @@ import { NzOptionSelectionChange } from 'ng-zorro-antd/auto-complete';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
 import { NzUploadChangeParam, NzUploadFile } from 'ng-zorro-antd/upload';
-import { BehaviorSubject, Observable, of, Subscription } from 'rxjs';
+import { BehaviorSubject, EMPTY, Observable, of, Subscription } from 'rxjs';
 import { catchError, debounceTime, filter, first, map, switchMap } from 'rxjs/operators';
 import { IFilter } from 'src/app/models/IPaging';
 import { StudentImport, StudentImportForEdit } from 'src/app/models/studentimport';
@@ -470,7 +470,9 @@ export class StudentIndexComponent implements OnInit {
         first(),
         catchError((x) => {
           this.downloading = false;
-          return x;
+          // The error interceptor has already said what went wrong; a catchError
+          // must return an observable (returning the error threw a second one).
+          return EMPTY;
         })
       )
       .subscribe((x: any) => {
@@ -500,7 +502,9 @@ export class StudentIndexComponent implements OnInit {
         first(),
         catchError((x) => {
           this.downloadingExport = false;
-          return x;
+          // The error interceptor has already said what went wrong; a catchError
+          // must return an observable (returning the error threw a second one).
+          return EMPTY;
         })
       )
       .subscribe((x: any) => {
