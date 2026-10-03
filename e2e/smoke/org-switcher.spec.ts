@@ -354,8 +354,9 @@ test.describe('the switcher, signed in as the platform superadmin', () => {
       await reloaded;
       await expect(chip(saPage)).toHaveAccessibleName(after);
     }
-    await saPage.waitForTimeout(750);
-    await expect(toasts(saPage).filter({ hasText: PLATFORM_BACK })).toHaveCount(0);
+    // Looked at once, after a pause: a retrying "zero" would pass before a late toast appeared.
+    await saPage.waitForTimeout(1500);
+    expect(await toasts(saPage).filter({ hasText: PLATFORM_BACK }).count()).toBe(0);
   });
 
   // ---- A drop to the platform view (a refresh did it, not the person) ---------------------------------
