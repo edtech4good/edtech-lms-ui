@@ -16,6 +16,11 @@ import { SECOND_FIXTURE_ORGANISATION, fixtureOrganisationId } from '../fixtures/
  * staff and are deleted in teardown; staff made while acting go in the fixture organisation
  * and are disabled in teardown (what stays behind is what staff.spec.ts leaves).
  *
+ * A session the API stops accepting is simulated by making the chip's own organisation lookup answer 401
+ * once (a route mock), after a reload: the app's own recoverSession() then calls the REAL refresh, so a drop
+ * to the platform view goes through production code. This 401-once form is used instead of storing a token
+ * through Angular's debug API (dev builds only) or a fake clock (which leaves the page refreshing in a loop).
+ *
  * It makes staff accounts with passwords written in this public repository, so it runs only
  * against a local API.
  */
@@ -360,25 +365,21 @@ test.describe('the switcher, signed in as the platform superadmin', () => {
   });
 
   // ---- A drop to the platform view (a refresh did it, not the person) ---------------------------------
-  /** Platform-view tokens for the signed-in superadmin, from the API (the page's own are replaced by this). */
-  async function platformTokens(): Promise<{ accessToken: string; refreshToken: string }> {
-    const client = await api();
-    const res = await client.post('/auth/organisation', { data: { organisationid: null } });
-    expect(res.ok(), 'platform-view tokens').toBeTruthy();
-    const tokens = (await res.json()).data;
-    await client.dispose();
-    return tokens;
-  }
-
   /**
-   * Store tokens the way a refresh does: through the app's own AuthService.setlogin (reached through
-   * the dev build's Angular debug API). This replaces the stored token without a fake clock.
+   * Make the chip's own organisation lookup (GET /organisation/:id) answer 401 once, as it does when the
+   * API no longer accepts the acting token. The app's own recoverSession() then calls the REAL refresh,
+   * which returns the account to the platform view, and the drop goes through production code. (No fake
+   * clock, and no reaching into Angular's debug API, which a production build does not have.)
    */
-  async function storeLikeARefresh(tokens: { accessToken: string; refreshToken: string }): Promise<void> {
-    await saPage.evaluate((t) => {
-      const w = window as any;
-      w.ng.getComponent(document.querySelector('app-org-switcher')).auth.setlogin(t.accessToken, t.refreshToken);
-    }, tokens);
+  async function refuseLookupOnce(organisationid: string): Promise<{ stop: () => Promise<void>; calls: () => number }> {
+    let calls = 0;
+    const url = `${API_URL}/organisation/${organisationid}`;
+    await saPage.route(url, (route) => {
+      if (route.request().method() !== 'GET') return route.fallback();
+      calls++;
+      return calls === 1 ? route.fulfill({ status: 401, contentType: 'application/json', body: '{}' }) : route.fallback();
+    });
+    return { stop: () => saPage.unroute(url), calls: () => calls };
   }
 
   test('a drop to the platform view reloads the page in the platform context, and says so once, after the reload', async () => {
@@ -388,16 +389,15 @@ test.describe('the switcher, signed in as the platform superadmin', () => {
     // Acting inside an organisation: no Organisation select.
     await expect(saPage.locator('#staff-lmsusername')).toBeVisible();
     await expect(saPage.getByLabel('Organisation', { exact: true })).toHaveCount(0);
-    const tokens = await platformTokens();
-    const reloaded = saPage.waitForEvent('load');
-    await storeLikeARefresh(tokens);
-    await reloaded;
+    const refused = await refuseLookupOnce(fixtureOrg);
+    await saPage.reload();
     // The page now reads the platform view: the form has its select, and the chip says so.
     await expect(chip(saPage)).toHaveAccessibleName('Organisation: All organisations, Platform view. Switch organisation');
     await expect(saPage.getByLabel('Organisation', { exact: true })).toBeVisible();
     await expect(toasts(saPage).filter({ hasText: PLATFORM_BACK })).toHaveCount(1);
     await saPage.waitForTimeout(750);
     expect(await toasts(saPage).count(), 'one notice, nothing else').toBe(1);
+    await refused.stop();
     // Said once: the next load does not say it again.
     await saPage.reload();
     await expect(chip(saPage)).toBeVisible();
@@ -411,11 +411,12 @@ test.describe('the switcher, signed in as the platform superadmin', () => {
     const { id } = await makeStaff('dropped', [ROLE.teacher]);
     await saPage.goto(`/user/update/${id}`);
     await expect(saPage.locator('#staff-lmsusername')).toBeVisible();
-    const tokens = await platformTokens();
-    await storeLikeARefresh(tokens);
+    const refused = await refuseLookupOnce(fixtureOrg);
+    await saPage.reload();
     await expect(saPage).toHaveURL(/\/dashboard\/(index|default)/);
     await expect(chip(saPage)).toHaveAccessibleName('Organisation: All organisations, Platform view. Switch organisation');
     await expect(toasts(saPage).filter({ hasText: PLATFORM_BACK })).toHaveCount(1);
+    await refused.stop();
   });
 
   test('a staff form with no Organisation select says an organisation refusal for the whole form', async () => {
@@ -536,6 +537,59 @@ test.describe('the switcher, signed in as the platform superadmin', () => {
     await saPage.waitForTimeout(750);
     expect(await toasts(saPage).count(), 'one notice, nothing else').toBe(1);
     expect(jwtClaims(await tokenOf(saPage)).organisationid ?? null).toBeNull();
+  });
+
+  test('a switch refused with a 401 is retried once after the session is recovered: it succeeds, with one reload and no message', async () => {
+    await saPage.goto('/user/index');
+    let posts = 0;
+    await saPage.route(`${API_URL}/auth/organisation`, (route) => {
+      if (route.request().method() !== 'POST') return route.fallback();
+      posts++;
+      // The first answer is a 401 (the API no longer accepts the access token); the second is the real one.
+      return posts === 1 ? route.fulfill({ status: 401, contentType: 'application/json', body: '{}' }) : route.fallback();
+    });
+    let loads = 0;
+    const onLoad = () => loads++;
+    saPage.on('load', onLoad);
+    await openSwitcher();
+    await row(saPage, FIXTURE_NAME).click();
+    await expect(chip(saPage)).toHaveAccessibleName(/^Organisation: E2E Fixture Organisation, Company\./);
+    await saPage.waitForTimeout(1500);
+    saPage.off('load', onLoad);
+    expect(posts, 'the switch was asked for twice: refused, then retried').toBe(2);
+    expect(loads, 'one reload').toBe(1);
+    expect(await toasts(saPage).count(), 'no message').toBe(0);
+    await saPage.unroute(`${API_URL}/auth/organisation`);
+    await chooseAndSettle(saPage, 'All organisations', /^Organisation: All organisations, Platform view\./);
+  });
+
+  test('a refresh that answers a token that cannot be read is not stored: the recovery fails and the session ends with one message', async () => {
+    await saPage.goto('/user/index');
+    await chooseAndSettle(saPage, FIXTURE_NAME, /^Organisation: E2E Fixture Organisation, Company\./);
+    // Everything written to sessionStorage from here on is recorded (the sign-out that follows stays in this document).
+    await saPage.addInitScript(() => {
+      const w = window as any;
+      w.__written = [];
+      const original = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (key: string, value: string) {
+        w.__written.push(String(value));
+        return original.call(this, key, value);
+      };
+    });
+    const refused = await refuseLookupOnce(fixtureOrg);
+    await saPage.route(`${API_URL}/auth/refreshtoken*`, (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ error: false, data: { accessToken: 'not-a-jwt', refreshToken: 'also-not-a-jwt' } }) }),
+    );
+    await saPage.reload();
+    await expect(saPage).toHaveURL(/\/auth\/login/);
+    await expect(toasts(saPage).filter({ hasText: 'Your session ended. Sign in again.' })).toHaveCount(1);
+    await saPage.waitForTimeout(750);
+    expect(await toasts(saPage).count(), 'one message').toBe(1);
+    const written: string[] = await saPage.evaluate(() => (window as any).__written);
+    expect(written.filter((v) => v.includes('not-a-jwt') || v.includes('also-not-a-jwt') || v === 'undefined'), 'nothing unreadable was stored').toEqual([]);
+    await saPage.unroute(`${API_URL}/auth/refreshtoken*`);
+    await refused.stop();
+    await loginViaUi(saPage);
   });
 
   test('a tab whose tokens the API revoked (another sign-in) signs out with one message', async () => {

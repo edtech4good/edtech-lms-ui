@@ -160,6 +160,17 @@ export class AuthService {
     );
   }
 
+  /** Can this token be read at all (three parts, a JSON payload)? Checked before a reissued token is stored. */
+  isReadableToken(token: unknown): boolean {
+    try {
+      if (typeof token !== 'string' || token.split('.').length !== 3) return false;
+      const payload = this.jwtHelper.decodeToken(token) as Record<string, unknown> | null;
+      return !!payload && typeof payload === 'object';
+    } catch {
+      return false;
+    }
+  }
+
   /**
    * The API no longer accepts the stored access token (a 401): try the refresh token once.
    * True when it gave a new pair (stored, as a refresh does); false when it did not, which
@@ -168,6 +179,11 @@ export class AuthService {
   async recoverSession(): Promise<boolean> {
     try {
       const result = await firstValueFrom(this.refreshtoken(this.tokenService.getrefreshtoken()));
+      // Both tokens must be readable before either is stored: an unreadable answer keeps the old
+      // tokens and counts as a failed recovery.
+      if (!this.isReadableToken(result?.data?.accessToken) || !this.isReadableToken(result?.data?.refreshToken)) {
+        return false;
+      }
       this.setlogin(result.data.accessToken, result.data.refreshToken);
       return true;
     } catch {

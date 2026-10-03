@@ -54,17 +54,6 @@ export class OrgContextService {
     this.tokens.changed.subscribe(() => this.onTokenChanged());
   }
 
-  /** Can this token be read at all (three parts, a JSON payload)? Used before a reissued token is stored. */
-  isReadableToken(token: unknown): boolean {
-    try {
-      if (typeof token !== 'string' || token.split('.').length !== 3) return false;
-      const payload = this.jwt.decodeToken(token) as Record<string, unknown> | null;
-      return !!payload && typeof payload === 'object';
-    } catch {
-      return false;
-    }
-  }
-
   /** Read the claims from the stored token now (and keep them). */
   reread(): OrgClaims {
     const next = this.read();

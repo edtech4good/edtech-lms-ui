@@ -321,7 +321,7 @@ export class OrgSwitcherComponent {
           const tokens = response?.data;
           // Both tokens must be readable before either is stored: a bad answer must not leave a
           // half-stored session.
-          if (!this.context.isReadableToken(tokens?.accessToken) || !this.context.isReadableToken(tokens?.refreshToken)) {
+          if (!this.auth.isReadableToken(tokens?.accessToken) || !this.auth.isReadableToken(tokens?.refreshToken)) {
             this.message.set("Couldn't switch organisation. Try again.");
             return;
           }
