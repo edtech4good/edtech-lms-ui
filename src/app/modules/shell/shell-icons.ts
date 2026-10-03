@@ -27,6 +27,9 @@ export const SHELL_ICONS = {
   chevronsUpDown: 'M7 15l5 5 5-5M7 9l5-5 5 5',
   collapse: 'M3 3h18v18H3zM9 3v18M16 10l-2 2 2 2',
   expand: 'M3 3h18v18H3zM9 3v18M14 10l2 2-2 2',
+  globe:
+    'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z',
+  check: 'M20 6 9 17l-5-5',
   logOut: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
 } as const;
 

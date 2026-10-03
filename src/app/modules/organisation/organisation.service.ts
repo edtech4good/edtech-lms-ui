@@ -33,6 +33,15 @@ export class OrganisationService {
       .pipe(map((r) => r.data));
   }
 
+  /** One organisation by id (platform routes). */
+  get(organisationid: string): Observable<Organisation> {
+    return this.http
+      .get<{ data: Organisation }>(this.url(`/${organisationid}`), {
+        context: new HttpContext().set(FORBIDDEN_HANDLED, true),
+      })
+      .pipe(map((r) => r.data));
+  }
+
   create(body: OrganisationCreate): Observable<Organisation> {
     return this.http
       .post<{ data: Organisation }>(this.url(), body, {

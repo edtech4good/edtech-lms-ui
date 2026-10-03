@@ -19,6 +19,7 @@ import {
   ShellNavLink,
   isExpander,
 } from './shell-nav.config';
+import { OrgContextService } from './org-context.service';
 import { ShellNavService } from './shell-nav.service';
 
 const COLLAPSED_KEY = 'edtech-admin-nav-collapsed';
@@ -49,9 +50,12 @@ export class ShellNavComponent {
   /** Expanders the user (or a route) has opened. */
   private readonly opened = signal<ReadonlySet<string>>(new Set());
   readonly activeKey = computed(() => this.nav.active()?.link.key ?? null);
+  /** Platform-only entries (Organisations) follow the token's `isplatform` claim. */
+  readonly isPlatformUser = computed(() => this.org.claims().isplatform);
 
   constructor(
     readonly nav: ShellNavService,
+    private readonly org: OrgContextService,
     private readonly host: ElementRef<HTMLElement>,
   ) {
     // Opening a page under an expander opens that sub-list.

@@ -1,6 +1,7 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { NgxPermissionsService } from 'ngx-permissions';
+import { OrgContextService } from '../modules/shell/org-context.service';
 import { AuthService } from '../services/auth.service';
 
 /**
@@ -26,5 +27,20 @@ export function requirePermission(permission: string): CanActivateFn {
       permissions.loadPermissions(user.permissions ?? []);
     }
     return permissions.getPermission(permission) ? true : router.createUrlTree(['/un-authorized']);
+  };
+}
+
+/**
+ * A route for platform accounts only: the token must say `isplatform` (true while a
+ * platform account acts as an organisation, too: the platform-only routes stay open then).
+ * A permission is not enough: an account can hold view_organisation and still not be the
+ * platform, and the API refuses it. List it after AuthGuard and requirePermission, for the
+ * same reasons as above. The claims are read from the stored token now, not from a copy.
+ */
+export function requirePlatform(): CanActivateFn {
+  return () => {
+    const context = inject(OrgContextService);
+    const router = inject(Router);
+    return context.reread().isplatform ? true : router.createUrlTree(['/un-authorized']);
   };
 }

@@ -1,0 +1,120 @@
+<div class="org" (keydown)="onKeydown($event)" (focusout)="onFocusOut($event)">
+  @if (canSwitch()) {
+    <button
+      type="button"
+      class="chip"
+      [class.open]="open()"
+      [class.rail]="collapsed"
+      aria-haspopup="menu"
+      [attr.aria-expanded]="open()"
+      [attr.aria-label]="'Organisation: ' + shown().name + ', ' + shown().sub + '. Switch organisation'"
+      [attr.title]="collapsed ? shown().name : null"
+      (click)="toggle()"
+      #chip
+    >
+      <span class="tile" [style.background]="shown().colour" [style.color]="shown().ink" aria-hidden="true">
+        @if (shown().tile) {
+          {{ shown().tile }}
+        } @else {
+          <app-shell-icon name="globe" [size]="18" />
+        }
+      </span>
+      <span class="who">
+        <span class="name">{{ shown().name }}</span>
+        <span class="sub">{{ shown().sub }}</span>
+      </span>
+      <span class="chev"><app-shell-icon name="chevronsUpDown" [size]="18" /></span>
+    </button>
+  } @else {
+    <!-- An organisation's own staff: where they work, nothing to switch. -->
+    <div
+      class="chip static"
+      [class.rail]="collapsed"
+      role="group"
+      [attr.aria-label]="'Organisation: ' + shown().name"
+      [attr.title]="collapsed ? shown().name : null"
+    >
+      <span class="tile" [style.background]="shown().colour" [style.color]="shown().ink" aria-hidden="true">{{ shown().tile }}</span>
+      <span class="who">
+        <span class="name">{{ shown().name }}</span>
+        <span class="sub">{{ shown().sub }}</span>
+      </span>
+    </div>
+  }
+
+  @if (open()) {
+    <div class="menu" role="menu" aria-label="Switch organisation" #menu>
+      @if (searchable()) {
+        <input
+          type="search"
+          class="find"
+          placeholder="Find an organisation"
+          aria-label="Find an organisation"
+          autocomplete="off"
+          [value]="query()"
+          (input)="onQuery($any($event.target).value)"
+        />
+      }
+      @if (message(); as text) {
+        <p class="message" role="alert">{{ text }}</p>
+      }
+      @if (showAll()) {
+        <button
+          type="button"
+          role="menuitemradio"
+          class="row"
+          [attr.aria-checked]="isCurrent(null)"
+          [attr.aria-busy]="busy() ? 'true' : null"
+          (click)="choose(null)"
+        >
+          <span class="tile" style="background: #1e293b; color: #fff" aria-hidden="true"><app-shell-icon name="globe" [size]="18" /></span>
+          <span class="who">
+            <span class="name">All organisations</span>
+            <span class="sub">Platform view, read across all</span>
+          </span>
+          @if (isCurrent(null)) {
+            <span class="tick"><app-shell-icon name="check" [size]="20" /></span>
+          }
+        </button>
+        <div class="rule" aria-hidden="true"></div>
+      }
+      @switch (listState()) {
+        @case ('loading') {
+          <p class="note" role="status">Loading organisations…</p>
+        }
+        @case ('error') {
+          <p class="note">
+            Couldn't load the organisations.
+            <button type="button" class="link" (click)="loadList()">Try again</button>
+          </p>
+        }
+        @default {
+          @for (o of visibleOrgs(); track o.organisationid) {
+            <button
+              type="button"
+              role="menuitemradio"
+              class="row"
+              [class.suspended]="!o.organisationstatus"
+              [attr.aria-checked]="isCurrent(o.organisationid)"
+              [attr.aria-disabled]="!o.organisationstatus ? 'true' : null"
+              [attr.aria-busy]="busy() ? 'true' : null"
+              (click)="choose(o.organisationid, !o.organisationstatus)"
+            >
+              <span class="tile" [style.background]="tileOf(o).background" [style.color]="tileOf(o).color" aria-hidden="true">{{ o.organisationshortname }}</span>
+              <span class="who">
+                <span class="name">{{ o.organisationname }}</span>
+                <span class="sub">{{ kindOf(o) }}</span>
+              </span>
+              @if (isCurrent(o.organisationid)) {
+                <span class="tick"><app-shell-icon name="check" [size]="20" /></span>
+              }
+            </button>
+          }
+          @if (visibleOrgs().length === 0 && query().trim()) {
+            <p class="note" role="status">No organisation matches “{{ query().trim() }}”.</p>
+          }
+        }
+      }
+    </div>
+  }
+</div>

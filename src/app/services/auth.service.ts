@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { JwtHelperService } from '@auth0/angular-jwt';
@@ -7,6 +7,7 @@ import { differenceInMilliseconds } from 'date-fns';
 import { NgxPermissionsService } from 'ngx-permissions';
 import { Observable } from 'rxjs';
 import { first } from 'rxjs/operators';
+import { FIELD_ERRORS_INLINE } from '../interceptors/error-context';
 import { ResetPasswordBody } from '../models/changepassword';
 import { lmsuser } from '../models/lmsuser.model';
 import { LoginRequestBody } from '../models/loginrequestbody';
@@ -142,6 +143,20 @@ export class AuthService {
         ...credentials,
       },
       this.coreService.jsonhttpOptions
+    );
+  }
+
+  /**
+   * Platform users only: act as an organisation (or as none, for null). The API
+   * reissues both tokens. The caller says what a refusal means, so the interceptor
+   * stays quiet about the refusals the switcher shows itself (FIELD_ERRORS_INLINE
+   * also covers 403) and still toasts 429, 500 and no connection.
+   */
+  switchOrganisation(organisationid: string | null): Observable<{ data: { accessToken: string; refreshToken: string } }> {
+    return this.http.post<{ data: { accessToken: string; refreshToken: string } }>(
+      `${this.coreService.CORE_API()}auth/organisation`,
+      { organisationid },
+      { ...this.coreService.jsonhttpOptions, context: new HttpContext().set(FIELD_ERRORS_INLINE, true) }
     );
   }
 
