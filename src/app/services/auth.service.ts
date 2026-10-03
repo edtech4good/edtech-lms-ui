@@ -5,7 +5,7 @@ import { JwtHelperService } from '@auth0/angular-jwt';
 import { Store } from '@ngrx/store';
 import { differenceInMilliseconds } from 'date-fns';
 import { NgxPermissionsService } from 'ngx-permissions';
-import { Observable } from 'rxjs';
+import { Observable, firstValueFrom } from 'rxjs';
 import { first } from 'rxjs/operators';
 import { FIELD_ERRORS_INLINE } from '../interceptors/error-context';
 import { ResetPasswordBody } from '../models/changepassword';
@@ -158,6 +158,21 @@ export class AuthService {
       { organisationid },
       { ...this.coreService.jsonhttpOptions, context: new HttpContext().set(FIELD_ERRORS_INLINE, true) }
     );
+  }
+
+  /**
+   * The API no longer accepts the stored access token (a 401): try the refresh token once.
+   * True when it gave a new pair (stored, as a refresh does); false when it did not, which
+   * means the session is gone.
+   */
+  async recoverSession(): Promise<boolean> {
+    try {
+      const result = await firstValueFrom(this.refreshtoken(this.tokenService.getrefreshtoken()));
+      this.setlogin(result.data.accessToken, result.data.refreshToken);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   // refresh token api call

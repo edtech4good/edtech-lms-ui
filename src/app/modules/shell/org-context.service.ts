@@ -3,6 +3,9 @@ import { JwtHelperService } from '@auth0/angular-jwt';
 import { TokenService } from '../../services/token.service';
 import { PLATFORM_RETURN_NOTICE, shouldNotifyPlatformReturn } from './org-context';
 
+/** Where a notice waits across the reload that follows a drop to the platform view. */
+const NOTICE_KEY = 'edtech-org-notice';
+
 /** What the access token says about organisations. */
 export interface OrgClaims {
   lmsuserid: string;
@@ -28,11 +31,38 @@ export class OrgContextService {
   /** A notice for the shell to show once; cleared by `noticeShown()`. */
   readonly notice = signal<string | null>(null);
 
-  /** Set by a switch the person made, so its own token change is not reported as a drop. */
+  /** Counts the times a platform account lost the organisation it was acting in (a refresh did it, not the person). */
+  readonly platformReturns = signal(0);
+
+  /**
+   * Set by a switch the person made, so its own token change is not reported as a drop.
+   * (Observable: a false drop would stash a notice that shows after the reload.)
+   */
   private expected: string | null | undefined;
 
   constructor() {
+    // A notice left by the reload that followed a drop: shown once.
+    try {
+      const waiting = sessionStorage.getItem(NOTICE_KEY);
+      if (waiting) {
+        sessionStorage.removeItem(NOTICE_KEY);
+        this.notice.set(waiting);
+      }
+    } catch {
+      /* storage blocked: no notice */
+    }
     this.tokens.changed.subscribe(() => this.onTokenChanged());
+  }
+
+  /** Can this token be read at all (three parts, a JSON payload)? Used before a reissued token is stored. */
+  isReadableToken(token: unknown): boolean {
+    try {
+      if (typeof token !== 'string' || token.split('.').length !== 3) return false;
+      const payload = this.jwt.decodeToken(token) as Record<string, unknown> | null;
+      return !!payload && typeof payload === 'object';
+    } catch {
+      return false;
+    }
   }
 
   /** Read the claims from the stored token now (and keep them). */
@@ -57,7 +87,14 @@ export class OrgContextService {
     const expected = this.expected;
     this.expected = undefined;
     if (shouldNotifyPlatformReturn(before, after, expected)) {
-      this.notice.set(PLATFORM_RETURN_NOTICE);
+      // The page was read in the acting context: the shell reloads it (or goes Home), and the
+      // notice waits for the reload, since a toast would not survive it.
+      try {
+        sessionStorage.setItem(NOTICE_KEY, PLATFORM_RETURN_NOTICE);
+      } catch {
+        /* storage blocked: the page still reloads, without the notice */
+      }
+      this.platformReturns.update((n) => n + 1);
     }
   }
 

@@ -56,6 +56,8 @@ export class OrgSwitcherComponent {
 
   @ViewChild('chip') private chipRef?: ElementRef<HTMLElement>;
   @ViewChild('menu') private menuRef?: ElementRef<HTMLElement>;
+  @ViewChild('pop') private popRef?: ElementRef<HTMLElement>;
+  @ViewChild('msg') private msgRef?: ElementRef<HTMLElement>;
 
   readonly claims = this.context.claims;
   /** A platform account may switch; anyone else just sees where they work. */
@@ -66,6 +68,10 @@ export class OrgSwitcherComponent {
   private readonly currentOrg = signal<Organisation | null>(null);
   /** A member's organisation name, when the account may read its own record. */
   private readonly memberOrgName = signal<string | null>(null);
+  /** The lookup of the organisation behind the chip failed: say so, not "Organisation". */
+  private readonly lookupFailed = signal(false);
+  /** One recovery of a refused session at a time. */
+  private recovering = false;
 
   readonly shown = computed<Shown>(() => {
     const c = this.claims();
@@ -83,6 +89,9 @@ export class OrgSwitcherComponent {
         sub: KIND[o.organisationpreset] ?? 'Organisation',
       };
     }
+    if (this.acting() && this.lookupFailed()) {
+      return { name: 'Organisation unavailable', tile: '?', colour: DEFAULT_TILE_COLOUR, ink: tileTextColour(DEFAULT_TILE_COLOUR), sub: 'Platform view is one click away' };
+    }
     const name = this.memberOrgName() ?? (this.acting() ? 'Organisation' : 'Your organisation');
     return { name, tile: initialsOf(name), colour: DEFAULT_TILE_COLOUR, ink: tileTextColour(DEFAULT_TILE_COLOUR), sub: 'Organisation' };
   });
@@ -95,6 +104,16 @@ export class OrgSwitcherComponent {
   readonly busy = signal(false);
   /** The one message a refused switch leaves in the menu. */
   readonly message = signal<string | null>(null);
+
+  /**
+   * The one row in the Tab order (roving tabindex): the current one, else the first. The arrow
+   * keys move between rows. 'ALL' is the platform-view row.
+   */
+  readonly tabStop = computed(() => {
+    const rows = [...(this.showAll() ? ['ALL'] : []), ...this.visibleOrgs().map((o) => o.organisationid)];
+    const current = this.claims().organisationid ?? 'ALL';
+    return rows.includes(current) ? current : rows[0] ?? null;
+  });
 
   readonly searchable = computed(() => this.orgs().length >= SEARCH_FROM);
   readonly visibleOrgs = computed(() => {
@@ -113,7 +132,13 @@ export class OrgSwitcherComponent {
       const c = this.claims();
       untracked(() => this.lookUp(c.organisationid, c.isplatform, c.lmsuserid));
     });
-    // The refresh that returns a platform account to its own view says so, once.
+    // A refresh that returned a platform account to its own view: what is on screen was read in
+    // the acting context, so it reloads (or goes Home) as it does for a switch.
+    effect(() => {
+      const returns = this.context.platformReturns();
+      if (returns > 0) untracked(() => this.reloadForNewContext());
+    });
+    // The notice that waited for that reload, once.
     effect(() => {
       const text = this.context.notice();
       if (text) {
@@ -128,12 +153,13 @@ export class OrgSwitcherComponent {
   private lookUp(organisationid: string | null, isplatform: boolean, lmsuserid: string): void {
     this.currentOrg.set(null);
     this.memberOrgName.set(null);
+    this.lookupFailed.set(false);
     if (organisationid === null) return;
     if (isplatform) {
       this.organisations
         .get(organisationid)
         .pipe(first())
-        .subscribe({ next: (o) => this.currentOrg.set(o), error: () => undefined });
+        .subscribe({ next: (o) => this.currentOrg.set(o), error: (e: HttpErrorResponse) => this.lookupRefused(e) });
     } else if (lmsuserid && this.permissions.getPermission('view_user')) {
       // An account that may read staff can read its own record, which names its organisation.
       this.users
@@ -141,9 +167,36 @@ export class OrgSwitcherComponent {
         .pipe(first())
         .subscribe({
           next: (r: any) => this.memberOrgName.set(r?.data?.user?.organisation?.organisationname ?? null),
-          error: () => undefined,
+          error: (e: HttpErrorResponse) => this.lookupRefused(e),
         });
     }
+  }
+
+  /** A refused lookup: a 401 means the session is gone; anything else leaves an honest chip. */
+  private lookupRefused(error: HttpErrorResponse): void {
+    if (error.status === 401) {
+      this.sessionRefused();
+    } else {
+      this.lookupFailed.set(true);
+    }
+  }
+
+  /**
+   * The API no longer accepts this tab's token (the organisation it acted in was suspended or
+   * deleted, or another tab signed in or switched, and the API revokes the previous tokens). Try
+   * the refresh token once; if that fails the session is gone: sign out, with one message.
+   * Resolves true when the session was recovered.
+   */
+  private async sessionRefused(): Promise<boolean> {
+    if (this.recovering) return false;
+    this.recovering = true;
+    const ok = await this.auth.recoverSession();
+    this.recovering = false;
+    if (!ok) {
+      this.notification.info('Your session ended. Sign in again.', '');
+      this.auth.logout();
+    }
+    return ok;
   }
 
   // ---- Open and close -------------------------------------------------------
@@ -183,10 +236,10 @@ export class OrgSwitcherComponent {
   }
 
   private focusStart(): void {
-    const menu = this.menuRef?.nativeElement;
-    if (!menu) return;
-    const search = menu.querySelector<HTMLElement>('input[type="search"]');
-    (search ?? menu.querySelector<HTMLElement>('[aria-checked="true"]') ?? this.items()[0])?.focus();
+    const pop = this.popRef?.nativeElement;
+    if (!pop) return;
+    const search = pop.querySelector<HTMLElement>('input[type="search"]');
+    (search ?? pop.querySelector<HTMLElement>('[aria-checked="true"]') ?? this.items()[0])?.focus();
   }
 
   private items(): HTMLElement[] {
@@ -206,7 +259,7 @@ export class OrgSwitcherComponent {
     }
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(key)) return;
     const nodes: HTMLElement[] = [];
-    const search = this.menuRef?.nativeElement.querySelector<HTMLElement>('input[type="search"]');
+    const search = this.popRef?.nativeElement.querySelector<HTMLElement>('input[type="search"]');
     if (search) nodes.push(search);
     nodes.push(...this.items());
     if (nodes.length === 0) return;
@@ -223,12 +276,27 @@ export class OrgSwitcherComponent {
   onFocusOut(event: FocusEvent): void {
     const next = event.relatedTarget as Node | null;
     if (next && (event.currentTarget as HTMLElement).contains(next)) return;
-    this.close();
+    const target = event.target as Node;
+    // Focus went nowhere. If the element that had it was taken out of the page (a row replaced by a
+    // fresh list, "Try again" replaced by the list), the menu is still in use: keep it open and
+    // put focus back inside. If it is still there, focus really left: close.
+    setTimeout(() => {
+      if (!this.open()) return;
+      const active = document.activeElement;
+      if (active && this.host.nativeElement.contains(active)) return;
+      if (!target.isConnected) {
+        (this.msgRef?.nativeElement ?? this.items()[0] ?? this.popRef?.nativeElement)?.focus();
+      } else {
+        this.close();
+      }
+    });
   }
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
-    if (this.open() && !this.host.nativeElement.contains(event.target as Node)) this.close();
+    // The path, not the target: a click on "Try again" replaces that button before the event reaches
+    // the document, and a detached target is no longer inside the host.
+    if (this.open() && !event.composedPath().includes(this.host.nativeElement)) this.close();
   }
 
   // ---- Choosing --------------------------------------------------------------
@@ -236,7 +304,7 @@ export class OrgSwitcherComponent {
     return this.claims().organisationid === organisationid;
   }
 
-  choose(organisationid: string | null, suspended = false): void {
+  choose(organisationid: string | null, suspended = false, retried = false): void {
     if (this.busy() || suspended) return;
     if (this.isCurrent(organisationid)) {
       this.close(true);
@@ -250,16 +318,35 @@ export class OrgSwitcherComponent {
       .subscribe({
         next: (response) => {
           this.busy.set(false);
+          const tokens = response?.data;
+          // Both tokens must be readable before either is stored: a bad answer must not leave a
+          // half-stored session.
+          if (!this.context.isReadableToken(tokens?.accessToken) || !this.context.isReadableToken(tokens?.refreshToken)) {
+            this.message.set("Couldn't switch organisation. Try again.");
+            return;
+          }
           this.context.expectSwitchTo(organisationid);
           // Stores both tokens, re-arms the refresh timer and reloads the permissions.
-          this.auth.setlogin(response.data.accessToken, response.data.refreshToken);
+          this.auth.setlogin(tokens.accessToken, tokens.refreshToken);
           this.close();
           this.reloadForNewContext();
         },
-        error: (error: HttpErrorResponse) => {
+        error: async (error: HttpErrorResponse) => {
           this.busy.set(false);
+          if (error.status === 401) {
+            // The session is gone, or can be got back with the refresh token, once.
+            if ((await this.sessionRefused()) && !retried) this.choose(organisationid, false, true);
+            return;
+          }
           this.message.set(switchRefusal(error));
-          if (error.status === 404) this.loadList(true);
+          if (error.status === 404) {
+            // The row in focus is about to be replaced by the fresh list: put focus on the message
+            // first, or the menu would close as its row disappears.
+            setTimeout(() => {
+              this.msgRef?.nativeElement.focus();
+              this.loadList(true);
+            });
+          }
         },
       });
   }

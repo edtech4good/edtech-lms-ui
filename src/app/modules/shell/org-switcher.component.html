@@ -37,7 +37,7 @@
   }
 
   @if (open()) {
-    <div class="menu" role="menu" aria-label="Switch organisation" #menu>
+    <div class="menu" #pop>
       @if (searchable()) {
         <input
           type="search"
@@ -50,45 +50,38 @@
         />
       }
       @if (message(); as text) {
-        <p class="message" role="alert">{{ text }}</p>
+        <p class="message" role="alert" tabindex="-1" #msg>{{ text }}</p>
       }
-      @if (showAll()) {
-        <button
-          type="button"
-          role="menuitemradio"
-          class="row"
-          [attr.aria-checked]="isCurrent(null)"
-          [attr.aria-busy]="busy() ? 'true' : null"
-          (click)="choose(null)"
-        >
-          <span class="tile" style="background: #1e293b; color: #fff" aria-hidden="true"><app-shell-icon name="globe" [size]="18" /></span>
-          <span class="who">
-            <span class="org-name">All organisations</span>
-            <span class="org-sub">Platform view, read across all</span>
-          </span>
-          @if (isCurrent(null)) {
-            <span class="tick"><app-shell-icon name="check" [size]="20" /></span>
-          }
-        </button>
-        <div class="rule" aria-hidden="true"></div>
-      }
-      @switch (listState()) {
-        @case ('loading') {
-          <p class="note" role="status">Loading organisations…</p>
+      <div class="items" role="menu" aria-label="Switch organisation" #menu>
+        @if (showAll()) {
+          <button
+            type="button"
+            role="menuitemradio"
+            class="row"
+            [attr.tabindex]="tabStop() === 'ALL' ? 0 : -1"
+            [attr.aria-checked]="isCurrent(null)"
+            [attr.aria-busy]="busy() ? 'true' : null"
+            (click)="choose(null)"
+          >
+            <span class="tile" style="background: #1e293b; color: #fff" aria-hidden="true"><app-shell-icon name="globe" [size]="18" /></span>
+            <span class="who">
+              <span class="org-name">All organisations</span>
+              <span class="org-sub">Platform view, read across all</span>
+            </span>
+            @if (isCurrent(null)) {
+              <span class="tick"><app-shell-icon name="check" [size]="20" /></span>
+            }
+          </button>
+          <div class="rule" aria-hidden="true"></div>
         }
-        @case ('error') {
-          <p class="note">
-            Couldn't load the organisations.
-            <button type="button" class="link" (click)="loadList()">Try again</button>
-          </p>
-        }
-        @default {
+        @if (listState() === 'ready') {
           @for (o of visibleOrgs(); track o.organisationid) {
             <button
               type="button"
               role="menuitemradio"
               class="row"
               [class.suspended]="!o.organisationstatus"
+              [attr.tabindex]="tabStop() === o.organisationid ? 0 : -1"
               [attr.aria-checked]="isCurrent(o.organisationid)"
               [attr.aria-disabled]="!o.organisationstatus ? 'true' : null"
               [attr.aria-busy]="busy() ? 'true' : null"
@@ -104,6 +97,19 @@
               }
             </button>
           }
+        }
+      </div>
+      @switch (listState()) {
+        @case ('loading') {
+          <p class="note" role="status">Loading organisations…</p>
+        }
+        @case ('error') {
+          <p class="note">
+            Couldn't load the organisations.
+            <button type="button" class="link" (click)="loadList()">Try again</button>
+          </p>
+        }
+        @case ('ready') {
           @if (visibleOrgs().length === 0 && query().trim()) {
             <p class="note" role="status">No organisation matches “{{ query().trim() }}”.</p>
           }

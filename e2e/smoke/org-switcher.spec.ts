@@ -38,6 +38,9 @@ const toasts = (p: Page) => p.locator('.ant-notification-notice');
 const chip = (p: Page) => p.getByRole('button', { name: /^Organisation: .*Switch organisation$/ });
 const menu = (p: Page) => p.getByRole('menu', { name: 'Switch organisation' });
 const row = (p: Page, name: string) => menu(p).getByRole('menuitemradio', { name });
+/** The search box and the message sit above the menu element, not inside it. */
+const find = (p: Page) => p.getByRole('searchbox', { name: 'Find an organisation' });
+const said = (p: Page) => p.locator('app-org-switcher').getByRole('alert');
 
 async function tokenOf(p: Page): Promise<string> {
   return p.evaluate(() => {
@@ -153,6 +156,12 @@ test.describe('the switcher, signed in as the platform superadmin', () => {
     await saPage.goto('/user/index');
     await openSwitcher();
     await expect(row(saPage, 'All organisations')).toHaveAttribute('aria-checked', 'true');
+    // Menu semantics: the search box is above the menu element, not inside it, and only the current row is a tab stop.
+    await expect(menu(saPage).getByRole('searchbox')).toHaveCount(0);
+    await expect(find(saPage)).toBeVisible();
+    await expect(menu(saPage).locator('[role="menuitemradio"][tabindex="0"]')).toHaveCount(1);
+    await expect(row(saPage, 'All organisations')).toHaveAttribute('tabindex', '0');
+    await expect(row(saPage, FIXTURE_NAME)).toHaveAttribute('tabindex', '-1');
     for (const name of [FIXTURE_NAME, SECOND_FIXTURE_ORGANISATION.name, STYLED]) {
       await expect(row(saPage, name)).toBeVisible();
       await expect(row(saPage, name)).toHaveAttribute('aria-checked', 'false');
@@ -182,15 +191,14 @@ test.describe('the switcher, signed in as the platform superadmin', () => {
 
   test('a list longer than a handful has a search box, and it is keyboard-operable', async () => {
     await openSwitcher();
-    const find = menu(saPage).getByRole('searchbox', { name: 'Find an organisation' });
-    await expect(find).toBeFocused();
-    await find.fill(`Switcher extra ${RUN}`);
+    await expect(find(saPage)).toBeFocused();
+    await find(saPage).fill(`Switcher extra ${RUN}`);
     await expect(menu(saPage).getByRole('menuitemradio')).toHaveCount(4);
     await expect(row(saPage, 'All organisations')).toHaveCount(0);
-    await find.fill('zzzz no such');
+    await find(saPage).fill('zzzz no such');
     await expect(menu(saPage).getByRole('menuitemradio')).toHaveCount(0);
-    await expect(menu(saPage).getByText(/No organisation matches/)).toBeVisible();
-    await find.fill('');
+    await expect(saPage.locator('app-org-switcher').getByText(/No organisation matches/)).toBeVisible();
+    await find(saPage).fill('');
     // Arrow keys move through the rows, Home and End jump.
     await saPage.keyboard.press('ArrowDown');
     await expect(row(saPage, 'All organisations')).toBeFocused();
@@ -199,7 +207,7 @@ test.describe('the switcher, signed in as the platform superadmin', () => {
     await saPage.keyboard.press('End');
     await expect(menu(saPage).getByRole('menuitemradio').last()).toBeFocused();
     await saPage.keyboard.press('Home');
-    await expect(find).toBeFocused();
+    await expect(find(saPage)).toBeFocused();
     await saPage.keyboard.press('Escape');
   });
 
@@ -231,8 +239,9 @@ test.describe('the switcher, signed in as the platform superadmin', () => {
     await saPage.route(`${API_URL}/auth/organisation`, answer(403, { errormessage: 'No.' }));
     await openSwitcher();
     await row(saPage, STYLED).click();
-    await expect(menu(saPage).getByRole('alert')).toHaveText('Only platform staff can switch organisation.');
-    await expect(menu(saPage).getByRole('alert')).toHaveCount(1);
+    await expect(said(saPage)).toHaveText('Only platform staff can switch organisation.');
+    await expect(said(saPage)).toHaveCount(1);
+    await expect(menu(saPage).getByRole('alert')).toHaveCount(0);
     expect(await toasts(saPage).count(), 'one message, not two').toBe(0);
     await expect(chip(saPage)).toHaveAccessibleName(chipName);
     await saPage.unroute(`${API_URL}/auth/organisation`);
@@ -240,7 +249,7 @@ test.describe('the switcher, signed in as the platform superadmin', () => {
     // 404 (suspended or deleted since the list was read)
     await saPage.route(`${API_URL}/auth/organisation`, answer(404, { errormessage: "That organisation doesn't exist." }));
     await row(saPage, STYLED).click();
-    await expect(menu(saPage).getByRole('alert')).toHaveText("That organisation isn't available. It may have been suspended or deleted.");
+    await expect(said(saPage)).toHaveText("That organisation isn't available. It may have been suspended or deleted.");
     expect(await toasts(saPage).count(), 'one message, not two').toBe(0);
     await expect(chip(saPage)).toHaveAccessibleName(chipName);
     await saPage.unroute(`${API_URL}/auth/organisation`);
@@ -253,7 +262,7 @@ test.describe('the switcher, signed in as the platform superadmin', () => {
     await expect(toasts(saPage)).toHaveCount(1);
     await saPage.waitForTimeout(750);
     expect(await toasts(saPage).count(), 'one message, not two').toBe(1);
-    await expect(menu(saPage).getByRole('alert')).toHaveCount(0);
+    await expect(said(saPage)).toHaveCount(0);
     await expect(chip(saPage)).toHaveAccessibleName(chipName);
     await saPage.unroute(`${API_URL}/auth/organisation`);
     await saPage.keyboard.press('Escape');
@@ -339,6 +348,213 @@ test.describe('the switcher, signed in as the platform superadmin', () => {
     await saPage.waitForTimeout(750);
     await expect(toasts(saPage).filter({ hasText: PLATFORM_BACK })).toHaveCount(0);
   });
+
+  // ---- A drop to the platform view (a refresh did it, not the person) ---------------------------------
+  /** Platform-view tokens for the signed-in superadmin, from the API (the page's own are replaced by this). */
+  async function platformTokens(): Promise<{ accessToken: string; refreshToken: string }> {
+    const client = await api();
+    const res = await client.post('/auth/organisation', { data: { organisationid: null } });
+    expect(res.ok(), 'platform-view tokens').toBeTruthy();
+    const tokens = (await res.json()).data;
+    await client.dispose();
+    return tokens;
+  }
+
+  /**
+   * Store tokens the way a refresh does: through the app's own AuthService.setlogin (reached through
+   * the dev build's Angular debug API). This replaces the stored token without a fake clock.
+   */
+  async function storeLikeARefresh(tokens: { accessToken: string; refreshToken: string }): Promise<void> {
+    await saPage.evaluate((t) => {
+      const w = window as any;
+      w.ng.getComponent(document.querySelector('app-org-switcher')).auth.setlogin(t.accessToken, t.refreshToken);
+    }, tokens);
+  }
+
+  test('a drop to the platform view reloads the page in the platform context, and says so once, after the reload', async () => {
+    await saPage.goto('/user/index');
+    await chooseAndSettle(saPage, FIXTURE_NAME, /^Organisation: E2E Fixture Organisation, Company\./);
+    await saPage.goto('/user/create');
+    // Acting inside an organisation: no Organisation select.
+    await expect(saPage.locator('#staff-lmsusername')).toBeVisible();
+    await expect(saPage.getByLabel('Organisation', { exact: true })).toHaveCount(0);
+    const tokens = await platformTokens();
+    const reloaded = saPage.waitForEvent('load');
+    await storeLikeARefresh(tokens);
+    await reloaded;
+    // The page now reads the platform view: the form has its select, and the chip says so.
+    await expect(chip(saPage)).toHaveAccessibleName('Organisation: All organisations, Platform view. Switch organisation');
+    await expect(saPage.getByLabel('Organisation', { exact: true })).toBeVisible();
+    await expect(toasts(saPage).filter({ hasText: PLATFORM_BACK })).toHaveCount(1);
+    await saPage.waitForTimeout(750);
+    expect(await toasts(saPage).count(), 'one notice, nothing else').toBe(1);
+    // Said once: the next load does not say it again.
+    await saPage.reload();
+    await expect(chip(saPage)).toBeVisible();
+    await saPage.waitForTimeout(750);
+    expect(await toasts(saPage).count()).toBe(0);
+  });
+
+  test('a drop on a page about one record goes Home', async () => {
+    await saPage.goto('/user/index');
+    await chooseAndSettle(saPage, FIXTURE_NAME, /^Organisation: E2E Fixture Organisation, Company\./);
+    const { id } = await makeStaff('dropped', [ROLE.teacher]);
+    await saPage.goto(`/user/update/${id}`);
+    await expect(saPage.locator('#staff-lmsusername')).toBeVisible();
+    const tokens = await platformTokens();
+    await storeLikeARefresh(tokens);
+    await expect(saPage).toHaveURL(/\/dashboard\/(index|default)/);
+    await expect(chip(saPage)).toHaveAccessibleName('Organisation: All organisations, Platform view. Switch organisation');
+    await expect(toasts(saPage).filter({ hasText: PLATFORM_BACK })).toHaveCount(1);
+  });
+
+  test('a staff form with no Organisation select says an organisation refusal for the whole form', async () => {
+    await saPage.goto('/user/index');
+    await chooseAndSettle(saPage, FIXTURE_NAME, /^Organisation: E2E Fixture Organisation, Company\./);
+    await saPage.goto('/user/create');
+    await saPage.route(`${API_URL}/user/create`, (route) =>
+      route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({ errormessage: 'x', fields: [{ field: 'organisationid', message: 'Choose the organisation this account belongs to.' }] }),
+      }),
+    );
+    await saPage.locator('#staff-lmsusername').fill(`e2e-sw-${RUN}-nope@example.com`);
+    await saPage.locator('#staff-lmsuserpasswordhash').fill(PASSWORD);
+    await saPage.getByRole('checkbox', { name: 'Teacher' }).check();
+    await saPage.getByRole('button', { name: 'Submit', exact: true }).click();
+    await expect(saPage.getByRole('main').getByRole('alert')).toHaveText('Choose the organisation this account belongs to.');
+    await expect(saPage.getByRole('main').getByRole('alert')).toHaveCount(1);
+    expect(await toasts(saPage).count(), 'one message, not two').toBe(0);
+    await expect(saPage.getByRole('button', { name: 'Submit', exact: true })).toBeFocused();
+    await saPage.unroute(`${API_URL}/user/create`);
+    await chooseAndSettle(saPage, 'All organisations', /^Organisation: All organisations, Platform view\./);
+  });
+
+  // ---- The list and the menu's own failures -------------------------------------------------------------
+  test('a switch to an organisation deleted since the list loaded says so, and the menu stays open without the row', async () => {
+    const name = `Switcher gone ${RUN}`;
+    const id = await makeOrg(`${RUN}d`, name, { organisationshortname: 'GO' });
+    await saPage.goto('/user/index');
+    await openSwitcher();
+    await expect(row(saPage, name)).toBeVisible();
+    // Really deleted, after the list was read.
+    const client = await api();
+    const gone = await client.delete(`/organisation/${id}`);
+    expect(gone.ok()).toBeTruthy();
+    await client.dispose();
+    throwawayOrgs.splice(throwawayOrgs.indexOf(id), 1);
+    await row(saPage, name).click();
+    await expect(said(saPage)).toHaveText("That organisation isn't available. It may have been suspended or deleted.");
+    await expect(menu(saPage)).toBeVisible();
+    await expect(row(saPage, name)).toHaveCount(0);
+    expect(await toasts(saPage).count(), 'one message, not two').toBe(0);
+    await expect(chip(saPage)).toHaveAccessibleName('Organisation: All organisations, Platform view. Switch organisation');
+    await saPage.keyboard.press('Escape');
+  });
+
+  test('a list that fails to load shows the error line, not an empty list, and Try again recovers', async () => {
+    await saPage.goto('/user/index');
+    await saPage.route(`${API_URL}/organisation?*`, (route) => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await openSwitcher();
+    const here = saPage.locator('app-org-switcher');
+    await expect(here.getByText("Couldn't load the organisations.")).toBeVisible();
+    await expect(menu(saPage).getByRole('menuitemradio')).toHaveCount(1);
+    await saPage.unroute(`${API_URL}/organisation?*`);
+    await here.getByRole('button', { name: 'Try again' }).click();
+    await expect(row(saPage, STYLED)).toBeVisible();
+    await expect(here.getByText("Couldn't load the organisations.")).toHaveCount(0);
+    await saPage.keyboard.press('Escape');
+  });
+
+  test('tabbing out of the menu closes it', async () => {
+    await saPage.goto('/user/index');
+    await openSwitcher();
+    for (let i = 0; i < 6 && (await menu(saPage).count()) > 0; i++) await saPage.keyboard.press('Tab');
+    await expect(menu(saPage)).toBeHidden();
+  });
+
+  test('a reissued token that cannot be read is refused with one message and nothing is stored', async () => {
+    await saPage.goto('/user/index');
+    const before = await tokenOf(saPage);
+    await saPage.route(`${API_URL}/auth/organisation`, (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ error: false, data: { accessToken: 'not-a-jwt', refreshToken: 'also-not-a-jwt' } }) }),
+    );
+    await openSwitcher();
+    await row(saPage, STYLED).click();
+    await expect(said(saPage)).toHaveText("Couldn't switch organisation. Try again.");
+    await expect(said(saPage)).toHaveCount(1);
+    expect(await toasts(saPage).count(), 'one message, not two').toBe(0);
+    expect(await tokenOf(saPage), 'the old tokens are kept').toBe(before);
+    await expect(chip(saPage)).toHaveAccessibleName('Organisation: All organisations, Platform view. Switch organisation');
+    await saPage.unroute(`${API_URL}/auth/organisation`);
+    await saPage.keyboard.press('Escape');
+    await saPage.reload();
+    await expect(chip(saPage)).toBeVisible();
+  });
+
+  test('a chip whose organisation cannot be looked up says so, not "Organisation, Organisation"', async () => {
+    await saPage.goto('/user/index');
+    await chooseAndSettle(saPage, FIXTURE_NAME, /^Organisation: E2E Fixture Organisation, Company\./);
+    await saPage.route(`${API_URL}/organisation/${fixtureOrg}`, (route) =>
+      route.request().method() === 'GET' ? route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }) : route.fallback(),
+    );
+    await saPage.reload();
+    await expect(chip(saPage)).toHaveAccessibleName(/^Organisation: Organisation unavailable,/);
+    await saPage.unroute(`${API_URL}/organisation/${fixtureOrg}`);
+    await chooseAndSettle(saPage, 'All organisations', /^Organisation: All organisations, Platform view\./);
+  });
+
+  // ---- A session the API no longer accepts -----------------------------------------------------------------
+  test('the organisation acted in was suspended: the tab recovers to the platform view, with the notice', async () => {
+    const name = `Switcher dropped ${RUN}`;
+    const id = await makeOrg(`${RUN}e`, name, { organisationshortname: 'DR' });
+    await saPage.goto('/user/index');
+    await chooseAndSettle(saPage, name, new RegExp(`^Organisation: ${name}, Company\\.`));
+    // Suspended through the API (a platform route, open while acting): the acting token is refused from now on,
+    // but the refresh token still works and returns the account to the platform view.
+    const client = await api();
+    const country = (await (await client.get('/country/all?country=')).json()).data[0].countryid;
+    const off = await client.put(`/organisation/${id}`, {
+      data: { organisationname: name, organisationshortname: 'DR', countryids: [country], organisationstatus: false },
+    });
+    expect(off.ok(), `suspend: ${off.status()}`).toBeTruthy();
+    await client.dispose();
+    await saPage.reload();
+    await expect(chip(saPage)).toHaveAccessibleName('Organisation: All organisations, Platform view. Switch organisation');
+    await expect(toasts(saPage).filter({ hasText: PLATFORM_BACK })).toHaveCount(1);
+    await saPage.waitForTimeout(750);
+    expect(await toasts(saPage).count(), 'one notice, nothing else').toBe(1);
+    expect(jwtClaims(await tokenOf(saPage)).organisationid ?? null).toBeNull();
+  });
+
+  test('a tab whose tokens the API revoked (another sign-in) signs out with one message', async () => {
+    await saPage.goto('/user/index');
+    await chooseAndSettle(saPage, FIXTURE_NAME, /^Organisation: E2E Fixture Organisation, Company\./);
+    // Another tab signs in: the API revokes the tokens of this one, the refresh token included.
+    await apiLogin();
+    await saPage.reload();
+    await expect(saPage).toHaveURL(/\/auth\/login/);
+    await expect(toasts(saPage).filter({ hasText: 'Your session ended. Sign in again.' })).toHaveCount(1);
+    await saPage.waitForTimeout(750);
+    expect(await toasts(saPage).count(), 'one message').toBe(1);
+    await loginViaUi(saPage);
+  });
+
+  test('a 401 on the switch with no way back signs out with one message', async () => {
+    await saPage.goto('/user/index');
+    await saPage.route(`${API_URL}/auth/organisation`, (route) => route.fulfill({ status: 401, contentType: 'application/json', body: '{}' }));
+    await saPage.route(`${API_URL}/auth/refreshtoken*`, (route) => route.fulfill({ status: 401, contentType: 'application/json', body: '{}' }));
+    await openSwitcher();
+    await row(saPage, FIXTURE_NAME).click();
+    await expect(saPage).toHaveURL(/\/auth\/login/);
+    await expect(toasts(saPage).filter({ hasText: 'Your session ended. Sign in again.' })).toHaveCount(1);
+    await saPage.waitForTimeout(750);
+    expect(await toasts(saPage).count(), 'one message').toBe(1);
+    await saPage.unroute(`${API_URL}/auth/organisation`);
+    await saPage.unroute(`${API_URL}/auth/refreshtoken*`);
+    await loginViaUi(saPage);
+  });
 });
 
 test.describe('Organisations needs the platform claim, not just the permission', () => {
@@ -421,32 +637,6 @@ test.describe('an organisation\'s own staff see their organisation and no switch
       await expect(here).toContainText('E2E Fixture Organisation');
       await expect(chip(page)).toHaveCount(0);
       await expect(page.getByRole('menu', { name: 'Switch organisation' })).toHaveCount(0);
-    } finally {
-      await page.close();
-    }
-  });
-});
-
-test.describe('a token refresh returns a platform account to the platform view', () => {
-  test('the chip is back to the platform view, with one notice', async ({ browser }) => {
-    // Its own page and sign-in: a fake clock cannot be taken off a page again, and a page whose clock
-    // is far ahead soon finds its token expired.
-    const page = await browser.newPage();
-    try {
-      // A real refresh, by the app's real timer: it refreshes its token shortly before it expires. The
-      // fake clock jumps to just before then, so the API's own refresh runs. A refresh returns the
-      // account to its own (platform) view.
-      await page.clock.install();
-      await loginViaUi(page);
-      await page.goto('/user/index');
-      await chooseAndSettle(page, FIXTURE_NAME, /^Organisation: E2E Fixture Organisation, Company\./);
-      expect(await toasts(page).count()).toBe(0);
-      await page.clock.fastForward('59:52');
-      await expect(chip(page)).toHaveAccessibleName('Organisation: All organisations, Platform view. Switch organisation');
-      await expect(toasts(page).filter({ hasText: PLATFORM_BACK })).toHaveCount(1);
-      await page.waitForTimeout(750);
-      expect(await toasts(page).count(), 'one notice, nothing else').toBe(1);
-      expect(jwtClaims(await tokenOf(page)).organisationid ?? null).toBeNull();
     } finally {
       await page.close();
     }
