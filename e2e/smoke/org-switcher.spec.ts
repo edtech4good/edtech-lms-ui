@@ -156,10 +156,10 @@ test.describe('the switcher, signed in as the platform superadmin', () => {
       await expect(row(saPage, name)).toBeVisible();
       await expect(row(saPage, name)).toHaveAttribute('aria-checked', 'false');
     }
-    await expect(row(saPage, FIXTURE_NAME)).toContainText('Company');
     await expect(row(saPage, STYLED)).toContainText('School network');
     // The suspended one is shown, labelled, and cannot be chosen.
-    await expect(row(saPage, SUSPENDED)).toContainText('suspended');
+    await expect(row(saPage, SUSPENDED).locator('.sub')).toHaveText('Company · suspended');
+    await expect(row(saPage, FIXTURE_NAME).locator('.sub')).toHaveText('Company');
     await expect(row(saPage, SUSPENDED)).toHaveAttribute('aria-disabled', 'true');
     await saPage.keyboard.press('Escape');
     await expect(menu(saPage)).toBeHidden();
@@ -196,7 +196,10 @@ test.describe('the switcher, signed in as the platform superadmin', () => {
     };
     saPage.on('request', on);
     await openSwitcher();
-    await row(saPage, SUSPENDED).click({ force: true });
+    // By the keyboard and by a dispatched click: a mouse click would wait for an enabled element.
+    await row(saPage, SUSPENDED).focus();
+    await saPage.keyboard.press('Enter');
+    await row(saPage, SUSPENDED).dispatchEvent('click');
     await saPage.waitForTimeout(500);
     saPage.off('request', on);
     expect(sent, 'no switch was asked for').toEqual([]);

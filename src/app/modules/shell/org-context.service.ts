@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { JwtHelperService } from '@auth0/angular-jwt';
 import { TokenService } from '../../services/token.service';
-import { PLATFORM_RETURN_NOTICE } from './org-context';
+import { PLATFORM_RETURN_NOTICE, shouldNotifyPlatformReturn } from './org-context';
 
 /** What the access token says about organisations. */
 export interface OrgClaims {
@@ -56,8 +56,7 @@ export class OrgContextService {
     const after = this.reread();
     const expected = this.expected;
     this.expected = undefined;
-    if (expected !== undefined) return;
-    if (before.organisationid !== null && after.organisationid === null && after.isplatform) {
+    if (shouldNotifyPlatformReturn(before, after, expected)) {
       this.notice.set(PLATFORM_RETURN_NOTICE);
     }
   }
