@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Router } from '@angular/router';
+import { Subject } from 'rxjs';
 import { environment } from "./../../environments/environment"
 const PAYLOAD_KEY = environment.PAYLOAD_KEY;
 const ALG_KEY = environment.ALG_KEY;
@@ -23,11 +24,22 @@ export class TokenService {
   constructor(private router: Router) { }
   subscriptions: Array<any> = [];
 
+  /**
+   * Fires once whenever the stored access token has changed (saved, replaced by a
+   * refresh or an organisation switch, or cleared). The organisation context
+   * (OrgContextService) re-reads the token's claims on it.
+   */
+  readonly changed = new Subject<void>();
 
-  clearaccesstokens = (): void => {
+  private removeAccessTokens(): void {
     accesstokenkeys.forEach((element) => {
       window.sessionStorage.removeItem(element);
     });
+  }
+
+  clearaccesstokens = (): void => {
+    this.removeAccessTokens();
+    this.changed.next();
   };
 
   clearrefreshtokens = (): void => {
@@ -40,14 +52,17 @@ export class TokenService {
     storagekeys.forEach((element) => {
       window.sessionStorage.removeItem(element);
     });
+    this.changed.next();
   };
 
   savetoken = (accesstoken: string): void => {
-    this.clearaccesstokens();
+    // Not clearaccesstokens(): that would announce an empty token in between.
+    this.removeAccessTokens();
     const tokens = accesstoken.split('.');
     window.sessionStorage.setItem(ALG_KEY, tokens[0]);
     window.sessionStorage.setItem(PAYLOAD_KEY, tokens[1]);
     window.sessionStorage.setItem(HASH_KEY, tokens[2]);
+    this.changed.next();
   };
 
   saverefreshtoken = (refreshtoken: string): void => {

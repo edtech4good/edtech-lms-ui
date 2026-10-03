@@ -11,12 +11,14 @@ import { TeacherIndexComponent } from './teacher/teacher-index/teacher-index.com
 import { LessonModule } from "./lesson/lesson.module";
 import { ShellBreadcrumbComponent } from './shell/shell-breadcrumb.component';
 import { ShellIconComponent } from './shell/shell-icon.component';
+import { OrgSwitcherComponent } from './shell/org-switcher.component';
 import { ShellNavComponent } from './shell/shell-nav.component';
 
 @NgModule({
     declarations: [
         CommonComponent,
         ShellNavComponent,
+        OrgSwitcherComponent,
         ShellBreadcrumbComponent,
         ShellIconComponent,
         StudentIndexComponent,

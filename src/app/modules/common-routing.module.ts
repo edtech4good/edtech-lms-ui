@@ -1,7 +1,7 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { AuthGuard } from '../guards/auth-guard.service';
-import { requirePermission } from '../guards/permission.guard';
+import { requirePermission, requirePlatform } from '../guards/permission.guard';
 import { CommonComponent } from './common.component';
 
 const routes: Routes = [
@@ -12,7 +12,7 @@ const routes: Routes = [
       {
         path: 'organisation',
         loadChildren: () => import('./organisation/organisation.routes').then((m) => m.ORGANISATION_ROUTES),
-        canActivate: [AuthGuard, requirePermission('view_organisation')],
+        canActivate: [AuthGuard, requirePermission('view_organisation'), requirePlatform()],
         data: {
           group: 'Platform',
           crumb: 'Organisations',

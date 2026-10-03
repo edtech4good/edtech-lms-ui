@@ -14,6 +14,8 @@
     </button>
   </div>
 
+  <app-org-switcher [collapsed]="collapsed()" />
+
   <div class="list" #list>
     <!-- Home: always shown, outside the permission-gated groups. -->
     <div class="group tone-home">
@@ -30,6 +32,7 @@
     </div>
 
     @for (g of groups; track g.key) {
+      @if (!g.platformOnly || isPlatformUser()) {
       <ng-container *ngxPermissionsOnly="g.permissions">
         @if (g.railDivider) {
           <div class="divider" aria-hidden="true"></div>
@@ -39,6 +42,7 @@
             <div class="group-label" aria-hidden="true">{{ g.label }}</div>
           }
           @for (entry of g.entries; track entry.key) {
+            @if (isExpander(entry) || !entry.platformOnly || isPlatformUser()) {
             <ng-container *ngxPermissionsOnly="entry.permissions">
               @if (isExpander(entry)) {
                 <button
@@ -88,9 +92,11 @@
                 </a>
               }
             </ng-container>
+            }
           }
         </div>
       </ng-container>
+      }
     }
   </div>
 

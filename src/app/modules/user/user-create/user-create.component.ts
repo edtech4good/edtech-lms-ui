@@ -18,6 +18,7 @@ import {
   StaffErrors,
   StaffField,
   holdsSuperAdmin,
+  organisationErrorForForm,
   serverStaffErrors,
 } from '../staff-form';
 
@@ -84,7 +85,7 @@ export class UserCreateComponent implements OnInit {
         },
         error: (error: HttpErrorResponse) => {
           this.submitting = false;
-          this.errors = serverStaffErrors(error);
+          this.errors = organisationErrorForForm(serverStaffErrors(error), this.isPlatform);
           this.focusFirstError();
         },
       });

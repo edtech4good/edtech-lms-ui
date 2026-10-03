@@ -467,7 +467,7 @@ test.describe('staff accounts, signed in as an Organisation Admin', () => {
     await page.goto('/user/create');
     await page.locator('#staff-lmsusername').fill(username);
     await expect(orgSelect(page)).toHaveCount(0);
-    await expect(page.getByText('Organisation', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('main').getByText('Organisation', { exact: true })).toHaveCount(0);
     await expect(page.getByRole('checkbox')).toHaveCount(1);
     await expect(roleBox(page, 'Organisation Admin')).toBeVisible();
     await page.locator('#staff-lmsuserpasswordhash').fill(PASSWORD);
@@ -501,7 +501,7 @@ test.describe('staff accounts, signed in as an Organisation Admin', () => {
     await expect(page.locator('#staff-lmsuserpasswordhash')).toBeDisabled();
     await expect(page.getByText(MARKED_NOTE)).toBeVisible();
     await expect(page.getByText(SIGN_IN_NOTE)).toBeVisible();
-    await expect(page.getByText('Organisation', { exact: true })).toBeVisible();
+    await expect(page.getByRole('main').getByText('Organisation', { exact: true })).toBeVisible();
     await expect(page.locator('#staff-organisation-name')).toHaveText('E2E Fixture Organisation');
     const rec = recordStaffWrites(page);
     await submit(page).click();
