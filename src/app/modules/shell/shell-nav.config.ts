@@ -58,6 +58,8 @@ export interface ShellNavLink {
   match: string[];
   /** Permission names, already including `superadmin`. A stable array (see sidebarPerm). */
   permissions: string[];
+  /** Shown only when the access token says `isplatform`, besides the permission. */
+  platformOnly?: boolean;
 }
 
 /** A top-level entry that is a plain link. */
@@ -91,6 +93,8 @@ export interface ShellNavGroup {
   permissions: string[];
   /** Rail: draw a divider above this group. */
   railDivider: boolean;
+  /** Shown only when the access token says `isplatform`, besides the permission. */
+  platformOnly?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -266,6 +270,9 @@ export const SHELL_GROUPS: ShellNavGroup[] = [
     tone: 'admin',
     railDivider: true,
     permissions: ORGANISATION_PERMISSIONS,
+    // The API refuses an account that holds the permission but is not the platform; so the
+    // screen is not offered to it either.
+    platformOnly: true,
     entries: [
       {
         key: 'organisation',
@@ -274,6 +281,7 @@ export const SHELL_GROUPS: ShellNavGroup[] = [
         route: '/organisation',
         match: ['/organisation'],
         permissions: ORGANISATION_PERMISSIONS,
+        platformOnly: true,
       },
     ],
   },

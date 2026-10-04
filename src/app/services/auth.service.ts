@@ -1,12 +1,13 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { JwtHelperService } from '@auth0/angular-jwt';
 import { Store } from '@ngrx/store';
 import { differenceInMilliseconds } from 'date-fns';
 import { NgxPermissionsService } from 'ngx-permissions';
-import { Observable } from 'rxjs';
+import { Observable, firstValueFrom } from 'rxjs';
 import { first } from 'rxjs/operators';
+import { FIELD_ERRORS_INLINE } from '../interceptors/error-context';
 import { ResetPasswordBody } from '../models/changepassword';
 import { lmsuser } from '../models/lmsuser.model';
 import { LoginRequestBody } from '../models/loginrequestbody';
@@ -143,6 +144,51 @@ export class AuthService {
       },
       this.coreService.jsonhttpOptions
     );
+  }
+
+  /**
+   * Platform users only: act as an organisation (or as none, for null). The API
+   * reissues both tokens. The caller says what a refusal means, so the interceptor
+   * stays quiet about the refusals the switcher shows itself (FIELD_ERRORS_INLINE
+   * also covers 403) and still toasts 429, 500 and no connection.
+   */
+  switchOrganisation(organisationid: string | null): Observable<{ data: { accessToken: string; refreshToken: string } }> {
+    return this.http.post<{ data: { accessToken: string; refreshToken: string } }>(
+      `${this.coreService.CORE_API()}auth/organisation`,
+      { organisationid },
+      { ...this.coreService.jsonhttpOptions, context: new HttpContext().set(FIELD_ERRORS_INLINE, true) }
+    );
+  }
+
+  /** Can this token be read at all (three parts, a JSON payload)? Checked before a reissued token is stored. */
+  isReadableToken(token: unknown): boolean {
+    try {
+      if (typeof token !== 'string' || token.split('.').length !== 3) return false;
+      const payload = this.jwtHelper.decodeToken(token) as Record<string, unknown> | null;
+      return !!payload && typeof payload === 'object';
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * The API no longer accepts the stored access token (a 401): try the refresh token once.
+   * True when it gave a new pair (stored, as a refresh does); false when it did not, which
+   * means the session is gone.
+   */
+  async recoverSession(): Promise<boolean> {
+    try {
+      const result = await firstValueFrom(this.refreshtoken(this.tokenService.getrefreshtoken()));
+      // Both tokens must be readable before either is stored: an unreadable answer keeps the old
+      // tokens and counts as a failed recovery.
+      if (!this.isReadableToken(result?.data?.accessToken) || !this.isReadableToken(result?.data?.refreshToken)) {
+        return false;
+      }
+      this.setlogin(result.data.accessToken, result.data.refreshToken);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   // refresh token api call

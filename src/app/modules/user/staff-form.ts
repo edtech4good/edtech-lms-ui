@@ -97,3 +97,15 @@ export const holdsSuperAdmin = (roleIds: readonly string[]): boolean => roleIds.
 
 /** The order the fields appear in: focus goes to the first with a message. */
 export const STAFF_FIELD_ORDER: StaffField[] = ['lmsusername', 'lmsuserpasswordhash', 'organisationid', 'countryids', 'schoolids', 'lmsuserroles'];
+
+/**
+ * A message about the organisation, when the form has no Organisation select to put it on (the
+ * caller works inside an organisation, or the page was read in another context than the token's
+ * now is), is said for the whole form: a field error nobody can see would be silence.
+ */
+export function organisationErrorForForm(errors: StaffErrors, selectShown: boolean): StaffErrors {
+  const said = errors.fields.organisationid;
+  if (selectShown || !said) return errors;
+  const { organisationid, ...fields } = errors.fields;
+  return { fields, form: errors.form ?? said };
+}
