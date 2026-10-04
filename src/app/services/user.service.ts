@@ -1,7 +1,7 @@
 import { HttpClient, HttpContext } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { EMPTY, Observable, expand, reduce } from 'rxjs';
-import { FIELD_ERRORS_INLINE } from 'src/app/interceptors/error-context';
+import { FIELD_ERRORS_INLINE, NOT_FOUND_HANDLED } from 'src/app/interceptors/error-context';
 import { IPaging } from 'src/app/models/IPaging';
 import { CoreService } from 'src/app/services/core.service';
 import { Organisation } from 'src/app/modules/organisation/organisation.model';
@@ -70,7 +70,11 @@ export class UserService {
   get(lmsuserid: string) {
     return this.http.get(
       `${this.coreService.CORE_API()}user/${lmsuserid}`,
-      this.coreService.jsonhttpOptions
+      {
+        ...this.coreService.jsonhttpOptions,
+        // The edit page says a missing account itself (a message in place of the form).
+        context: new HttpContext().set(NOT_FOUND_HANDLED, true),
+      }
     );
   }
 

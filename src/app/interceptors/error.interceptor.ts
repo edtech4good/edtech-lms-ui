@@ -7,7 +7,13 @@ import { Observable, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { unsetloadingAction } from '../store/appstate/appstate.action';
 import { appState } from '../store/appstate/appstate.reducer';
-import { FIELD_ERRORS_INLINE, FORBIDDEN_HANDLED } from './error-context';
+import { FIELD_ERRORS_INLINE, FORBIDDEN_HANDLED, NOT_FOUND_HANDLED } from './error-context';
+
+/** What a 404 says when the API gave no words of its own. */
+export const NOT_FOUND_MESSAGE = 'That record was not found. It may have been removed, or it may not be yours to see.';
+
+/** The ng-zorro key of the 404 notice: a repeat replaces the one showing. */
+export const NOT_FOUND_TOAST_KEY = 'http-404';
 
 @Injectable({ providedIn: 'root' })
 export class ErrorInterceptor implements HttpInterceptor {
@@ -28,8 +34,8 @@ export class ErrorInterceptor implements HttpInterceptor {
     // went wrong beside the form (login.component.ts), so a toast would be a
     // second, louder, message.
     const quiet = /\/auth\/(logout|login)(\?|$)/.test(req.url);
-    const toast = (type: string, data: any): void => {
-      if (!quiet) this.createNotification(type, data);
+    const toast = (type: string, data: any, key?: string): void => {
+      if (!quiet) this.createNotification(type, data, key);
     };
     return next.handle(req).pipe(
       catchError((error: HttpErrorResponse) => {
@@ -48,6 +54,18 @@ export class ErrorInterceptor implements HttpInterceptor {
           // screen that says it itself opts out (the two tokens above), so a
           // refusal is one message, never two.
           toast('error', "You don't have permission to do that.");
+        }
+        if (error.status === 404 && !req.context.get(FIELD_ERRORS_INLINE) && !req.context.get(NOT_FOUND_HANDLED)) {
+          // The API answers 404 for a row that does not exist or is not the
+          // caller's (a school, a learner, a class, a fee), and for a school name
+          // that matches nothing. Most screens said nothing about it, so the
+          // action looked dead. A screen that says it itself opts out (the two
+          // tokens above), so a missing record is one message, never two.
+          const said = error?.error?.errormessage;
+          // Keyed, so a screen that asks for the same missing record several times at
+          // once (learner stats sends four) shows one notice, not four: ng-zorro
+          // replaces a notice that has the same key.
+          toast('error', typeof said === 'string' && said.trim() ? said : NOT_FOUND_MESSAGE, NOT_FOUND_TOAST_KEY);
         }
         if (error.status === 401) {
           // The API returns 401 for role failures too (access.guard.ts), not just
@@ -80,7 +98,7 @@ export class ErrorInterceptor implements HttpInterceptor {
       })
     );
   }
-  createNotification(type: string, data: any): void {
-    this.notification.create(type, 'Error', data);
+  createNotification(type: string, data: any, key?: string): void {
+    this.notification.create(type, 'Error', data, key ? { nzKey: key } : undefined);
   }
 }

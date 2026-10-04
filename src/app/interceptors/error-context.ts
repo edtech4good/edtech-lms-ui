@@ -15,3 +15,12 @@ export const FIELD_ERRORS_INLINE = new HttpContextToken<boolean>(() => false);
  * a 403 beside the form.
  */
 export const FORBIDDEN_HANDLED = new HttpContextToken<boolean>(() => false);
+
+/**
+ * Set on a request whose caller says what a 404 means itself (the staff edit
+ * page, which shows "That person doesn't exist..." instead of a form; the
+ * organisation delete, whose list says "It no longer exists."). The error
+ * interceptor's generic "That record was not found." toast is then not shown as
+ * well. FIELD_ERRORS_INLINE implies it: those callers show a 404 beside the form.
+ */
+export const NOT_FOUND_HANDLED = new HttpContextToken<boolean>(() => false);

@@ -1,7 +1,7 @@
 import { HttpClient, HttpContext, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import { FIELD_ERRORS_INLINE, FORBIDDEN_HANDLED } from 'src/app/interceptors/error-context';
+import { FIELD_ERRORS_INLINE, FORBIDDEN_HANDLED, NOT_FOUND_HANDLED } from 'src/app/interceptors/error-context';
 import { CoreService } from 'src/app/services/core.service';
 import {
   Country,
@@ -60,7 +60,8 @@ export class OrganisationService {
 
   delete(organisationid: string): Observable<unknown> {
     return this.http.delete(this.url(`/${organisationid}`), {
-      context: new HttpContext().set(FORBIDDEN_HANDLED, true),
+      // A 404 is said by the list ("It no longer exists."), a 403 too.
+      context: new HttpContext().set(FORBIDDEN_HANDLED, true).set(NOT_FOUND_HANDLED, true),
     });
   }
 
