@@ -21,9 +21,12 @@
  *                which has one video; add the gallery (order 2) and a second
  *                video (order 3) by SQL on `lessonlearnings`.
  *      corporate (CORPORATE_STUDENT): DCRS lesson 1 ("Why direction matters"),
- *                same two rows added by SQL. Against a scratch database that has
- *                no miv.verify login, run with E2E_EXPO_CORPORATE_USER=miv.demo
- *                (seed:dcrs creates it; password `demo`).
+ *                same two rows added by SQL. On a throwaway/scratch database
+ *                that has no miv.verify login ONLY, E2E_EXPO_CORPORATE_USER can
+ *                point at another corporate learner that `seed:dcrs` creates
+ *                there. Never do that against the shared local database or UAT:
+ *                fixtures.ts forbids logging in as miv.demo (one token per
+ *                user, so it would evict a session in use by someone else).
  *  - The expo-web build under test is edtech-expo >= the learning-items change
  *    (LI-4), and the student API is edtech-lms-rpi-api >= LI-2 (it returns
  *    `lessonlearningtype` and allows the header in CORS).
