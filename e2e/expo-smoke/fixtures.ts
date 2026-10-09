@@ -64,6 +64,9 @@ export const KM = {
   profileHeader: "ប្រវត្តិរូប", // screen.profile.header
   subjectGreeting: "អរុណសួស្តី", // screen.subject.greeting
   searchPlaceholder: "ស្វែងរកកម្មវិធីសិក្សា", // screen.subject.searchPlaceholder
+  // The notice a learning item of a type this build cannot render shows in
+  // place of the item (edtech-expo, learning items LI-4).
+  unsupportedItem: "ធាតុនេះត្រូវការកំណែថ្មីជាងនៃកម្មវិធី", // screen.lesson.unsupportedItem
   lessonHeader: "លំហាត់", // screen.lesson.header
   inThisLesson: "នៅក្នុងមេរៀននេះ", // screen.lesson.inThisLesson
   learningTitle: "សិក្សា", // screen.lesson.learningTitle
