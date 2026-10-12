@@ -6,6 +6,17 @@ updates:
       interval: weekly
     open-pull-requests-limit: 3
     groups:
+      # Dependabot skips deprecated packages, and @angular/platform-browser-dynamic
+      # and @angular/animations are marked deprecated on npm, so it leaves them
+      # behind and the lockstep peer pins break npm ci. Bump those two by hand
+      # with each Angular patch until they are removed.
+      angular:
+        patterns:
+          - "@angular/*"
+          - "@angular-devkit/*"
+        update-types:
+          - minor
+          - patch
       minor-and-patch:
         update-types:
           - minor
