@@ -24,6 +24,11 @@ before changing anything.
   a platform user who is not acting is refused with "Choose an organisation to
   act in". When the acting context changes or drops, a page that makes sense in
   any context reloads its data and any other page goes Home.
+- In the platform view (a platform account acting in no organisation) every owned list shows an
+  "Organisation" column after the row's name and a filter above the list; a record opened from a list
+  says "Owned by <organisation>"; create and upload controls are disabled with the hint. None of it shows
+  when acting in an organisation. The pieces are in `src/app/shared/owner`: a new owned list uses
+  `app-owner-filter`, `app-owner-name` and `app-create-action` rather than its own copy.
 - The API answers a row the caller may not see exactly as a missing row (404),
   and lists leave it out. Screens must not assume a 404 means a bug.
 - Errors: `src/app/interceptors/error.interceptor.ts` toasts 400, 403, 404,
