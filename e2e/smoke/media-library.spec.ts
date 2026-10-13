@@ -99,6 +99,20 @@ async function watchUploads(p: Page) {
 const lastUpload = (p: Page) =>
   p.evaluate(() => (window as unknown as { __uploads: Array<Record<string, string>> }).__uploads.slice(-1)[0] as Record<string, string>);
 
+const allUploads = (p: Page) =>
+  p.evaluate(() => (window as unknown as { __uploads: Array<Record<string, string>> }).__uploads);
+
+/** The learnings the picker test adds to the demo lesson ("A clip"): deleted before it, after it, and in teardown; the delete is checked. */
+async function deleteTestLearnings(a: APIRequestContext): Promise<void> {
+  const list = async () => ((await (await a.get(`/lesson/learning/${DEMO_LESSON}`)).json()).data as Array<{ lessonlearningid: string; lessonlearningname: string }>)
+    .filter((x) => x.lessonlearningname === 'A clip' || x.lessonlearningname === 'A picture');
+  for (const l of await list()) {
+    const res = await a.delete(`/lesson/learning/${l.lessonlearningid}`);
+    expect(res.ok(), `deleting the learning: HTTP ${res.status()}`).toBeTruthy();
+  }
+  expect(await list(), 'a learning the test added is still listed after its delete').toHaveLength(0);
+}
+
 let page: Page;
 let api: APIRequestContext;
 const before = new Set<string>();
@@ -121,6 +135,7 @@ test.beforeAll(async ({ browser }) => {
 });
 
 test.afterAll(async () => {
+  await deleteTestLearnings(api);
   // Every document these tests added goes; then the list is read again to see that it did.
   const added = (await listDocuments(api)).filter((d) => !before.has(d.documentid));
   for (const d of added) {
@@ -229,30 +244,66 @@ test('licence and attribution round-trip: upload, edit details, clear', async ()
 test('a refused file shows the server\'s message in the modal and adds nothing', async () => {
   const count = async () => (await listDocuments(api)).length;
   const start = await count();
+  const cases: Array<{ name: string; buffer: Buffer; title?: string; says: string }> = [
+    // a program renamed .png: the first bytes do not agree with the name
+    { name: 'looks-fine.png', buffer: NOT_AN_IMAGE, says: "That file isn't the kind its name says it is." },
+    // a type that is not on the list
+    { name: 'tool.exe', buffer: NOT_AN_IMAGE, says: "That file type isn't supported." },
+    // a title the API will not take: its own message, not "some of the information isn't valid"
+    { name: 'long-title.png', buffer: PNG, title: 'x'.repeat(256), says: 'The title can be at most 255 characters.' },
+  ];
+  for (const c of cases) {
+    await page.goto('/document/index');
+    await uploadButton(page).click();
+    const dialog = modal(page, 'Upload Document');
+    await chooseFile(page, dialog, c.name, c.buffer, 'image/png');
+    if (c.title) await dialog.getByLabel('Title (optional)').fill(c.title);
+    await dialog.getByRole('button', { name: 'Submit', exact: true }).click();
+    // one file: the message alone, in the modal, and not a toast as well
+    await expect(dialog.locator('.upload-refusal')).toHaveText(c.says);
+    await expect(dialog).toBeVisible();
+    await expect(toasts(page)).toHaveCount(0);
+  }
+  expect(await count(), 'a refused upload adds no document').toBe(start);
+});
+
+test('several files: one request each, one title never shared, a refused file stays with its message', async () => {
+  const known = new Set((await listDocuments(api)).map((d) => d.documentid));
   await page.goto('/document/index');
   await uploadButton(page).click();
   const dialog = modal(page, 'Upload Document');
-  const submit = dialog.getByRole('button', { name: 'Submit', exact: true });
-  const refusal = dialog.locator('.upload-refusal');
+  const title = dialog.getByLabel('Title (optional)');
+  await chooseFile(page, dialog, 'bulk-one.png', PNG, 'image/png');
+  await expect(title).toHaveValue('bulk-one');
+  await dialog.locator('input[type="file"]').setInputFiles({ name: 'bulk-two.png', mimeType: 'image/png', buffer: PNG });
+  // one title cannot name two files: the field is switched off, and each file's name is its title
+  await expect(title).toBeDisabled();
+  await expect(title).toHaveValue('');
+  await chooseLicence(page, dialog, 'CC BY 4.0');
+  await dialog.getByRole('button', { name: 'Submit', exact: true }).click();
+  await expect(toasts(page).filter({ hasText: 'Documents uploaded sucessfully' })).toHaveCount(1);
+  await expect(dialog).toBeHidden();
+  const sent = await allUploads(page);
+  expect(sent.slice(-2)).toEqual([
+    { documentlicence: 'CC-BY-4.0', 'files[]': 'file:bulk-one.png' },
+    { documentlicence: 'CC-BY-4.0', 'files[]': 'file:bulk-two.png' },
+  ]);
+  const added = (await listDocuments(api)).filter((d) => !known.has(d.documentid));
+  expect(added.map((d) => d.documenttitle).sort()).toEqual(['bulk-one', 'bulk-two']);
+  expect(added.every((d) => d.documentlicence === 'CC-BY-4.0')).toBeTruthy();
 
-  // a program renamed .png: the first bytes do not agree with the name
-  await chooseFile(page, dialog, 'looks-fine.png', NOT_AN_IMAGE, 'image/png');
-  await submit.click();
-  await expect(refusal).toHaveText("That file isn't the kind its name says it is.");
-  await expect(dialog).toBeVisible();
-  await expect(toasts(page), 'one message, not a toast as well').toHaveCount(0);
-
-  // a type that is not on the list
-  await chooseFile(page, dialog, 'tool.exe', NOT_AN_IMAGE);
-  await submit.click();
-  await expect(refusal).toHaveText("That file type isn't supported.");
-
-  // a title the API will not take: its own message, not "some of the information isn't valid"
-  await chooseFile(page, dialog, 'long-title.png', PNG, 'image/png');
-  await dialog.getByLabel('Title (optional)').fill('x'.repeat(256));
-  await submit.click();
-  await expect(refusal).toHaveText('The title can be at most 255 characters.');
-  expect(await count(), 'a refused upload adds no document').toBe(start);
+  // one good file and one refused: the good one lands, the refused one stays in the form with the server's words
+  await page.goto('/document/index');
+  await uploadButton(page).click();
+  await chooseFile(page, dialog, 'mixed-good.png', PNG, 'image/png');
+  await dialog.locator('input[type="file"]').setInputFiles({ name: 'mixed-bad.png', mimeType: 'image/png', buffer: NOT_AN_IMAGE });
+  await dialog.getByRole('button', { name: 'Submit', exact: true }).click();
+  await expect(dialog.locator('.upload-refusal')).toHaveText("mixed-bad.png: That file isn't the kind its name says it is.");
+  await expect(toasts(page).filter({ hasText: 'Document uploaded sucessfully' })).toHaveCount(1);
+  await expect(dialog.locator('.ant-upload-list-item')).toHaveCount(1);
+  await expect(dialog.locator('.ant-upload-list-item')).toContainText('mixed-bad.png');
+  const after = (await listDocuments(api)).filter((d) => !known.has(d.documentid));
+  expect(after.map((d) => d.documenttitle).sort()).toEqual(['bulk-one', 'bulk-two', 'mixed-good']);
 });
 
 test('the type filter sends one exact id, and the new types are named', async () => {
@@ -351,6 +402,7 @@ test('the learning picker offers videos only, labels a video by its title, and a
     });
     expect(res.ok(), `setup upload of ${name}: HTTP ${res.status()}`).toBeTruthy();
   };
+  await deleteTestLearnings(api);
   const known = new Set((await listDocuments(api)).map((d) => d.documentid));
   await upload('clip.mp4', MP4, 'Clip for the picker');
   await upload('stray.png', PNG, 'Picture for the picker');
@@ -411,12 +463,24 @@ test('the learning picker offers videos only, labels a video by its title, and a
   await expect(toasts(page)).toHaveCount(1);
   await page.unroute(/\/document$/);
 
-  // clean up the learning this test made, and check it went
-  const learnings = await (await api.get(`/lesson/learning/${DEMO_LESSON}`)).json();
-  for (const l of learnings.data.filter((x: { lessonlearningname: string }) => x.lessonlearningname === 'A clip')) {
-    const res = await api.delete(`/lesson/learning/${l.lessonlearningid}`);
-    expect(res.ok(), `deleting the learning: HTTP ${res.status()}`).toBeTruthy();
+  await deleteTestLearnings(api);
+});
+
+test('the platform view (no organisation chosen): Upload is switched off, with the reason, before a file is chosen', async ({ browser }) => {
+  // a platform account is not in any organisation; it acts in one only after choosing it in the switcher
+  const platform = await browser.newPage();
+  try {
+    await loginViaUi(platform);
+    for (const [url, area] of [['/document/index', '.upload-action'], ['/question/create', 'app-uploader .upload-action']] as const) {
+      await platform.goto(url);
+      const action = platform.locator(area).first();
+      await expect(action.locator('button')).toBeDisabled();
+      await action.hover();
+      await expect(platform.locator('.ant-tooltip-inner')).toHaveText(
+        'Choose an organisation to act in before you create content. Use the organisation switcher, then try again.',
+      );
+    }
+  } finally {
+    await platform.close();
   }
-  const after = await (await api.get(`/lesson/learning/${DEMO_LESSON}`)).json();
-  expect(after.data.filter((x: { lessonlearningname: string }) => x.lessonlearningname === 'A clip')).toHaveLength(0);
 });

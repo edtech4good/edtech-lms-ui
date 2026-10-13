@@ -118,6 +118,20 @@ export function uploadFields(meta: DocumentMetadataModel): Record<string, string
   return fields;
 }
 
+/**
+ * The fields sent with each file when several are uploaded together (one request per file: the API takes one file per
+ * request). One title cannot name several files, so with more than one file none is sent and each file's name is its title.
+ */
+export function uploadFieldsFor(meta: DocumentMetadataModel, fileCount: number): Record<string, string> {
+  return uploadFields(fileCount > 1 ? { ...meta, title: '' } : meta);
+}
+
+/** What the modal says after an upload in which some files were refused: the message alone for one file, else one line per file. */
+export function failureText(failures: Array<{ name: string; message: string }>, fileCount: number): string {
+  if (fileCount <= 1) return failures.map((f) => f.message).join(' ');
+  return failures.map((f) => `${f.name}: ${f.message}`).join('\n');
+}
+
 /** The body of `PUT /document/:documentid`: null clears the title (the name shows) and the attribution. */
 export function updateBody(meta: DocumentMetadataModel): { documenttitle: string | null; documentlicence: string; documentattribution: ReturnType<typeof buildAttribution> } {
   const title = meta.title.trim();

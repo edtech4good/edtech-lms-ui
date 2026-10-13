@@ -1,8 +1,9 @@
-import { HttpClient, HttpContext, HttpRequest } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpErrorResponse, HttpRequest, HttpResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
+import { filter, lastValueFrom } from 'rxjs';
 import { FIELD_ERRORS_INLINE } from 'src/app/interceptors/error-context';
 import { IPaging } from 'src/app/models/IPaging';
-import { updateBody } from 'src/app/models/media-library';
+import { refusalMessage, updateBody, uploadFieldsFor } from 'src/app/models/media-library';
 import type { DocumentMetadataModel } from 'src/app/models/media-library';
 import { CoreService } from 'src/app/services/core.service';
 
@@ -45,6 +46,28 @@ export class DocumentService {
       context: new HttpContext().set(FIELD_ERRORS_INLINE, true),
     });
     return this.http.request(req);
+  }
+
+  /**
+   * Upload files one request at a time, in order (the API takes one file per request), each with the form's licence and
+   * attribution, and the title only when there is one file. A refused file does not stop the others; each result says
+   * what the server answered for that file.
+   */
+  async uploadEach(files: File[], meta: DocumentMetadataModel): Promise<Array<{ file: File; error?: string }>> {
+    const results: Array<{ file: File; error?: string }> = [];
+    for (const file of files) {
+      const formData = new FormData();
+      // the optional details first, then the file
+      Object.entries(uploadFieldsFor(meta, files.length)).forEach(([key, value]) => formData.append(key, value));
+      formData.append('files[]', file);
+      try {
+        await lastValueFrom(this.upload(formData).pipe(filter((e) => e instanceof HttpResponse)));
+        results.push({ file });
+      } catch (error) {
+        results.push({ file, error: refusalMessage(error as HttpErrorResponse) });
+      }
+    }
+    return results;
   }
 
   /** Title, licence and attribution of a document the caller owns. Never the file, its key or its type. */

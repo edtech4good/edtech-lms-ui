@@ -30,3 +30,14 @@ export function shouldNotifyPlatformReturn(
   if (expectedSwitch !== undefined) return false;
   return before.organisationid !== null && after.organisationid === null && after.isplatform;
 }
+
+/** What the API says when content is created with no organisation chosen (central's own sentence, shown before it is asked). */
+export const CHOOSE_ORGANISATION_NOTICE = 'Choose an organisation to act in before you create content. Use the organisation switcher, then try again.';
+
+/**
+ * Is this the platform view, with no organisation chosen? Every create of content is refused there, before anything
+ * else is looked at, so the controls that create content say so up front.
+ */
+export function needsOrganisation(claims: { isplatform: boolean; organisationid: string | null }): boolean {
+  return claims.isplatform && claims.organisationid === null;
+}

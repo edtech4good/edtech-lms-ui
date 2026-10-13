@@ -15,6 +15,8 @@ export class DocumentMetadataFieldsComponent {
   @Input({ required: true }) model!: DocumentMetadataModel;
   /** Attribution behind an expander instead of beside the title and licence. */
   @Input() compact = false;
+  /** Several files are being uploaded: one title cannot name them all. */
+  @Input() titleLocked = false;
   /** Makes the element ids unique when two forms are on one page. */
   @Input() idPrefix = 'document';
 

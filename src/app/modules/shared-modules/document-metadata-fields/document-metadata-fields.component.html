@@ -1,12 +1,13 @@
 <form nz-form nzLayout="vertical">
   <nz-form-item>
     <nz-form-label [nzFor]="idPrefix + '-title'">Title (optional)</nz-form-label>
-    <nz-form-control nzExtra="Shown wherever this file is listed. Left empty, the file name is used.">
+    <nz-form-control [nzExtra]="titleLocked ? 'With several files, each file name is its title.' : 'Shown wherever this file is listed. Left empty, the file name is used.'">
       <input
         nz-input
         [id]="idPrefix + '-title'"
         name="title"
         [(ngModel)]="model.title"
+        [disabled]="titleLocked"
         placeholder="Title"
       />
     </nz-form-control>

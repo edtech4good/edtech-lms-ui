@@ -10,6 +10,7 @@ import {
   attributionFields,
   buildAttribution,
   documentLabel,
+  failureText,
   documentTypeFilterValue,
   emptyMetadata,
   licenceLabel,
@@ -19,7 +20,9 @@ import {
   titleFromFileName,
   updateBody,
   uploadFields,
+  uploadFieldsFor,
 } from '../../src/app/models/media-library';
+import { CHOOSE_ORGANISATION_NOTICE, needsOrganisation } from '../../src/app/modules/shell/org-context';
 
 /**
  * The media library's plain logic (src/app/models/media-library.ts), in Node: the licence list, the title a file
@@ -202,4 +205,25 @@ test.describe('question pickers: title shown, file name stored', () => {
       expect(html, 'a picker still prints the file name').not.toMatch(/\{\{\s*o\.documentname\s*\}\}/);
     });
   }
+});
+
+test.describe('several files and the platform view', () => {
+  test('with more than one file no title is sent (each file\'s name is its title); with one it is', () => {
+    const meta = { ...emptyMetadata(), title: 'T', licence: 'CC0-1.0' };
+    expect(uploadFieldsFor(meta, 1)).toEqual({ documenttitle: 'T', documentlicence: 'CC0-1.0' });
+    expect(uploadFieldsFor(meta, 2)).toEqual({ documentlicence: 'CC0-1.0' });
+  });
+
+  test('the failure text is the message alone for one file, a line per file for several', () => {
+    expect(failureText([{ name: 'a.png', message: 'No.' }], 1)).toBe('No.');
+    expect(failureText([{ name: 'a.png', message: 'No.' }, { name: 'b.png', message: 'Nope.' }], 3)).toBe('a.png: No.\nb.png: Nope.');
+  });
+
+  test('only a platform account with no organisation chosen must choose one before creating content', () => {
+    expect(needsOrganisation({ isplatform: true, organisationid: null })).toBe(true);
+    expect(needsOrganisation({ isplatform: true, organisationid: 'a0000000-0000-4000-8000-000000000001' })).toBe(false);
+    expect(needsOrganisation({ isplatform: false, organisationid: 'a0000000-0000-4000-8000-000000000001' })).toBe(false);
+    expect(needsOrganisation({ isplatform: false, organisationid: null })).toBe(false);
+    expect(CHOOSE_ORGANISATION_NOTICE).toBe('Choose an organisation to act in before you create content. Use the organisation switcher, then try again.');
+  });
 });

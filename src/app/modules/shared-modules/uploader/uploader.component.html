@@ -1,6 +1,12 @@
-<button nz-button nzSize="small" nzType="link" (click)="showuploadDocument()">
-  Upload
-</button>
+<span
+  nz-tooltip
+  [nzTooltipTitle]="uploadBlocked() ? chooseOrganisationNotice : null"
+  class="upload-action"
+>
+  <button nz-button nzSize="small" nzType="link" [disabled]="uploadBlocked()" (click)="showuploadDocument()">
+    Upload
+  </button>
+</span>
 <nz-modal
   [nzWidth]="'calc(73vw)'"
   [nzBodyStyle]="{ minheight: '300px' }"
@@ -20,26 +26,28 @@
         nzType="error"
         [nzMessage]="refusal"
         nzShowIcon
-        style="margin-bottom: 12px"
+        style="margin-bottom: 12px; white-space: pre-line"
       ></nz-alert>
       <nz-upload
         [(nzFileList)]="fileList"
         [nzBeforeUpload]="beforeUpload"
         nzType="drag"
-        [nzMultiple]="false"
+        [nzMultiple]="true"
       >
         <p class="ant-upload-drag-icon">
           <i nz-icon nzType="inbox"></i>
         </p>
         <p class="ant-upload-text">Click or drag file to this area to upload</p>
         <p class="ant-upload-hint">
-          Any file name works. The title is optional. Strictly prohibit from
-          uploading company data or other band files
+          Choose one or more files; each is uploaded on its own. Any file name
+          works. The title is optional. Strictly prohibit from uploading
+          company data or other band files
         </p>
       </nz-upload>
       <app-document-metadata-fields
         style="display: block; margin-top: 16px"
         [model]="meta"
+        [titleLocked]="titleLocked"
         [compact]="true"
         idPrefix="uploader"
       ></app-document-metadata-fields>
