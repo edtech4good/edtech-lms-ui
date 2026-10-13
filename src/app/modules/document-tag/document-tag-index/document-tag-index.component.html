@@ -5,6 +5,7 @@
       nzTitle="Document Tags"
       [nzExtra]="extraTemplate"
     >
+      <app-owner-filter [value]="organisationFilter" (changed)="onOwnerFilter($event)"></app-owner-filter>
       <nz-table
         nzShowSizeChanger
         [nzLoading]="dataloading"
@@ -33,12 +34,14 @@
                 <i nz-icon nzType="search"></i>
               </nz-filter-trigger>
             </th>
+            <th *ngIf="owner.active()" nzColumnKey="">Organisation</th>
             <th nzColumnKey="">Tools</th>
           </tr>
         </thead>
         <tbody>
           <tr *ngFor="let data of data">
             <td>{{ data.documenttagname }}</td>
+            <td *ngIf="owner.active()"><app-owner-name [id]="data.organisationid"></app-owner-name></td>
             <td>
               <a
                 nz-button
@@ -66,10 +69,7 @@
       </nz-table>
     </nz-card>
     <ng-template #extraTemplate>
-      <a nz-button routerLink="/documenttag/create"
-      nzType="primary"
-      *ngxPermissionsOnly="['create_documenttag']"
-      >Create</a>
+      <app-create-action link="/documenttag/create" *ngxPermissionsOnly="['create_documenttag']"></app-create-action>
     </ng-template>
     <nz-dropdown-menu #menu="nzDropdownMenu">
       <div class="ant-table-filter-dropdown">

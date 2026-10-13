@@ -1,6 +1,7 @@
 <div nz-row>
   <div nz-col nzSpan="24">
     <nz-card [nzBordered]="true" nzTitle="Lesson" [nzExtra]="extraTemplate">
+      <app-owner-filter [value]="organisationId" (changed)="onOwnerFilter($event)"></app-owner-filter>
       <nz-table
         nzShowSizeChanger
         [nzLoading]="dataloading"
@@ -14,6 +15,7 @@
         <thead>
           <tr>
             <th>Lesson Name</th>
+            <th *ngIf="owner.active()">Organisation</th>
             <th
               *ngFor="let column of listOfColumns"
               [nzShowFilter]="true"
@@ -38,7 +40,7 @@
         </thead>
         <tbody>
           <ng-container *ngFor="let rowdata of data">
-            <tr *ngIf="rowdata.visible">
+            <tr *ngIf="rowdata.visible && ownerMatches(rowdata)">
               <td>
                 <span
                   [style.text-decoration]="
@@ -47,6 +49,7 @@
                   >{{ rowdata.lessonname }}</span
                 >
               </td>
+              <td *ngIf="owner.active()"><app-owner-name [id]="ownerOf(rowdata)"></app-owner-name></td>
 
               <td>{{ rowdata.curriculumname }}</td>
               <td>{{ rowdata.gradename }}</td>
@@ -129,16 +132,7 @@
       </nz-table>
     </nz-card>
     <ng-template #extraTemplate>
-      <a
-        nz-button
-        routerLink="/lesson/create"
-        nzType="primary"
-        style="margin-right: 10px;"
-        (click)="storeData()"
-        *ngxPermissionsOnly="['create_lesson']"
-      >
-        Create
-      </a>
+      <app-create-action link="/lesson/create" (activated)="storeData()" *ngxPermissionsOnly="['create_lesson']"></app-create-action>
       <button
         nz-button
         nzType="primary"

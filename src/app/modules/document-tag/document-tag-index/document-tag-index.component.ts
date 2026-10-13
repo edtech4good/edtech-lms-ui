@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
 import { NgxPermissionsService } from 'ngx-permissions';
@@ -7,6 +7,8 @@ import { IFilter, IPaging } from 'src/app/models/IPaging';
 import { AuthService } from 'src/app/services/auth.service';
 import { DocumentTagService } from 'src/app/services/document-tag.service';
 import { getappLoading } from 'src/app/store/appstate/appstate.selector';
+import { organisationOf, withOrganisationFilter } from 'src/app/shared/owner/owner-view';
+import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
 
 @Component({
     selector: 'app-document-tag-index',
@@ -15,6 +17,19 @@ import { getappLoading } from 'src/app/store/appstate/appstate.selector';
     standalone: false
 })
 export class DocumentTagIndexComponent {
+  readonly owner = inject(OwnerViewService);
+  /** The organisation the platform view is narrowed to (null: all). */
+  get organisationFilter(): string | null {
+    return organisationOf(this.filter);
+  }
+  async onOwnerFilter(organisationid: string | null) {
+    await this.loadDataFromServer({
+      filter: withOrganisationFilter(this.filter, organisationid),
+      pageindex: 1,
+      pagesize: this.pageSize,
+    });
+  }
+
   dataloading = false;
   searchValue = '';
   total = 1;

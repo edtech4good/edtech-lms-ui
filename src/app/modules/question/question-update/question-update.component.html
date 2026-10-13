@@ -1,5 +1,5 @@
 <form nzLayout="vertical" nz-form [formGroup]="questionForm">
-  <nz-card [nzBordered]="true" nzTitle="Question" [nzExtra]="extraTemplate" [nzLoading]="dataloading">
+  <nz-card [nzBordered]="true" [nzTitle]="titleTpl" [nzExtra]="extraTemplate" [nzLoading]="dataloading">
     <div nz-row [nzGutter]="16" style="margin-bottom: 20px">
       <div nz-col nzSpan="12">
         <nz-card [nzBordered]="true">
@@ -196,3 +196,4 @@
 <ng-template #extraTemplate>
   <app-uploader></app-uploader>
 </ng-template>
+<ng-template #titleTpl>Question <app-owned-by [id]="question?.organisationid"></app-owned-by></ng-template>

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
 import { catchError, first, map } from 'rxjs/operators';
@@ -7,6 +7,8 @@ import { StandardService } from 'src/app/services/standard.service';
 import { SchoolService } from '../../../services/school.service';
 import { IMultiFilter, IMultiPaging } from '../../../models/IPaging';
 import { object, x } from 'joi';
+import { organisationOf, withOrganisationFilter } from 'src/app/shared/owner/owner-view';
+import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
 
 @Component({
     selector: 'app-standard-index',
@@ -15,6 +17,19 @@ import { object, x } from 'joi';
     standalone: false
 })
 export class StandardIndexComponent implements OnInit {
+  readonly owner = inject(OwnerViewService);
+  /** The organisation the platform view is narrowed to (null: all). */
+  get organisationFilter(): string | null {
+    return organisationOf(this.filter);
+  }
+  async onOwnerFilter(organisationid: string | null) {
+    await this.loadDataFromServer({
+      filter: withOrganisationFilter(this.filter, organisationid),
+      pageindex: 1,
+      pagesize: this.pageSize,
+    });
+  }
+
   dataloading = false;
   searchValue = '';
   filterSchool?: [];

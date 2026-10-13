@@ -1,6 +1,7 @@
 <div nz-row >
   <div nz-col nzSpan="24" >
     <nz-card [nzBordered]="true" nzTitle="Questions" [nzExtra]="extraTemplate">
+      <app-owner-filter [value]="organisationFilter" (changed)="onOwnerFilter($event)"></app-owner-filter>
       <nz-table
         nzShowSizeChanger
         [nzLoading]="dataloading"
@@ -30,6 +31,7 @@
                 <i nz-icon nzType="search"></i>
               </nz-filter-trigger>
             </th>
+            <th *ngIf="owner.active()" nzColumnKey="">Organisation</th>
 
             <th nzColumnKey="questiontypename" nzCustomFilter>
               Template Type
@@ -103,6 +105,7 @@
                   </button>
                 </ng-template>
               </td>
+              <td *ngIf="owner.active()"><app-owner-name [id]="data.organisationid"></app-owner-name></td>
 
               <td>{{ data.templatename }}</td>
               <td>
@@ -187,7 +190,7 @@
       </nz-table>
     </nz-card>
     <ng-template #extraTemplate>
-      <a nz-button class="button" (click)="storeData()" routerLink="/question/create" nzType="primary" *ngxPermissionsOnly="['create_question']">Create</a>
+      <app-create-action link="/question/create" (activated)="storeData()" *ngxPermissionsOnly="['create_question']"></app-create-action>
       <a nz-button nzType="primary" (click)="clearData()" routerLink="/question/index">Reset Filter</a>
     </ng-template>
     <nz-dropdown-menu #questionidentifierMenu="nzDropdownMenu">

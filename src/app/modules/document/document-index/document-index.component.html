@@ -1,6 +1,7 @@
 <div nz-row>
   <div nz-col nzSpan="24">
     <nz-card [nzBordered]="true" nzTitle="Documents" [nzExtra]="extraTemplate">
+      <app-owner-filter [value]="organisationFilter" (changed)="onOwnerFilter($event)"></app-owner-filter>
       <nz-table
         nzShowSizeChanger
         [nzLoading]="dataloading"
@@ -28,6 +29,7 @@
                 <i nz-icon nzType="search"></i>
               </nz-filter-trigger>
             </th>
+            <th *ngIf="owner.active()" nzColumnKey="">Organisation</th>
 
             <th nzColumnKey="documenttypename" nzCustomFilter>
               Document Type
@@ -80,6 +82,7 @@
                 {{ data | documentLabel }}
               </a>
             </td>
+            <td *ngIf="owner.active()"><app-owner-name [id]="data.organisationid"></app-owner-name></td>
             <td>{{ data.documenttypename }}</td>
             <td>
               <span
@@ -253,6 +256,7 @@
   [nzOkLoading]="saving"
 >
   <ng-container *nzModalContent>
+    <app-owned-by [id]="editing?.organisationid"></app-owned-by>
     <nz-alert
       *ngIf="editRefusal"
       class="edit-refusal"
@@ -275,6 +279,7 @@
   [nzFooter]="galleryFooter"
 >
   <ng-container *nzModalContent>
+    <app-owned-by [id]="currectdocument?.organisationid"></app-owned-by>
     <img
       *ngIf="currectdocument.documenttypename === 'IMAGE'"
       [src]="currectdocument.filepath"

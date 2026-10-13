@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FeedbackService } from '../../../services/feedback.service';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { IFilter, IMultiFilter, IMultiPaging, IPaging } from 'src/app/models/IPaging';
@@ -8,6 +8,8 @@ import { BehaviorSubject, Observable, of } from 'rxjs';
 import { CountryService } from 'src/app/services/country.service';
 import { SchoolService } from 'src/app/services/school.service';
 import { teacherfeedback } from '../../report/models/Search.interface';
+import { ORGANISATION_FILTER_KEY } from 'src/app/shared/owner/owner-view';
+import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
 
 @Component({
     selector: 'app-feedback-index',
@@ -16,6 +18,14 @@ import { teacherfeedback } from '../../report/models/Search.interface';
     standalone: false
 })
 export class FeedbackIndexComponent implements OnInit{
+  readonly owner = inject(OwnerViewService);
+  /** The organisation the platform view is narrowed to (null: all); kept apart from the search fields, which rebuild the filter. */
+  organisationId: string | null = null;
+  async onOwnerFilter(organisationid: string | null) {
+    this.organisationId = organisationid;
+    await this.search();
+  }
+
   dataloading = false;
   searchValue = '';
   total = 1;
@@ -247,6 +257,9 @@ export class FeedbackIndexComponent implements OnInit{
     this.filter.push({ key: 'schoolname', value: this.searchFields.schoolname });
     this.filter.push({ key: 'startDate', value: this.searchFields.startDate });
     this.filter.push({ key: 'endDate', value: this.searchFields.endDate });
+    if (this.organisationId) {
+      this.filter.push({ key: ORGANISATION_FILTER_KEY, value: this.organisationId });
+    }
     return {
       pageIndex: params?.pageIndex ?? this.pageIndex,
       pageSize: params?.pageSize ?? this.pageSize,

@@ -1,6 +1,6 @@
 <div nz-row>
     <div nz-col nzSpan="12">
-      <nz-card [nzBordered]="true" nzTitle="School" [nzLoading]="dataloading">
+      <nz-card [nzBordered]="true" [nzTitle]="titleTpl" [nzLoading]="dataloading">
         <form nz-form [formGroup]="editForm">
           <nz-form-item>
             <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="schoolname"
@@ -74,3 +74,4 @@
       </nz-card>
     </div>
   </div>
+<ng-template #titleTpl>School <app-owned-by [id]="school?.organisationid"></app-owned-by></ng-template>

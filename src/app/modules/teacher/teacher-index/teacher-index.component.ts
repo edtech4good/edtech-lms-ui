@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import * as csv from 'csvtojson';
 import { uniq } from 'lodash';
@@ -14,6 +14,9 @@ import { SchoolService } from 'src/app/services/school.service';
 import { TeacherService } from 'src/app/services/teacher.service';
 import { UtilService } from 'src/app/services/util.service';
 import { uploadTeachersValidationSchema } from 'src/app/services/validator.service';
+import { CHOOSE_ORGANISATION_NOTICE, ORGANISATION_FILTER_KEY } from 'src/app/shared/owner/owner-view';
+import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
+
 @Component({
     selector: 'app-teacher-index',
     templateUrl: './teacher-index.component.html',
@@ -21,6 +24,16 @@ import { uploadTeachersValidationSchema } from 'src/app/services/validator.servi
     standalone: false
 })
 export class TeacherIndexComponent implements OnInit {
+  readonly owner = inject(OwnerViewService);
+  readonly chooseOrganisationNotice = CHOOSE_ORGANISATION_NOTICE;
+  /** The organisation the platform view is narrowed to (null: all). */
+  organisationId: string | null = null;
+  async onOwnerFilter(organisationid: string | null) {
+    this.organisationId = organisationid;
+    this.pageIndex = 1;
+    await this.loadDataFromServer();
+  }
+
   school$?: Observable<any>;
   uploadForm!: UntypedFormGroup;
 
@@ -128,7 +141,8 @@ export class TeacherIndexComponent implements OnInit {
                 }
               ]
             ) => ({ key: x[0], value: x[1].value })
-          ),
+          )
+          .concat(this.organisationId ? [{ key: ORGANISATION_FILTER_KEY, value: this.organisationId }] : []),
       })
       .pipe(
         first(),
