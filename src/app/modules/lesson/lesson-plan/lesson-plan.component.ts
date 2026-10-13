@@ -220,6 +220,7 @@ export class LessonPlanComponent implements OnInit {
         this.documentoptionList.push({
           documentid: tempdata.data.documentid,
           documentname: tempdata.data.documentname,
+          documenttitle: tempdata.data.documenttitle,
         });
         const cc = this.createForm.get('documentid');
         cc?.setValue(tempdata.data.documentid);

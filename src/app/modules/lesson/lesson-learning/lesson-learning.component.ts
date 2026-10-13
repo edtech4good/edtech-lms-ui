@@ -13,6 +13,7 @@ import {
 } from 'rxjs/operators';
 import { FileType } from 'src/app/models/enums/filetype.enum';
 import { IPaging } from 'src/app/models/IPaging';
+import { VIDEO_DOCUMENT_TYPE_ID } from 'src/app/models/media-library';
 import { LessonLearningService } from 'src/app/services/lesson.learning.service';
 import { UtilService } from 'src/app/services/util.service';
 import { environment } from 'src/environments/environment';
@@ -137,6 +138,11 @@ export class LessonLearningComponent implements OnInit {
           key: 'documenttags',
           value: filename || '----',
         },
+        // a learning is a video: the picker offers video files only (the API refuses any other)
+        {
+          key: 'documenttypeid',
+          value: String(VIDEO_DOCUMENT_TYPE_ID),
+        },
       ];
       const httpobject = this.documentService.getall(temp).pipe(
         catchError(async () => ({ data: { data: [] } })),
@@ -218,6 +224,7 @@ export class LessonLearningComponent implements OnInit {
         this.documentoptionList.push({
           documentid: tempdata.data.documentid,
           documentname: tempdata.data.documentname,
+          documenttitle: tempdata.data.documenttitle,
         });
         const cc = this.createForm.get('documentid');
         cc?.setValue(tempdata.data.documentid);
