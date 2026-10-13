@@ -71,6 +71,14 @@ export function titleFromFileName(fileName: string): string {
 }
 
 /**
+ * The title field after a file is chosen: the file's name without its extension, unless the person has typed their
+ * own title (anything other than empty or the title this function filled in last time).
+ */
+export function nextTitle(current: string, lastPrefill: string, fileName: string): string {
+  return current.length === 0 || current === lastPrefill ? titleFromFileName(fileName) : current;
+}
+
+/**
  * The attribution as the API stores it: `{ v: 1, author?, sourceurl?, adaptedfrom? }`, empty keys left out, or null
  * when nothing was typed. (The API trims too, and decides what is valid; this does not repeat its rules.)
  */

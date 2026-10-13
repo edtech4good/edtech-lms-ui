@@ -14,6 +14,14 @@
 >
   <ng-container *nzModalContent>
     <nz-spin [nzSpinning]="uploading">
+      <nz-alert
+        *ngIf="refusal"
+        class="upload-refusal"
+        nzType="error"
+        [nzMessage]="refusal"
+        nzShowIcon
+        style="margin-bottom: 12px"
+      ></nz-alert>
       <nz-upload
         [(nzFileList)]="fileList"
         [nzBeforeUpload]="beforeUpload"
@@ -25,10 +33,16 @@
         </p>
         <p class="ant-upload-text">Click or drag file to this area to upload</p>
         <p class="ant-upload-hint">
-          Support for a single or bulk upload. Strictly prohibit from uploading
-          company data or other band files
+          Any file name works. The title is optional. Strictly prohibit from
+          uploading company data or other band files
         </p>
       </nz-upload>
+      <app-document-metadata-fields
+        style="display: block; margin-top: 16px"
+        [model]="meta"
+        [compact]="true"
+        idPrefix="uploader"
+      ></app-document-metadata-fields>
     </nz-spin>
   </ng-container>
 </nz-modal>
