@@ -1,18 +1,18 @@
 import { HttpContextToken } from '@angular/common/http';
 
 /**
- * Set on a request whose caller shows a 400's field errors beside the fields
- * (organisation create and update). The error interceptor then does not also
- * toast the 400: a validation failure is never a toast.
- */
-/**
  * Set on a request whose caller shows EVERY failure itself (a batch upload names each refused file, a network error or
  * a server error included). The error interceptor then shows no notice at all for it, so a failure is one message,
- * never two. (Unlike the tokens above it also covers 429, 500 and an unreachable server; it never touches the
+ * never two. (Unlike the other tokens here it also covers 429, 500 and an unreachable server; it never touches the
  * redirect on 401 or the blocked page.)
  */
 export const FAILURES_SHOWN_BY_CALLER = new HttpContextToken<boolean>(() => false);
 
+/**
+ * Set on a request whose caller shows a 400's field errors beside the fields
+ * (organisation create and update). The error interceptor then does not also
+ * toast the 400: a validation failure is never a toast.
+ */
 export const FIELD_ERRORS_INLINE = new HttpContextToken<boolean>(() => false);
 
 /**
