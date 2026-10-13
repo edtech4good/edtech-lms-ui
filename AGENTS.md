@@ -27,7 +27,8 @@ before changing anything.
 - In the platform view (a platform account acting in no organisation) every owned list shows an
   "Organisation" column after the row's name and a filter above the list; a record opened from a list
   says "Owned by <organisation>"; create and upload controls are disabled with the hint. None of it shows
-  when acting in an organisation. The pieces are in `src/app/shared/owner`: a new owned list uses
+  when acting in an organisation. Staff Create stays live in the platform view: that form names the
+  organisation of the account it makes. The pieces are in `src/app/shared/owner`: a new owned list uses
   `app-owner-filter`, `app-owner-name` and `app-create-action` rather than its own copy.
 - The API answers a row the caller may not see exactly as a missing row (404),
   and lists leave it out. Screens must not assume a 404 means a bug.

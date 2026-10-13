@@ -372,4 +372,39 @@ test.describe('acting in an organisation', () => {
     await expect(header(page)).toHaveCount(1);
     await expect(rowOf(page, TAG_B).getByTestId('owner-name')).toHaveText(orgB.name);
   });
+
+  test('the lesson list kept from the platform view is not shown after a switch: only the organisation chosen\'s lessons', async () => {
+    // The platform view's lesson list is kept in the tab when a lesson is opened from it.
+    await page.goto('/lesson/index');
+    const rows = async () =>
+      page.locator('tbody tr.ant-table-row').evaluateAll((trs) =>
+        trs.map((tr) => ({
+          name: (tr.querySelector('td')?.textContent ?? '').trim(),
+          owner: (tr.querySelector('[data-testid="owner-name"]')?.textContent ?? '').trim(),
+        })),
+      );
+    await expect.poll(async () => new Set((await rows()).map((r) => r.owner)).size, { message: 'two organisations own lessons (seed:demo and seed:dcrs)' }).toBeGreaterThanOrEqual(2);
+    const all = await rows();
+    const [chosen, other] = [...new Set(all.map((r) => r.owner))];
+    await page.locator('tbody tr.ant-table-row').first().locator('a').filter({ hasText: /^Edit$/ }).click();
+    await expect(page).toHaveURL(/lesson\/update\//);
+    await page.goto('/lesson/index');
+    // (Kept: the list comes back from the tab, not from the API.)
+    expect(await page.evaluate(() => sessionStorage.getItem('lessonData')), 'the platform view\'s lessons were kept').toBeTruthy();
+
+    await chip(page).click();
+    await menu(page).getByRole('menuitemradio', { name: new RegExp(`^${escapeRe(chosen)}`) }).click();
+    await expect(chip(page)).toHaveAccessibleName(new RegExp(`^Organisation: ${escapeRe(chosen)}`));
+    expect(await page.evaluate(() => sessionStorage.getItem('lessonData')), 'the kept list was dropped with the switch').toBeNull();
+    await page.goto('/lesson/index');
+    await expect(header(page)).toHaveCount(0);
+    const mine = all.filter((r) => r.owner === chosen).map((r) => r.name).sort();
+    await expect.poll(async () => (await rows()).map((r) => r.name).sort(), { message: `only ${chosen}'s lessons, none kept from the platform view` }).toEqual(mine);
+    const theirs = all.filter((r) => r.owner === other).map((r) => r.name);
+    for (const name of theirs) await expect(page.locator('tbody tr.ant-table-row').filter({ hasText: name })).toHaveCount(0);
+
+    await chip(page).click();
+    await menu(page).getByRole('menuitemradio', { name: 'All organisations' }).click();
+    await expect(chip(page)).toHaveAccessibleName(/^Organisation: All organisations, Platform view/);
+  });
 });

@@ -6,7 +6,7 @@ import { Store } from '@ngrx/store';
 import { differenceInMilliseconds } from 'date-fns';
 import { NgxPermissionsService } from 'ngx-permissions';
 import { Observable, firstValueFrom } from 'rxjs';
-import { first } from 'rxjs/operators';
+import { first, tap } from 'rxjs/operators';
 import { FIELD_ERRORS_INLINE } from '../interceptors/error-context';
 import { ResetPasswordBody } from '../models/changepassword';
 import { lmsuser } from '../models/lmsuser.model';
@@ -17,6 +17,7 @@ import {
 } from '../store/lmsuser/lmsuser.action';
 import { lmsuserstate } from '../store/lmsuser/lmsuser.reducer';
 import { CoreService } from './core.service';
+import { clearListCaches } from './list-cache';
 import { TokenService } from './token.service';
 
 @Injectable({
@@ -129,6 +130,7 @@ export class AuthService {
 
   logout(): void {
     this.serverlogout().pipe(first()).subscribe();
+    clearListCaches();
     this.userstore.dispatch(clearuserAction());
     clearTimeout(this.tokenTimer);
     this.tokenService.logout();
@@ -137,13 +139,16 @@ export class AuthService {
   }
   // login api call
   login(credentials: LoginRequestBody): Observable<any> {
-    return this.http.post(
-      `${this.coreService.CORE_API()}auth/login`,
-      {
-        ...credentials,
-      },
-      this.coreService.jsonhttpOptions
-    );
+    return this.http
+      .post(
+        `${this.coreService.CORE_API()}auth/login`,
+        {
+          ...credentials,
+        },
+        this.coreService.jsonhttpOptions
+      )
+      // A new session starts with no list kept from an earlier one (another account, another organisation).
+      .pipe(tap(() => clearListCaches()));
   }
 
   /**
