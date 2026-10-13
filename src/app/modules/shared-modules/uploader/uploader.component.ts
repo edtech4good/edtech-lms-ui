@@ -45,7 +45,8 @@ export class UploaderComponent {
   }
 
   beforeUpload = (file: NzUploadFile): boolean => {
-    this.fileList = this.fileList.concat(file);
+    // the API takes one file: a file chosen after another replaces it
+    this.fileList = [file];
     this.refusal = '';
     this.meta.title = nextTitle(this.meta.title, this.lastPrefill, file.name);
     this.lastPrefill = titleFromFileName(file.name);
