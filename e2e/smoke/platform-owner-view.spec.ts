@@ -223,6 +223,36 @@ test.describe('the platform view, signed in as the platform superadmin and actin
     });
   }
 
+  // The lists the seeds fill for two organisations: choosing one organisation leaves only its rows, "All" brings the other back.
+  for (const path of [
+    'curriculum/index',
+    'subject/index',
+    'question/index',
+    'school/index',
+    'standard/index',
+    'grade/index',
+    'level/index',
+    'lesson/index',
+    'student/index',
+    'teacher/index',
+    'feedback/index',
+    'baseline-curriculum/index',
+  ]) {
+    test(`${path}: the filter leaves only the rows of the organisation chosen`, async () => {
+      await page.goto(`/${path}`);
+      const owners = () => page.getByTestId('owner-name').allInnerTexts();
+      await expect.poll(async () => new Set(await owners()).size, { message: `${path}: two organisations own rows (seed:demo and seed:dcrs)` }).toBeGreaterThanOrEqual(2);
+      const before = await owners();
+      const [chosen, other] = [...new Set(before)];
+      await chooseOwner(page, chosen);
+      await expect.poll(async () => [...new Set(await owners())], { message: `${path}: only ${chosen} is left` }).toEqual([chosen]);
+      const after = await owners();
+      expect(after.length, 'rows of the other organisation are gone').toBeLessThan(before.length);
+      await chooseOwner(page, 'All organisations');
+      await expect.poll(async () => (await owners()).includes(other), { message: `${path}: All brings ${other} back` }).toBe(true);
+    });
+  }
+
   test('the documents list names the owner of each document, and the filter narrows it to the organisation chosen', async () => {
     const api = await apiContext(await tokenOf(page));
     const names = await organisationNames(api);
