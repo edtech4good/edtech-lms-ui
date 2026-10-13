@@ -1,0 +1,260 @@
+import { expect, test } from '@playwright/test';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { FileType } from '../../src/app/models/enums/filetype.enum';
+import {
+  DEFAULT_DOCUMENT_LICENCE,
+  DOCUMENT_LICENCES,
+  LICENCE_OPTIONS,
+  VIDEO_DOCUMENT_TYPE_ID,
+  attributionFields,
+  buildAttribution,
+  documentLabel,
+  escapeHtml,
+  documentTypeFilterValue,
+  emptyMetadata,
+  licenceLabel,
+  licenceToSend,
+  refusalLine,
+  refusalNotices,
+  refusalMessage,
+  titleFromFileName,
+  updateBody,
+  uploadFields,
+  uploadFieldsForFile,
+} from '../../src/app/models/media-library';
+import { CHOOSE_ORGANISATION_NOTICE, needsOrganisation } from '../../src/app/modules/shell/org-context';
+
+/**
+ * The media library's plain logic (src/app/models/media-library.ts), in Node: the licence list, the title a file
+ * gets, what an upload sends, the label a document shows, the type filter's id. No browser, no API.
+ */
+
+// The same 21 ids as central's DOCUMENT_LICENCES (src/constants/media-library.ts), written out here so a one-sided
+// change to the list is red in this repository.
+const CENTRAL_LICENCES = [
+  'CC0-1.0',
+  'CC-BY-4.0', 'CC-BY-3.0', 'CC-BY-2.0',
+  'CC-BY-SA-4.0', 'CC-BY-SA-3.0', 'CC-BY-SA-2.0',
+  'CC-BY-NC-4.0', 'CC-BY-NC-3.0', 'CC-BY-NC-2.0',
+  'CC-BY-NC-SA-4.0', 'CC-BY-NC-SA-3.0', 'CC-BY-NC-SA-2.0',
+  'CC-BY-ND-4.0', 'CC-BY-ND-3.0', 'CC-BY-ND-2.0',
+  'CC-BY-NC-ND-4.0', 'CC-BY-NC-ND-3.0', 'CC-BY-NC-ND-2.0',
+  'LicenseRef-all-rights-reserved',
+  'unspecified',
+];
+
+const KHMER = 'ភ្នំពេញ';
+
+test.describe('licences', () => {
+  test('the list is central\'s 21 ids, in order, ending with the default', () => {
+    expect(DOCUMENT_LICENCES).toEqual(CENTRAL_LICENCES);
+    expect(DOCUMENT_LICENCES).toHaveLength(21);
+    expect(DEFAULT_DOCUMENT_LICENCE).toBe('unspecified');
+    expect(DOCUMENT_LICENCES[DOCUMENT_LICENCES.length - 1]).toBe(DEFAULT_DOCUMENT_LICENCE);
+  });
+
+  test('every id has one distinct label, and the select\'s values are the ids', () => {
+    expect(LICENCE_OPTIONS.map((o) => o.value)).toEqual(CENTRAL_LICENCES);
+    const labels = LICENCE_OPTIONS.map((o) => o.label);
+    expect(new Set(labels).size).toBe(21);
+    expect(licenceLabel('CC-BY-SA-4.0')).toBe('CC BY-SA 4.0');
+    expect(licenceLabel('CC-BY-NC-ND-2.0')).toBe('CC BY-NC-ND 2.0');
+    expect(licenceLabel('CC-BY-3.0')).toBe('CC BY 3.0');
+    expect(licenceLabel('CC0-1.0')).toBe('CC0 1.0 (public domain)');
+    expect(licenceLabel('LicenseRef-all-rights-reserved')).toBe('All rights reserved');
+    expect(licenceLabel('unspecified')).toBe('Not recorded');
+  });
+
+  test('a cleared licence is sent as the default, a chosen one as its id', () => {
+    expect(licenceToSend(null)).toBe('unspecified');
+    expect(licenceToSend('')).toBe('unspecified');
+    expect(licenceToSend('  ')).toBe('unspecified');
+    expect(licenceToSend('CC0-1.0')).toBe('CC0-1.0');
+  });
+});
+
+test.describe('the title a file gets', () => {
+  test('is its name without the last extension, and nothing else is touched', () => {
+    expect(titleFromFileName('ភ្នំពេញ.png')).toBe(KHMER);
+    expect(titleFromFileName('Lesson 1. Counting.mp4')).toBe('Lesson 1. Counting');
+    expect(titleFromFileName('archive.tar.gz')).toBe('archive.tar');
+    expect(titleFromFileName('noextension')).toBe('noextension');
+    expect(titleFromFileName('.hidden')).toBe('.hidden');
+    // a File's name never carries a path, so nothing is cut at a slash or a bracket
+    expect(titleFromFileName('<b>bold</b>.exe')).toBe('<b>bold</b>');
+    expect(titleFromFileName('a/b.png')).toBe('a/b');
+    expect(titleFromFileName('scan.PDF')).toBe('scan');
+  });
+});
+
+test.describe('what an upload sends', () => {
+  test('the title, the licence (always) and the attribution as JSON text with empty keys left out', () => {
+    const meta = { ...emptyMetadata(), title: ` ${KHMER} `, licence: 'CC-BY-SA-4.0', author: ' Ana ', sourceurl: '', adaptedfrom: 'Source book' };
+    expect(uploadFields(meta)).toEqual({
+      documenttitle: KHMER,
+      documentlicence: 'CC-BY-SA-4.0',
+      documentattribution: JSON.stringify({ v: 1, author: 'Ana', adaptedfrom: 'Source book' }),
+    });
+  });
+
+  test('nothing typed: no title, no attribution, and the default licence', () => {
+    expect(uploadFields(emptyMetadata())).toEqual({ documentlicence: 'unspecified' });
+    expect(uploadFields({ ...emptyMetadata(), licence: null })).toEqual({ documentlicence: 'unspecified' });
+  });
+
+  test('an attribution is null when every key is empty', () => {
+    expect(buildAttribution({ author: ' ', sourceurl: '', adaptedfrom: '' })).toBeNull();
+    expect(buildAttribution({ sourceurl: 'https://example.org/x' })).toEqual({ v: 1, sourceurl: 'https://example.org/x' });
+  });
+
+  test('the edit body clears the title and the attribution with null, and the licence with the default', () => {
+    expect(updateBody({ ...emptyMetadata(), licence: null })).toEqual({
+      documenttitle: null,
+      documentlicence: 'unspecified',
+      documentattribution: null,
+    });
+    expect(updateBody({ ...emptyMetadata(), title: 'T', licence: 'CC0-1.0', author: 'A' })).toEqual({
+      documenttitle: 'T',
+      documentlicence: 'CC0-1.0',
+      documentattribution: { v: 1, author: 'A' },
+    });
+  });
+
+  test('a stored attribution fills the form; anything unreadable is empty', () => {
+    expect(attributionFields({ v: 1, author: 'A', sourceurl: 'https://example.org', adaptedfrom: 'B' })).toEqual({
+      author: 'A',
+      sourceurl: 'https://example.org',
+      adaptedfrom: 'B',
+    });
+    expect(attributionFields(null)).toEqual({ author: '', sourceurl: '', adaptedfrom: '' });
+    expect(attributionFields('x')).toEqual({ author: '', sourceurl: '', adaptedfrom: '' });
+  });
+});
+
+test.describe('labels and filters', () => {
+  test('a document is called its title, else its name', () => {
+    expect(documentLabel({ documenttitle: KHMER, documentname: 'abc.png' })).toBe(KHMER);
+    expect(documentLabel({ documenttitle: null, documentname: 'abc.png' })).toBe('abc.png');
+    expect(documentLabel({ documentname: 'abc.png' })).toBe('abc.png');
+    expect(documentLabel({ documenttitle: '   ', documentname: 'abc.png' })).toBe('abc.png');
+    expect(documentLabel(null)).toBe('');
+  });
+
+  test('the file types 8 to 10 are named, and the type filter sends one exact id', () => {
+    expect(FileType.SLIDES).toBe(8);
+    expect(FileType.DOCUMENT).toBe(9);
+    expect(FileType.SPREADSHEET).toBe(10);
+    expect(FileType[8]).toBe('SLIDES');
+    expect(FileType[9]).toBe('DOCUMENT');
+    expect(FileType[10]).toBe('SPREADSHEET');
+    expect(VIDEO_DOCUMENT_TYPE_ID).toBe(FileType.VIDEO);
+    expect(documentTypeFilterValue('spreadsheet', FileType)).toBe('10');
+    expect(documentTypeFilterValue(' Slides ', FileType)).toBe('8');
+    expect(documentTypeFilterValue('AUDIO', FileType)).toBe('1');
+    expect(documentTypeFilterValue('document', FileType)).toBe('9');
+    expect(documentTypeFilterValue('nothing', FileType)).toBeNull();
+    expect(documentTypeFilterValue('', FileType)).toBeNull();
+    // the reverse entries of a numeric enum ('10' -> 'SPREADSHEET') are not names
+    expect(documentTypeFilterValue('10', FileType)).toBeNull();
+  });
+});
+
+test.describe('the refusal an upload shows', () => {
+  test('the field messages if there are any, else the message, else a generic line', () => {
+    expect(refusalMessage({ status: 400, error: { errormessage: "That file can't be used." } })).toBe("That file can't be used.");
+    expect(
+      refusalMessage({
+        status: 400,
+        error: { errormessage: "Some of the information isn't valid.", fields: [{ field: 'documenttitle', message: 'The title can be at most 255 characters.' }] },
+      }),
+    ).toBe('The title can be at most 255 characters.');
+    expect(refusalMessage({ status: 403, error: {} })).toBe("You don't have permission to do that.");
+    expect(refusalMessage(null)).toBe('That did not go through.');
+  });
+});
+
+/**
+ * The five question pickers store the document's FILE NAME in the question's JSON (`questionfile`, `headingfile`, ...),
+ * and every reader finds the file by it. They show the title; they must never store it. This reads the templates:
+ * every option's value is `documentname`, every label and visible text is the title-else-name pipe.
+ * (The question-create picker is also driven in a browser in media-library.spec.ts.)
+ */
+test.describe('question pickers: title shown, file name stored', () => {
+  const root = join(__dirname, '../../src/app/modules/question');
+  const pickers: Array<[string, number]> = [
+    ['question-create/question-create.component.html', 1],
+    ['question-update/question-update.component.html', 2],
+    ['question-heading/question-heading.component.html', 2],
+    ['question-option/question-option.component.html', 4],
+    ['question-associate/question-associate.component.html', 2],
+  ];
+  for (const [file, options] of pickers) {
+    test(file, () => {
+      const html = readFileSync(join(root, file), 'utf8');
+      // the options of the document pickers bind `o` (the other selects in these forms bind `option`)
+      const isPicker = (expr: string) => /^o(\s|\.|$)/.test(expr);
+      const values = [...html.matchAll(/\[nzValue\]="([^"]+)"/g)].map((m) => m[1]).filter(isPicker);
+      const labels = [...html.matchAll(/\[nzLabel\]="([^"]+)"/g)].map((m) => m[1]).filter(isPicker);
+      expect(values).toHaveLength(options);
+      expect(values.every((v) => v === 'o.documentname'), `values: ${values.join(', ')}`).toBeTruthy();
+      expect(labels).toHaveLength(options);
+      expect(labels.every((l) => l === 'o | documentLabel'), `labels: ${labels.join(', ')}`).toBeTruthy();
+      expect(html, 'a picker still prints the file name').not.toMatch(/\{\{\s*o\.documentname\s*\}\}/);
+    });
+  }
+});
+
+test.describe('several files and the platform view', () => {
+  test('each file carries its own title and the batch\'s licence and attribution', () => {
+    const meta = { ...emptyMetadata(), title: 'ignored', licence: 'CC0-1.0', author: 'A' };
+    const attribution = JSON.stringify({ v: 1, author: 'A' });
+    expect(uploadFieldsForFile(meta, 'One')).toEqual({ documenttitle: 'One', documentlicence: 'CC0-1.0', documentattribution: attribution });
+    expect(uploadFieldsForFile(meta, 'Two')).toEqual({ documenttitle: 'Two', documentlicence: 'CC0-1.0', documentattribution: attribution });
+    // a blank title is left out: the API uses the file's name
+    expect(uploadFieldsForFile(meta, '  ')).toEqual({ documentlicence: 'CC0-1.0', documentattribution: attribution });
+  });
+
+  test('a refused file is named in front of the server\'s words; up to three get a notice each, more get one list', () => {
+    expect(refusalLine(KHMER + '.png', 'No.')).toBe(KHMER + '.png: No.');
+    const r = (n: number) => Array.from({ length: n }, (_, i) => ({ name: `f${i}.png`, message: 'No.' }));
+    expect(refusalNotices(r(1))).toEqual(['f0.png: No.']);
+    expect(refusalNotices(r(3))).toHaveLength(3);
+    expect(refusalNotices(r(4))).toEqual(['f0.png: No.<br>f1.png: No.<br>f2.png: No.<br>f3.png: No.']);
+    expect(refusalNotices([])).toEqual([]);
+  });
+
+  test('a file name is text, never markup, in a notice', () => {
+    expect(escapeHtml('<img src=x onerror=alert(1)>&"\'.png')).toBe('&lt;img src=x onerror=alert(1)&gt;&amp;&quot;&#39;.png');
+    expect(refusalNotices([{ name: '<b>x</b>.png', message: 'No.' }])).toEqual(['&lt;b&gt;x&lt;/b&gt;.png: No.']);
+  });
+
+  test('only a platform account with no organisation chosen must choose one before creating content', () => {
+    expect(needsOrganisation({ isplatform: true, organisationid: null })).toBe(true);
+    expect(needsOrganisation({ isplatform: true, organisationid: 'a0000000-0000-4000-8000-000000000001' })).toBe(false);
+    expect(needsOrganisation({ isplatform: false, organisationid: 'a0000000-0000-4000-8000-000000000001' })).toBe(false);
+    expect(needsOrganisation({ isplatform: false, organisationid: null })).toBe(false);
+    expect(CHOOSE_ORGANISATION_NOTICE).toBe('Choose an organisation to act in before you create content. Use the organisation switcher, then try again.');
+  });
+});
+
+/**
+ * The lesson pages' lists and pickers. A learning or plan stores the document's ID (the select's value is `o.documentid`),
+ * so only the label changes: every list cell and picker option is the title-else-name pipe. (The plan list and picker
+ * are also driven in a browser in media-library.spec.ts.)
+ */
+test.describe('lesson learning and plan: title shown', () => {
+  const root = join(__dirname, '../../src/app/modules/lesson');
+  for (const file of ['lesson-learning/lesson-learning.component.html', 'lesson-plan/lesson-plan.component.html']) {
+    test(file, () => {
+      const html = readFileSync(join(root, file), 'utf8');
+      // two list cells (a gallery button and a download link) and one picker option (label and text)
+      expect([...html.matchAll(/\{\{\s*data \| documentLabel\s*\}\}/g)]).toHaveLength(2);
+      expect([...html.matchAll(/\[nzLabel\]="o \| documentLabel"/g)]).toHaveLength(1);
+      expect([...html.matchAll(/\{\{\s*o \| documentLabel\s*\}\}/g)]).toHaveLength(1);
+      expect(html, 'a list or picker still prints the file name').not.toMatch(/\{\{\s*(data|o)\.documentname\s*\}\}/);
+      expect(html).not.toMatch(/\[nzLabel\]="o\.documentname"/);
+      expect(html).toMatch(/\[nzValue\]="o\.documentid"/);
+    });
+  }
+});

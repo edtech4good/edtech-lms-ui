@@ -131,17 +131,17 @@
                 <ng-container *ngFor="let o of questionupdateoptionList">
                   <nz-option
                     *ngIf="!questionupdateisLoading"
-                    [nzValue]="o"
-                    [nzLabel]="o"
+                    [nzValue]="o.documentname"
+                    [nzLabel]="o | documentLabel"
                   ></nz-option>
                 </ng-container>
                 <nz-option
                   *ngFor="let o of defaultOption"
                   nzCustomContent
-                  [nzLabel]="o.documentname"
+                  [nzLabel]="o | documentLabel"
                   [nzValue]="o.documentname"
                 >
-                  {{ o.documentname }}
+                  {{ o | documentLabel }}
                 </nz-option>
                 <nz-option
                   *ngIf="questionupdateisLoading"

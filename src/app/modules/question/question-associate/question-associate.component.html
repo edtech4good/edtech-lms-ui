@@ -29,10 +29,10 @@
           <nz-option
             nzCustomContent
             *ngIf="!associateisLoading"
-            [nzLabel]="o.documentname"
+            [nzLabel]="o | documentLabel"
             [nzValue]="o.documentname"
           >
-            {{ o.documentname }}<br />
+            {{ o | documentLabel }}<br />
             <ng-container *ngIf="o.documenttags && o.documenttags.length > 0">
               <nz-tag
                 [nzColor]="'cyan'"
@@ -45,10 +45,10 @@
         <nz-option
           *ngFor="let o of defaultOption"
           nzCustomContent
-          [nzLabel]="o.documentname"
+          [nzLabel]="o | documentLabel"
           [nzValue]="o.documentname"
         >
-          {{ o.documentname }}
+          {{ o | documentLabel }}
         </nz-option>
         <nz-option *ngIf="associateisLoading" nzDisabled nzCustomContent>
           <i nz-icon nzType="loading" class="loading-icon"></i>

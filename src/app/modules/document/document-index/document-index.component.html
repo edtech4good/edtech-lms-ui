@@ -63,7 +63,7 @@
                 nzType="link"
                 (click)="openGallery(data)"
               >
-                {{ data.documentname }}
+                {{ data | documentLabel }}
               </button>
 
               <a
@@ -77,7 +77,7 @@
                 "
                 target="blank"
               >
-                {{ data.documentname }}
+                {{ data | documentLabel }}
               </a>
             </td>
             <td>{{ data.documenttypename }}</td>
@@ -95,6 +95,14 @@
               </span>
             </td>
             <td>
+              <a
+                nz-button
+                nzSize="small"
+                style="margin-right: 20px"
+                (click)="openEdit(data)"
+                *ngxPermissionsOnly="['create_document']"
+                >Edit</a
+              >
               <a
                 nz-button
                 nzDanger
@@ -131,10 +139,17 @@
       </nz-table>
     </nz-card>
     <ng-template #extraTemplate>
-      <button nz-button (click)="showuploadDocument()" *ngxPermissionsOnly="['create_document']">
-        <i nz-icon nzType="upload"></i>
-        Upload
-      </button>
+      <span
+        *ngxPermissionsOnly="['create_document']"
+        nz-tooltip
+        [nzTooltipTitle]="uploadBlocked() ? chooseOrganisationNotice : null"
+        class="upload-action"
+      >
+        <button nz-button [disabled]="uploadBlocked()" (click)="showuploadDocument()">
+          <i nz-icon nzType="upload"></i>
+          Upload
+        </button>
+      </span>
     </ng-template>
     <nz-dropdown-menu #documentnameMenu="nzDropdownMenu">
       <div class="ant-table-filter-dropdown">
@@ -223,35 +238,33 @@
   </div>
 </div>
 
+<app-document-upload-modal
+  [(visible)]="showUpload"
+  (uploaded)="uploaded()"
+></app-document-upload-modal>
+
 <nz-modal
-  [nzWidth]="'calc(73vw)'"
-  [nzBodyStyle]="{ minheight: '300px' }"
-  [(nzVisible)]="showUpload"
-  nzTitle="Upload Document"
-  nzOkText="Submit"
+  [nzVisible]="!!editing"
+  nzTitle="Edit Document"
+  nzOkText="Save"
   nzCancelText="Cancel"
-  (nzOnOk)="handleUpload()"
-  (nzOnCancel)="hideuploadDocument()"
-  [nzOkLoading]="uploading"
+  (nzOnOk)="saveEdit()"
+  (nzOnCancel)="closeEdit()"
+  [nzOkLoading]="saving"
 >
   <ng-container *nzModalContent>
-    <nz-spin [nzSpinning]="uploading">
-      <nz-upload
-        [(nzFileList)]="fileList"
-        [nzBeforeUpload]="beforeUpload"
-        nzType="drag"
-        [nzMultiple]="false"
-      >
-        <p class="ant-upload-drag-icon">
-          <i nz-icon nzType="inbox"></i>
-        </p>
-        <p class="ant-upload-text">Click or drag file to this area to upload</p>
-        <p class="ant-upload-hint">
-          Support for a single or bulk upload. Strictly prohibit from uploading
-          company data or other band files
-        </p>
-      </nz-upload>
-    </nz-spin>
+    <nz-alert
+      *ngIf="editRefusal"
+      class="edit-refusal"
+      nzType="error"
+      [nzMessage]="editRefusal"
+      nzShowIcon
+      style="margin-bottom: 12px"
+    ></nz-alert>
+    <app-document-metadata-fields
+      [model]="editMeta"
+      idPrefix="edit"
+    ></app-document-metadata-fields>
   </ng-container>
 </nz-modal>
 

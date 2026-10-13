@@ -26,6 +26,7 @@ import { TokenService } from '../services/token.service';
 import { UtilService } from '../services/util.service';
 import { SHARED_ZORRO_MODULES } from './shared-zorro.module';
 import { LessonPlanService } from '../services/lesson.plan.service';
+import { DocumentLabelPipe } from './document-label.pipe';
 // #region third libs
 
 const THIRDMODULES: any[] = [NgxSpinnerModule];
@@ -66,6 +67,7 @@ const DIRECTIVES: any[] = [];
     // third libs
     ...THIRDMODULES,
     NgxChartsModule,
+    DocumentLabelPipe,
   ],
   declarations: [
     // your components
@@ -86,6 +88,7 @@ const DIRECTIVES: any[] = [];
     ...DIRECTIVES,
     NgxPermissionsModule,
     NgxChartsModule,
+    DocumentLabelPipe,
   ],
   providers: [
     // AuthService,

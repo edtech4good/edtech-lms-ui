@@ -1,20 +1,27 @@
-import { HttpResponse } from '@angular/common/http';
-import { AfterContentInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { AfterContentInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, computed, inject } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { xor } from "lodash";
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
-import { NzUploadFile } from 'ng-zorro-antd/upload';
-import { of } from 'rxjs';
-import { catchError, filter, first, map } from 'rxjs/operators';
+import { first } from 'rxjs/operators';
 import { FileType } from 'src/app/models/enums/filetype.enum';
 import { IFilter, IPaging } from 'src/app/models/IPaging';
+import {
+  attributionFields,
+  DEFAULT_DOCUMENT_LICENCE,
+  DocumentMetadataModel,
+  documentTypeFilterValue,
+  emptyMetadata,
+  refusalMessage,
+} from 'src/app/models/media-library';
 import { DocumentTagService } from 'src/app/services/document-tag.service';
 import { UtilService } from 'src/app/services/util.service';
-import { setloadingAction, unsetloadingAction } from 'src/app/store/appstate/appstate.action';
 import { appState } from 'src/app/store/appstate/appstate.reducer';
+import { OrgContextService } from '../../shell/org-context.service';
+import { CHOOSE_ORGANISATION_NOTICE, needsOrganisation } from '../../shell/org-context';
 import { DocumentService } from '../services/document.service';
 import { environment } from "./../../../../environments/environment";
 @Component({
@@ -41,9 +48,16 @@ export class DocumentIndexComponent implements OnInit, AfterContentInit {
   showdocumentTypeFilter = false;
   showdocumentTagFilter = false;
   showUpload = false;
-  uploading = false;
-  fileList: NzUploadFile[] = [];
   documenttags: Array<any> = [];
+  /** The edit-details form: the document being edited, its fields, and what the server said when it refused. */
+  editing?: any;
+  editMeta: DocumentMetadataModel = emptyMetadata();
+  editRefusal = '';
+  saving = false;
+  private readonly orgContext = inject(OrgContextService);
+  /** The platform view with no organisation chosen: every upload would be refused, so the button says so up front. */
+  readonly uploadBlocked = computed(() => needsOrganisation(this.orgContext.claims()));
+  readonly chooseOrganisationNotice = CHOOSE_ORGANISATION_NOTICE;
 
 
   hideuploadDocument = () => {
@@ -67,10 +81,40 @@ export class DocumentIndexComponent implements OnInit, AfterContentInit {
   };
 
   onClose = () => { }
-  beforeUpload = (file: NzUploadFile): boolean => {
-    this.fileList = this.fileList.concat(file);
-    return false;
-  };
+  openEdit = (document: any) => {
+    this.editing = document;
+    this.editRefusal = '';
+    this.editMeta = {
+      title: document.documenttitle ?? '',
+      licence: document.documentlicence ?? DEFAULT_DOCUMENT_LICENCE,
+      ...attributionFields(document.documentattribution),
+    };
+  }
+  closeEdit = () => {
+    this.editing = undefined;
+  }
+
+  async saveEdit(): Promise<void> {
+    if (!this.editing) return;
+    this.saving = true;
+    this.editRefusal = '';
+    try {
+      await this.documentService.updatemetadata(this.editing.documentid, this.editMeta).pipe(first()).toPromise();
+    } catch (error) {
+      this.editRefusal = refusalMessage(error as HttpErrorResponse);
+      return;
+    } finally {
+      this.saving = false;
+      this.cd.markForCheck();
+    }
+    this.editing = undefined;
+    this.notification.create("success", 'Success', "Document updated sucessfully");
+    await this.loadDataFromServer({
+      filter: [...this.filter],
+      pageindex: this.pageIndex,
+      pagesize: this.pageSize
+    });
+  }
   async ngOnInit(): Promise<void> {
     let tempPage = new IPaging();
     tempPage.pagesize = 200;
@@ -95,32 +139,13 @@ export class DocumentIndexComponent implements OnInit, AfterContentInit {
   addTagList = (document: any) => xor(this.documenttags.map(x => x.documenttagname), document.documenttags)
   showMenuTag = (document: any, tag: string) => !document.documenttags.find((x: string) => x === tag)
 
-  handleUpload(): void {
-    const formData = new FormData();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.fileList.forEach((file: any) => {
-      formData.append('files[]', file);
+  /** After a batch of uploads in which at least one file was stored: the list shows them. */
+  async uploaded(): Promise<void> {
+    await this.loadDataFromServer({
+      filter: [...this.filter],
+      pageindex: this.pageIndex,
+      pagesize: this.pageSize
     });
-    this.store.dispatch(setloadingAction());
-    this.uploading = true;
-    this.documentService.upload(formData)
-      .pipe(catchError(async () => {
-        this.store.dispatch(unsetloadingAction());
-        this.uploading = false;
-        return null;
-      }), filter(e => e instanceof HttpResponse))
-      .subscribe(async x => {
-        this.store.dispatch(unsetloadingAction());
-        this.notification.create("success", 'Success', "Document uploaded sucessfully");
-        this.uploading = false;
-        this.fileList = [];
-        this.hideuploadDocument();
-        await this.loadDataFromServer({
-          filter: [...this.filter],
-          pageindex: this.pageIndex,
-          pagesize: this.pageSize
-        });
-      })
   }
 
   async loadDataFromServer(paging: IPaging) {
@@ -214,13 +239,14 @@ export class DocumentIndexComponent implements OnInit, AfterContentInit {
   async searchdocumentType() {
     this.showdocumentTypeFilter = false;
     if (this.searchdocumentTypeValue.length > 0) {
-      const enumdata = Object.entries(FileType).find(x => x[0] === this.searchdocumentTypeValue.toUpperCase())
-      if (!enumdata) {
+      // the id of the typed type, as text: the API matches it exactly
+      const typeid = documentTypeFilterValue(this.searchdocumentTypeValue, FileType);
+      if (typeid === null) {
         this.notification.create("error", 'Error', "Invalid document type");
         return;
       }
       await this.loadDataFromServer({
-        filter: [...this.filter.filter(x => x.key !== "documenttypeid"), ...[{ key: "documenttypeid", value: enumdata[1].toString() }]],
+        filter: [...this.filter.filter(x => x.key !== "documenttypeid"), ...[{ key: "documenttypeid", value: typeid }]],
         pageindex: 1,
         pagesize: this.pageSize
       });

@@ -62,7 +62,7 @@
                 nzType="link"
                 (click)="openGallery(data)"
               >
-                {{ data.documentname }}
+                {{ data | documentLabel }}
               </button>
 
               <a
@@ -76,7 +76,7 @@
                 "
                 target="blank"
               >
-                {{ data.documentname }}
+                {{ data | documentLabel }}
               </a>
             </td>
             <td>
@@ -194,10 +194,10 @@
               <nz-option
                 nzCustomContent
                 *ngIf="!documentisLoading"
-                [nzLabel]="o.documentname"
+                [nzLabel]="o | documentLabel"
                 [nzValue]="o.documentid"
               >
-                {{ o.documentname }}<br />
+                {{ o | documentLabel }}<br />
                 <ng-container
                   *ngIf="o.documenttags && o.documenttags.length > 0"
                 >

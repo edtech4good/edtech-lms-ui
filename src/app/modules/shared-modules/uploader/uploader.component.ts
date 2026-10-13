@@ -1,15 +1,13 @@
-import { HttpResponse } from '@angular/common/http';
-import { Component, OnInit } from '@angular/core';
-import { Store } from '@ngrx/store';
-import { NzNotificationService } from 'ng-zorro-antd/notification';
-import { NzUploadFile } from 'ng-zorro-antd/upload';
-import { of } from 'rxjs';
-import { catchError, filter } from 'rxjs/operators';
+import { Component, computed, inject } from '@angular/core';
 import { IFilter } from 'src/app/models/IPaging';
-import { setloadingAction, unsetloadingAction } from 'src/app/store/appstate/appstate.action';
-import { appState } from 'src/app/store/appstate/appstate.reducer';
-import { DocumentService } from '../../document/services/document.service';
+import { OrgContextService } from '../../shell/org-context.service';
+import { CHOOSE_ORGANISATION_NOTICE, needsOrganisation } from '../../shell/org-context';
 
+/**
+ * The "Upload" link of the question and lesson forms: it opens the shared upload dialog
+ * (`app-document-upload-modal`: one or more files, each posted alone with its own title, and the licence and
+ * attribution of the batch).
+ */
 @Component({
     selector: 'app-uploader',
     templateUrl: './uploader.component.html',
@@ -19,54 +17,16 @@ import { DocumentService } from '../../document/services/document.service';
 export class UploaderComponent {
   showUpload = false;
   filter: Array<IFilter> = [];
-  fileList: NzUploadFile[] = [];
-  uploading: boolean = false;
-
-  constructor(
-    private documentService: DocumentService,
-    private readonly notification: NzNotificationService,
-    private store: Store<appState>
-  ) { }
-
-
-  hideuploadDocument = () => {
-    this.showUpload = false;
-  }
+  private readonly orgContext = inject(OrgContextService);
+  /** The platform view with no organisation chosen: every upload would be refused, so the button says so up front. */
+  readonly uploadBlocked = computed(() => needsOrganisation(this.orgContext.claims()));
+  readonly chooseOrganisationNotice = CHOOSE_ORGANISATION_NOTICE;
 
   showuploadDocument = () => {
     this.showUpload = true;
   }
 
-  beforeUpload = (file: NzUploadFile): boolean => {
-    this.fileList = this.fileList.concat(file);
-    return false;
-  };
-
-  handleUpload(): void {
-    const formData = new FormData();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.fileList.forEach((file: any) => {
-      formData.append('files[]', file);
-    });
-    this.uploading = true;
-    this.store.dispatch(setloadingAction());
-    this.documentService.upload(formData)
-      .pipe(catchError(() => {
-        this.store.dispatch(unsetloadingAction());
-        this.uploading = false;
-        return of(null);
-      }), filter(e => e instanceof HttpResponse))
-      .subscribe(async x => {
-        this.store.dispatch(unsetloadingAction());
-        this.notification.create("success", 'Success', "Document uploaded sucessfully");
-        this.uploading = false;
-        this.fileList = [];
-        this.hideuploadDocument();
-
-      })
-  }
   loadDataFromServer(arg0: { filter: any[]; pageindex: any; pagesize: any; }) {
     throw new Error('Method not implemented.');
   }
-
 }

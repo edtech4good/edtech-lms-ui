@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
 import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { DomSanitizer } from '@angular/platform-browser';
@@ -13,6 +14,7 @@ import {
 } from 'rxjs/operators';
 import { FileType } from 'src/app/models/enums/filetype.enum';
 import { IPaging } from 'src/app/models/IPaging';
+import { refusalMessage, VIDEO_DOCUMENT_TYPE_ID } from 'src/app/models/media-library';
 import { LessonLearningService } from 'src/app/services/lesson.learning.service';
 import { UtilService } from 'src/app/services/util.service';
 import { environment } from 'src/environments/environment';
@@ -78,14 +80,30 @@ export class LessonLearningComponent implements OnInit {
     this.showGallery = false;
   };
 
+  /**
+   * The API's reason for refusing a learning (for one: "A video item needs a video file."), in the same notice the
+   * error interceptor uses. The service opts out of the interceptor's generic toast for these three statuses.
+   */
+  private showRefusal(error: unknown) {
+    const status = (error as HttpErrorResponse)?.status;
+    if (status === 400 || status === 403 || status === 404) {
+      this.notification.create('error', 'Error', refusalMessage(error as HttpErrorResponse));
+    }
+  }
+
   private async handleModalAddLearning() {
     const lessonid = this.route.snapshot.paramMap.get('lessonid') ?? '';
     this.utilservice.checkFormDirty(this.createForm);
     if (this.createForm.valid) {
-      await this.lessonlearningService
-        .addlearning(lessonid, { ...this.createForm.value })
-        .pipe(first())
-        .toPromise();
+      try {
+        await this.lessonlearningService
+          .addlearning(lessonid, { ...this.createForm.value })
+          .pipe(first())
+          .toPromise();
+      } catch (error) {
+        this.showRefusal(error);
+        return;
+      }
       this.notification.create(
         'success',
         'Success',
@@ -100,13 +118,18 @@ export class LessonLearningComponent implements OnInit {
     const lessonid = this.route.snapshot.paramMap.get('lessonid') ?? '';
     this.utilservice.checkFormDirty(this.createForm);
     if (this.createForm.valid) {
-      await this.lessonlearningService
-        .updatelearning(this.createForm.getRawValue()['lessonlearningid'], {
-          ...this.createForm.value,
-          lessonid,
-        })
-        .pipe(first())
-        .toPromise();
+      try {
+        await this.lessonlearningService
+          .updatelearning(this.createForm.getRawValue()['lessonlearningid'], {
+            ...this.createForm.value,
+            lessonid,
+          })
+          .pipe(first())
+          .toPromise();
+      } catch (error) {
+        this.showRefusal(error);
+        return;
+      }
       this.notification.create(
         'success',
         'Success',
@@ -136,6 +159,11 @@ export class LessonLearningComponent implements OnInit {
         {
           key: 'documenttags',
           value: filename || '----',
+        },
+        // a learning is a video: the picker offers video files only (the API refuses any other)
+        {
+          key: 'documenttypeid',
+          value: String(VIDEO_DOCUMENT_TYPE_ID),
         },
       ];
       const httpobject = this.documentService.getall(temp).pipe(
@@ -218,6 +246,7 @@ export class LessonLearningComponent implements OnInit {
         this.documentoptionList.push({
           documentid: tempdata.data.documentid,
           documentname: tempdata.data.documentname,
+          documenttitle: tempdata.data.documenttitle,
         });
         const cc = this.createForm.get('documentid');
         cc?.setValue(tempdata.data.documentid);

@@ -49,7 +49,7 @@ export class QuestionUpdateComponent implements OnInit {
   questionForm: UntypedFormGroup = this.fb.group({});
   templatetypes: Array<any> = [];
   private questionupdatesearchChange$ = new BehaviorSubject('');
-  questionupdateoptionList: string[] = [];
+  questionupdateoptionList: any[] = [];
   questionupdateisLoading = false;
   selectedtemplatetype = -1;
   questionupdateonSearch(value: string): void {
@@ -119,7 +119,7 @@ export class QuestionUpdateComponent implements OnInit {
               },
             ];
             this.questionupdateoptionList = [
-              this.question.questionfile.filename,
+              { documentname: this.question.questionfile.filename },
             ];
             this.questionForm
               .get('questionfile')
@@ -188,11 +188,10 @@ export class QuestionUpdateComponent implements OnInit {
         .pipe(
           catchError(async () => ({ data: { data: [] } })),
           map((res: any) => res.data.data)
-        )
-        .pipe(map((list: any) => list.map((item: any) => item.documentname)));
+        );
       return httpobject;
     };
-    const questionupdateoptionList$: Observable<string[]> =
+    const questionupdateoptionList$: Observable<any[]> =
       this.questionupdatesearchChange$
         .asObservable()
         .pipe(debounceTime(500))

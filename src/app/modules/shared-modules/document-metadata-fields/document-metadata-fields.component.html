@@ -1,0 +1,81 @@
+<form nz-form nzLayout="vertical">
+  <nz-form-item *ngIf="showTitle">
+    <nz-form-label [nzFor]="idPrefix + '-title'">Title (optional)</nz-form-label>
+    <nz-form-control nzExtra="Shown wherever this file is listed. Left empty, the file name is used.">
+      <input
+        nz-input
+        [id]="idPrefix + '-title'"
+        name="title"
+        [(ngModel)]="model.title"
+        placeholder="Title"
+      />
+    </nz-form-control>
+  </nz-form-item>
+  <nz-form-item>
+    <nz-form-label [nzFor]="idPrefix + '-licence'">Licence</nz-form-label>
+    <nz-form-control>
+      <nz-select
+        [nzId]="idPrefix + '-licence'"
+        name="licence"
+        [(ngModel)]="model.licence"
+        nzAllowClear
+        nzShowSearch
+        nzPlaceHolder="Not recorded"
+      >
+        <nz-option
+          *ngFor="let l of licences"
+          [nzValue]="l.value"
+          [nzLabel]="l.label"
+        ></nz-option>
+      </nz-select>
+    </nz-form-control>
+  </nz-form-item>
+  <ng-container *ngIf="!compact; else compactAttribution">
+    <ng-container *ngTemplateOutlet="attributionFields"></ng-container>
+  </ng-container>
+  <ng-template #compactAttribution>
+    <nz-collapse [nzBordered]="false">
+      <nz-collapse-panel nzHeader="Attribution (optional)">
+        <ng-container *ngTemplateOutlet="attributionFields"></ng-container>
+      </nz-collapse-panel>
+    </nz-collapse>
+  </ng-template>
+  <ng-template #attributionFields>
+    <nz-form-item>
+      <nz-form-label [nzFor]="idPrefix + '-author'">Author</nz-form-label>
+      <nz-form-control>
+        <input
+          nz-input
+          [id]="idPrefix + '-author'"
+          name="author"
+          [(ngModel)]="model.author"
+          placeholder="Who made it"
+        />
+      </nz-form-control>
+    </nz-form-item>
+    <nz-form-item>
+      <nz-form-label [nzFor]="idPrefix + '-sourceurl'">Source address</nz-form-label>
+      <nz-form-control>
+        <input
+          nz-input
+          [id]="idPrefix + '-sourceurl'"
+          name="sourceurl"
+          [(ngModel)]="model.sourceurl"
+          placeholder="https://"
+        />
+      </nz-form-control>
+    </nz-form-item>
+    <nz-form-item>
+      <nz-form-label [nzFor]="idPrefix + '-adaptedfrom'">Adapted from</nz-form-label>
+      <nz-form-control>
+        <input
+          nz-input
+          [id]="idPrefix + '-adaptedfrom'"
+          name="adaptedfrom"
+          [(ngModel)]="model.adaptedfrom"
+          placeholder="A title or an address"
+        />
+      </nz-form-control>
+    </nz-form-item>
+  </ng-template>
+</form>
