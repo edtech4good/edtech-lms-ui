@@ -1,7 +1,7 @@
 import { HttpClient, HttpContext, HttpErrorResponse, HttpRequest, HttpResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { filter, lastValueFrom } from 'rxjs';
-import { FIELD_ERRORS_INLINE } from 'src/app/interceptors/error-context';
+import { FAILURES_SHOWN_BY_CALLER } from 'src/app/interceptors/error-context';
 import { IPaging } from 'src/app/models/IPaging';
 import { refusalMessage, updateBody, uploadFieldsForFile } from 'src/app/models/media-library';
 import type { DocumentMetadataModel } from 'src/app/models/media-library';
@@ -38,12 +38,12 @@ export class DocumentService {
   }
 
   /**
-   * The upload's refusal (FILE_REJECTED, INVALID_INPUT) is shown by the caller beside the form, so the error
-   * interceptor does not also toast it.
+   * Whatever goes wrong with an upload (a refusal, a server error, no network) is shown by the caller, named after the
+   * file, so the error interceptor shows nothing of its own for it.
    */
   upload(formdata: FormData) {
     const req = new HttpRequest('POST', `${this.coreService.CORE_API()}document/upload`, formdata, {
-      context: new HttpContext().set(FIELD_ERRORS_INLINE, true),
+      context: new HttpContext().set(FAILURES_SHOWN_BY_CALLER, true),
     });
     return this.http.request(req);
   }
@@ -74,7 +74,7 @@ export class DocumentService {
   updatemetadata(documentid: string, meta: DocumentMetadataModel) {
     return this.http.put(`${this.coreService.CORE_API()}document/${documentid}`, updateBody(meta), {
       ...this.coreService.jsonhttpOptions,
-      context: new HttpContext().set(FIELD_ERRORS_INLINE, true),
+      context: new HttpContext().set(FAILURES_SHOWN_BY_CALLER, true),
     });
   }
 

@@ -65,7 +65,8 @@ export function emptyMetadata(): DocumentMetadataModel {
  * Unicode normalisation: a Khmer name keeps its marks exactly).
  */
 export function titleFromFileName(fileName: string): string {
-  const base = (fileName ?? '').split(/[\\/]/).pop() ?? '';
+  // (File.name never carries a path, so nothing is split off: a name with "/" or "<" in it is kept whole)
+  const base = fileName ?? '';
   const dot = base.lastIndexOf('.');
   return dot > 0 ? base.slice(0, dot) : base;
 }

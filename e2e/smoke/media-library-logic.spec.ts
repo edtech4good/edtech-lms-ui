@@ -81,7 +81,10 @@ test.describe('the title a file gets', () => {
     expect(titleFromFileName('archive.tar.gz')).toBe('archive.tar');
     expect(titleFromFileName('noextension')).toBe('noextension');
     expect(titleFromFileName('.hidden')).toBe('.hidden');
-    expect(titleFromFileName('C:\\fakepath\\scan.PDF')).toBe('scan');
+    // a File's name never carries a path, so nothing is cut at a slash or a bracket
+    expect(titleFromFileName('<b>bold</b>.exe')).toBe('<b>bold</b>');
+    expect(titleFromFileName('a/b.png')).toBe('a/b');
+    expect(titleFromFileName('scan.PDF')).toBe('scan');
   });
 });
 
@@ -119,9 +122,9 @@ test.describe('what an upload sends', () => {
   });
 
   test('a stored attribution fills the form; anything unreadable is empty', () => {
-    expect(attributionFields({ v: 1, author: 'A', sourceurl: 'https://e.org', adaptedfrom: 'B' })).toEqual({
+    expect(attributionFields({ v: 1, author: 'A', sourceurl: 'https://example.org', adaptedfrom: 'B' })).toEqual({
       author: 'A',
-      sourceurl: 'https://e.org',
+      sourceurl: 'https://example.org',
       adaptedfrom: 'B',
     });
     expect(attributionFields(null)).toEqual({ author: '', sourceurl: '', adaptedfrom: '' });
@@ -233,4 +236,25 @@ test.describe('several files and the platform view', () => {
     expect(needsOrganisation({ isplatform: false, organisationid: null })).toBe(false);
     expect(CHOOSE_ORGANISATION_NOTICE).toBe('Choose an organisation to act in before you create content. Use the organisation switcher, then try again.');
   });
+});
+
+/**
+ * The lesson pages' lists and pickers. A learning or plan stores the document's ID (the select's value is `o.documentid`),
+ * so only the label changes: every list cell and picker option is the title-else-name pipe. (The plan list and picker
+ * are also driven in a browser in media-library.spec.ts.)
+ */
+test.describe('lesson learning and plan: title shown', () => {
+  const root = join(__dirname, '../../src/app/modules/lesson');
+  for (const file of ['lesson-learning/lesson-learning.component.html', 'lesson-plan/lesson-plan.component.html']) {
+    test(file, () => {
+      const html = readFileSync(join(root, file), 'utf8');
+      // two list cells (a gallery button and a download link) and one picker option (label and text)
+      expect([...html.matchAll(/\{\{\s*data \| documentLabel\s*\}\}/g)]).toHaveLength(2);
+      expect([...html.matchAll(/\[nzLabel\]="o \| documentLabel"/g)]).toHaveLength(1);
+      expect([...html.matchAll(/\{\{\s*o \| documentLabel\s*\}\}/g)]).toHaveLength(1);
+      expect(html, 'a list or picker still prints the file name').not.toMatch(/\{\{\s*(data|o)\.documentname\s*\}\}/);
+      expect(html).not.toMatch(/\[nzLabel\]="o\.documentname"/);
+      expect(html).toMatch(/\[nzValue\]="o\.documentid"/);
+    });
+  }
 });

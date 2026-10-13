@@ -7,7 +7,7 @@ import { Observable, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { unsetloadingAction } from '../store/appstate/appstate.action';
 import { appState } from '../store/appstate/appstate.reducer';
-import { FIELD_ERRORS_INLINE, FORBIDDEN_HANDLED, NOT_FOUND_HANDLED } from './error-context';
+import { FAILURES_SHOWN_BY_CALLER, FIELD_ERRORS_INLINE, FORBIDDEN_HANDLED, NOT_FOUND_HANDLED } from './error-context';
 
 /** What a 404 says when the API gave no words of its own. */
 export const NOT_FOUND_MESSAGE = 'That record was not found. It may have been removed, or it may not be yours to see.';
@@ -33,7 +33,7 @@ export class ErrorInterceptor implements HttpInterceptor {
     // sign-in page. And the sign-in form owns every sign-in failure: it says what
     // went wrong beside the form (login.component.ts), so a toast would be a
     // second, louder, message.
-    const quiet = /\/auth\/(logout|login)(\?|$)/.test(req.url);
+    const quiet = /\/auth\/(logout|login)(\?|$)/.test(req.url) || req.context.get(FAILURES_SHOWN_BY_CALLER);
     const toast = (type: string, data: any, key?: string): void => {
       if (!quiet) this.createNotification(type, data, key);
     };

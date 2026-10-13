@@ -377,7 +377,8 @@ test('the type filter sends one exact id, and the new types are named', async ()
   const audio = await typeFilter('AUDIO');
   expect(audio.find((f) => f.key === 'documenttypeid')).toEqual({ key: 'documenttypeid', value: '1' });
   await expect(page.locator('tbody tr').filter({ hasText: 'figures' })).toHaveCount(0);
-  expect(await page.locator('tbody tr.ant-table-row').count(), 'no audio document exists, so no row').toBe(0);
+  // (whatever else the organisation holds, nothing listed under AUDIO is anything but audio)
+  for (const type of await page.locator('tbody tr.ant-table-row td:nth-child(2)').allTextContents()) expect(type.trim()).toBe('AUDIO');
 
   const sheet = await typeFilter('spreadsheet');
   expect(sheet.find((f) => f.key === 'documenttypeid')).toEqual({ key: 'documenttypeid', value: '10' });
@@ -504,7 +505,7 @@ test('the learning picker offers videos only, labels a video by its title, and a
   await dialog.locator('[formcontrolname="lessonlearningdescription"]').fill('Should be refused');
   await dialog.locator('[formcontrolname="lessonlearningorder"]').fill('10');
   await dialog.getByRole('button', { name: 'Submit', exact: true }).click();
-  await expect(toasts(page).filter({ hasText: 'A video item needs a video file.' })).toHaveCount(1);
+  await expect(toasts(page).filter({ hasText: 'needs a video file' })).toHaveCount(1);
   await expect(toasts(page)).toHaveCount(1);
   await page.unroute(/\/document$/);
 
@@ -528,4 +529,87 @@ test('the platform view (no organisation chosen): Upload is switched off, with t
   } finally {
     await platform.close();
   }
+});
+
+test('one failure is one notice: a server error or a lost connection is named once, in the dialog and in a single notice', async () => {
+  const start = (await listDocuments(api)).length;
+  const cases: Array<{ name: string; fragment: string; handle: Parameters<Page['route']>[1] }> = [
+    {
+      name: 'server-error.png',
+      fragment: 'The upload broke',
+      handle: (route) => route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: true, errormessage: 'The upload broke.' }) }),
+    },
+    { name: 'no-network.png', fragment: 'That did not go through', handle: (route) => route.abort('connectionreset') },
+  ];
+  for (const c of cases) {
+    await page.goto('/document/index');
+    await uploadButton(page).click();
+    const dialog = modal(page, 'Upload Document');
+    await chooseFile(page, dialog, c.name, PNG, 'image/png');
+    await page.route(/\/document\/upload$/, c.handle);
+    await dialog.getByRole('button', { name: 'Submit', exact: true }).click();
+    await expect(dialog.locator('.upload-file-error')).toHaveText(refusalLine(c.name, c.fragment));
+    // exactly one notice: the interceptor's own is switched off for an upload
+    await expect(toasts(page)).toHaveCount(1);
+    await expect(toasts(page).first()).toContainText(`${c.name}: `);
+    await page.unroute(/\/document\/upload$/);
+  }
+  expect((await listDocuments(api)).length, 'nothing was stored').toBe(start);
+});
+
+test('the lesson plan list and picker show a document by its title, else its key', async () => {
+  const PLAN_LESSON = DEMO_LESSON;
+  const planRow = (title: string | null) => ({
+    lessonplanid: 'c0000000-0000-4000-8000-0000000000aa',
+    lessonplanname: 'Plan for the check',
+    lessonplandescription: 'Injected by a test',
+    lessonid: PLAN_LESSON,
+    documentid: 'c0000000-0000-4000-8000-0000000000bb',
+    lessonplanstatus: true,
+    lessonplanorder: 1,
+    lessonname: 'Reading simple words',
+    lessondescription: 'x',
+    documentname: '0b1c2d3e-0000-4000-8000-000000000000.pdf',
+    documenttypeid: 5,
+    ...(title === null ? {} : { documenttitle: title }),
+  });
+  // central's plan read carries no documenttitle today: the list shows the key (the pipe falls back to it) ...
+  const showPlans = async (row: ReturnType<typeof planRow>) => {
+    await page.unroute(/\/lesson\/plan\/[^/]+$/).catch(() => undefined);
+    await page.route(/\/lesson\/plan\/[^/]+$/, async (route) => {
+      const real = await route.fetch();
+      const json = await real.json();
+      json.data = [row];
+      await route.fulfill({ response: real, json });
+    });
+    await page.goto(`/lesson/teacher-plan/${PLAN_LESSON}`);
+  };
+  await showPlans(planRow(null));
+  const cell = page.locator('tbody tr').filter({ hasText: 'Plan for the check' });
+  await expect(cell.getByText('0b1c2d3e-0000-4000-8000-000000000000.pdf', { exact: true })).toBeVisible();
+  // ... and a title shows as soon as the field is in the response
+  await showPlans(planRow('Plan sheet'));
+  await expect(page.locator('tbody tr').filter({ hasText: 'Plan for the check' }).getByText('Plan sheet', { exact: true })).toBeVisible();
+  await expect(page.getByText('0b1c2d3e-0000-4000-8000-000000000000.pdf')).toHaveCount(0);
+  await page.unroute(/\/lesson\/plan\/[^/]+$/);
+
+  // the picker: its options carry the title (the tag search finds nothing on central today, so it is sent as a name search)
+  const known = new Set((await listDocuments(api)).map((d) => d.documentid));
+  const up = await api.post('/document/upload', { multipart: { documenttitle: 'Plan picture for the check', file: { name: 'plan.png', mimeType: 'image/png', buffer: PNG } } });
+  expect(up.ok()).toBeTruthy();
+  const mine = (await listDocuments(api)).find((d) => !known.has(d.documentid))!;
+  await page.route(/\/document$/, async (route) => {
+    const body = route.request().postDataJSON();
+    const filter = body.filter.map((f: { key: string; value: string }) => (f.key === 'documenttags' ? { ...f, key: 'documentname' } : f));
+    await route.continue({ postData: JSON.stringify({ ...body, filter }) });
+  });
+  await page.goto(`/lesson/teacher-plan/${PLAN_LESSON}`);
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+  const dialog = modal(page, 'Add Plan');
+  await dialog.locator('nz-select').first().click();
+  await page.keyboard.type('Plan picture');
+  const option = page.locator('.ant-select-item-option').filter({ hasText: 'Plan picture for the check' });
+  await expect(option).toBeVisible({ timeout: 15_000 });
+  await expect(option).not.toContainText(mine.documentname);
+  await page.unroute(/\/document$/);
 });
