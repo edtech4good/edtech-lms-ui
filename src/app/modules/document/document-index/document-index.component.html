@@ -63,7 +63,7 @@
                 nzType="link"
                 (click)="openGallery(data)"
               >
-                {{ data.documentname }}
+                {{ data | documentLabel }}
               </button>
 
               <a
@@ -77,7 +77,7 @@
                 "
                 target="blank"
               >
-                {{ data.documentname }}
+                {{ data | documentLabel }}
               </a>
             </td>
             <td>{{ data.documenttypename }}</td>
@@ -95,6 +95,14 @@
               </span>
             </td>
             <td>
+              <a
+                nz-button
+                nzSize="small"
+                style="margin-right: 20px"
+                (click)="openEdit(data)"
+                *ngxPermissionsOnly="['create_document']"
+                >Edit</a
+              >
               <a
                 nz-button
                 nzDanger
@@ -236,6 +244,14 @@
 >
   <ng-container *nzModalContent>
     <nz-spin [nzSpinning]="uploading">
+      <nz-alert
+        *ngIf="refusal"
+        class="upload-refusal"
+        nzType="error"
+        [nzMessage]="refusal"
+        nzShowIcon
+        style="margin-bottom: 12px"
+      ></nz-alert>
       <nz-upload
         [(nzFileList)]="fileList"
         [nzBeforeUpload]="beforeUpload"
@@ -247,11 +263,41 @@
         </p>
         <p class="ant-upload-text">Click or drag file to this area to upload</p>
         <p class="ant-upload-hint">
-          Support for a single or bulk upload. Strictly prohibit from uploading
-          company data or other band files
+          Any file name works. The title is optional. Strictly prohibit from
+          uploading company data or other band files
         </p>
       </nz-upload>
+      <app-document-metadata-fields
+        style="display: block; margin-top: 16px"
+        [model]="meta"
+        idPrefix="upload"
+      ></app-document-metadata-fields>
     </nz-spin>
+  </ng-container>
+</nz-modal>
+
+<nz-modal
+  [nzVisible]="!!editing"
+  nzTitle="Edit Document"
+  nzOkText="Save"
+  nzCancelText="Cancel"
+  (nzOnOk)="saveEdit()"
+  (nzOnCancel)="closeEdit()"
+  [nzOkLoading]="saving"
+>
+  <ng-container *nzModalContent>
+    <nz-alert
+      *ngIf="editRefusal"
+      class="edit-refusal"
+      nzType="error"
+      [nzMessage]="editRefusal"
+      nzShowIcon
+      style="margin-bottom: 12px"
+    ></nz-alert>
+    <app-document-metadata-fields
+      [model]="editMeta"
+      idPrefix="edit"
+    ></app-document-metadata-fields>
   </ng-container>
 </nz-modal>
 

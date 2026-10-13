@@ -1,4 +1,4 @@
-import { HttpResponse } from '@angular/common/http';
+import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
 import { AfterContentInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -11,6 +11,17 @@ import { of } from 'rxjs';
 import { catchError, filter, first, map } from 'rxjs/operators';
 import { FileType } from 'src/app/models/enums/filetype.enum';
 import { IFilter, IPaging } from 'src/app/models/IPaging';
+import {
+  attributionFields,
+  DEFAULT_DOCUMENT_LICENCE,
+  DocumentMetadataModel,
+  documentTypeFilterValue,
+  emptyMetadata,
+  nextTitle,
+  refusalMessage,
+  titleFromFileName,
+  uploadFields,
+} from 'src/app/models/media-library';
 import { DocumentTagService } from 'src/app/services/document-tag.service';
 import { UtilService } from 'src/app/services/util.service';
 import { setloadingAction, unsetloadingAction } from 'src/app/store/appstate/appstate.action';
@@ -44,6 +55,16 @@ export class DocumentIndexComponent implements OnInit, AfterContentInit {
   uploading = false;
   fileList: NzUploadFile[] = [];
   documenttags: Array<any> = [];
+  /** The upload form's title, licence and attribution; the title follows the file's name until the person types one. */
+  meta: DocumentMetadataModel = emptyMetadata();
+  /** What the server said when it refused the upload, shown in the modal. */
+  refusal = '';
+  private lastPrefill = '';
+  /** The edit-details form: the document being edited, its fields, and what the server said when it refused. */
+  editing?: any;
+  editMeta: DocumentMetadataModel = emptyMetadata();
+  editRefusal = '';
+  saving = false;
 
 
   hideuploadDocument = () => {
@@ -51,6 +72,7 @@ export class DocumentIndexComponent implements OnInit, AfterContentInit {
   }
 
   showuploadDocument = () => {
+    this.refusal = '';
     this.showUpload = true;
   }
   openGallery = (document: any) => {
@@ -69,8 +91,47 @@ export class DocumentIndexComponent implements OnInit, AfterContentInit {
   onClose = () => { }
   beforeUpload = (file: NzUploadFile): boolean => {
     this.fileList = this.fileList.concat(file);
+    this.refusal = '';
+    this.meta.title = nextTitle(this.meta.title, this.lastPrefill, file.name);
+    this.lastPrefill = titleFromFileName(file.name);
+    this.cd.markForCheck();
     return false;
   };
+
+  openEdit = (document: any) => {
+    this.editing = document;
+    this.editRefusal = '';
+    this.editMeta = {
+      title: document.documenttitle ?? '',
+      licence: document.documentlicence ?? DEFAULT_DOCUMENT_LICENCE,
+      ...attributionFields(document.documentattribution),
+    };
+  }
+  closeEdit = () => {
+    this.editing = undefined;
+  }
+
+  async saveEdit(): Promise<void> {
+    if (!this.editing) return;
+    this.saving = true;
+    this.editRefusal = '';
+    try {
+      await this.documentService.updatemetadata(this.editing.documentid, this.editMeta).pipe(first()).toPromise();
+    } catch (error) {
+      this.editRefusal = refusalMessage(error as HttpErrorResponse);
+      return;
+    } finally {
+      this.saving = false;
+      this.cd.markForCheck();
+    }
+    this.editing = undefined;
+    this.notification.create("success", 'Success', "Document updated sucessfully");
+    await this.loadDataFromServer({
+      filter: [...this.filter],
+      pageindex: this.pageIndex,
+      pagesize: this.pageSize
+    });
+  }
   async ngOnInit(): Promise<void> {
     let tempPage = new IPaging();
     tempPage.pagesize = 200;
@@ -97,6 +158,9 @@ export class DocumentIndexComponent implements OnInit, AfterContentInit {
 
   handleUpload(): void {
     const formData = new FormData();
+    this.refusal = '';
+    // the optional details first, then the file
+    Object.entries(uploadFields(this.meta)).forEach(([key, value]) => formData.append(key, value));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.fileList.forEach((file: any) => {
       formData.append('files[]', file);
@@ -104,9 +168,11 @@ export class DocumentIndexComponent implements OnInit, AfterContentInit {
     this.store.dispatch(setloadingAction());
     this.uploading = true;
     this.documentService.upload(formData)
-      .pipe(catchError(async () => {
+      .pipe(catchError(async (error: HttpErrorResponse) => {
         this.store.dispatch(unsetloadingAction());
         this.uploading = false;
+        this.refusal = refusalMessage(error);
+        this.cd.markForCheck();
         return null;
       }), filter(e => e instanceof HttpResponse))
       .subscribe(async x => {
@@ -114,6 +180,9 @@ export class DocumentIndexComponent implements OnInit, AfterContentInit {
         this.notification.create("success", 'Success', "Document uploaded sucessfully");
         this.uploading = false;
         this.fileList = [];
+        this.meta = emptyMetadata();
+        this.lastPrefill = '';
+        this.refusal = '';
         this.hideuploadDocument();
         await this.loadDataFromServer({
           filter: [...this.filter],
@@ -214,13 +283,14 @@ export class DocumentIndexComponent implements OnInit, AfterContentInit {
   async searchdocumentType() {
     this.showdocumentTypeFilter = false;
     if (this.searchdocumentTypeValue.length > 0) {
-      const enumdata = Object.entries(FileType).find(x => x[0] === this.searchdocumentTypeValue.toUpperCase())
-      if (!enumdata) {
+      // the id of the typed type, as text: the API matches it exactly
+      const typeid = documentTypeFilterValue(this.searchdocumentTypeValue, FileType);
+      if (typeid === null) {
         this.notification.create("error", 'Error', "Invalid document type");
         return;
       }
       await this.loadDataFromServer({
-        filter: [...this.filter.filter(x => x.key !== "documenttypeid"), ...[{ key: "documenttypeid", value: enumdata[1].toString() }]],
+        filter: [...this.filter.filter(x => x.key !== "documenttypeid"), ...[{ key: "documenttypeid", value: typeid }]],
         pageindex: 1,
         pagesize: this.pageSize
       });
