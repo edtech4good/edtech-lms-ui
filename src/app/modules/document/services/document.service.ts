@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import { filter, lastValueFrom } from 'rxjs';
 import { FIELD_ERRORS_INLINE } from 'src/app/interceptors/error-context';
 import { IPaging } from 'src/app/models/IPaging';
-import { refusalMessage, updateBody, uploadFieldsFor } from 'src/app/models/media-library';
+import { refusalMessage, updateBody, uploadFieldsForFile } from 'src/app/models/media-library';
 import type { DocumentMetadataModel } from 'src/app/models/media-library';
 import { CoreService } from 'src/app/services/core.service';
 
@@ -49,22 +49,22 @@ export class DocumentService {
   }
 
   /**
-   * Upload files one request at a time, in order (the API takes one file per request), each with the form's licence and
-   * attribution, and the title only when there is one file. A refused file does not stop the others; each result says
-   * what the server answered for that file.
+   * Upload files one request at a time, in order: `POST /document/upload` takes exactly one file per request (more is
+   * refused by the server's multer limit before the handler runs). Each file carries the batch's licence and attribution
+   * and its own title. A refused file does not stop the others; each result says what the server answered for that file.
    */
-  async uploadEach(files: File[], meta: DocumentMetadataModel): Promise<Array<{ file: File; error?: string }>> {
-    const results: Array<{ file: File; error?: string }> = [];
-    for (const file of files) {
+  async uploadEach(entries: Array<{ file: File; title: string }>, meta: DocumentMetadataModel): Promise<Array<{ file: File; title: string; error?: string }>> {
+    const results: Array<{ file: File; title: string; error?: string }> = [];
+    for (const entry of entries) {
       const formData = new FormData();
       // the optional details first, then the file
-      Object.entries(uploadFieldsFor(meta, files.length)).forEach(([key, value]) => formData.append(key, value));
-      formData.append('files[]', file);
+      Object.entries(uploadFieldsForFile(meta, entry.title)).forEach(([key, value]) => formData.append(key, value));
+      formData.append('files[]', entry.file);
       try {
         await lastValueFrom(this.upload(formData).pipe(filter((e) => e instanceof HttpResponse)));
-        results.push({ file });
+        results.push({ ...entry });
       } catch (error) {
-        results.push({ file, error: refusalMessage(error as HttpErrorResponse) });
+        results.push({ ...entry, error: refusalMessage(error as HttpErrorResponse) });
       }
     }
     return results;

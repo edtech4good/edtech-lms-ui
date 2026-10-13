@@ -1,4 +1,4 @@
-import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
+import { HttpErrorResponse } from '@angular/common/http';
 import { AfterContentInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, computed, inject } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -6,9 +6,7 @@ import { Store } from '@ngrx/store';
 import { xor } from "lodash";
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
-import { NzUploadFile } from 'ng-zorro-antd/upload';
-import { of } from 'rxjs';
-import { catchError, filter, first, map } from 'rxjs/operators';
+import { first } from 'rxjs/operators';
 import { FileType } from 'src/app/models/enums/filetype.enum';
 import { IFilter, IPaging } from 'src/app/models/IPaging';
 import {
@@ -17,14 +15,10 @@ import {
   DocumentMetadataModel,
   documentTypeFilterValue,
   emptyMetadata,
-  failureText,
-  nextTitle,
   refusalMessage,
-  titleFromFileName,
 } from 'src/app/models/media-library';
 import { DocumentTagService } from 'src/app/services/document-tag.service';
 import { UtilService } from 'src/app/services/util.service';
-import { setloadingAction, unsetloadingAction } from 'src/app/store/appstate/appstate.action';
 import { appState } from 'src/app/store/appstate/appstate.reducer';
 import { OrgContextService } from '../../shell/org-context.service';
 import { CHOOSE_ORGANISATION_NOTICE, needsOrganisation } from '../../shell/org-context';
@@ -54,14 +48,7 @@ export class DocumentIndexComponent implements OnInit, AfterContentInit {
   showdocumentTypeFilter = false;
   showdocumentTagFilter = false;
   showUpload = false;
-  uploading = false;
-  fileList: NzUploadFile[] = [];
   documenttags: Array<any> = [];
-  /** The upload form's title, licence and attribution; the title follows the file's name until the person types one. */
-  meta: DocumentMetadataModel = emptyMetadata();
-  /** What the server said when it refused the upload, shown in the modal. */
-  refusal = '';
-  private lastPrefill = '';
   /** The edit-details form: the document being edited, its fields, and what the server said when it refused. */
   editing?: any;
   editMeta: DocumentMetadataModel = emptyMetadata();
@@ -78,7 +65,6 @@ export class DocumentIndexComponent implements OnInit, AfterContentInit {
   }
 
   showuploadDocument = () => {
-    this.refusal = '';
     this.showUpload = true;
   }
   openGallery = (document: any) => {
@@ -95,26 +81,6 @@ export class DocumentIndexComponent implements OnInit, AfterContentInit {
   };
 
   onClose = () => { }
-  beforeUpload = (file: NzUploadFile): boolean => {
-    this.fileList = this.fileList.concat(file);
-    this.refusal = '';
-    if (this.fileList.length === 1) {
-      this.meta.title = nextTitle(this.meta.title, this.lastPrefill, file.name);
-      this.lastPrefill = titleFromFileName(file.name);
-    } else if (this.meta.title === this.lastPrefill) {
-      // one title cannot name several files: each file's name is its title
-      this.meta.title = '';
-      this.lastPrefill = '';
-    }
-    this.cd.markForCheck();
-    return false;
-  };
-
-  /** One title cannot name several files. */
-  get titleLocked(): boolean {
-    return this.fileList.length > 1;
-  }
-
   openEdit = (document: any) => {
     this.editing = document;
     this.editRefusal = '';
@@ -173,36 +139,13 @@ export class DocumentIndexComponent implements OnInit, AfterContentInit {
   addTagList = (document: any) => xor(this.documenttags.map(x => x.documenttagname), document.documenttags)
   showMenuTag = (document: any, tag: string) => !document.documenttags.find((x: string) => x === tag)
 
-  /** One request per file, in order; the files the server refused stay in the list with its message for each. */
-  async handleUpload(): Promise<void> {
-    this.refusal = '';
-    this.store.dispatch(setloadingAction());
-    this.uploading = true;
-    const results = await this.documentService.uploadEach(this.fileList as unknown as File[], this.meta);
-    this.store.dispatch(unsetloadingAction());
-    this.uploading = false;
-    const refused = results.filter((r) => r.error);
-    const uploaded = results.length - refused.length;
-    if (uploaded > 0) {
-      this.notification.create("success", 'Success', uploaded > 1 ? "Documents uploaded sucessfully" : "Document uploaded sucessfully");
-    }
-    if (refused.length === 0) {
-      this.fileList = [];
-      this.meta = emptyMetadata();
-      this.lastPrefill = '';
-      this.hideuploadDocument();
-    } else {
-      this.fileList = refused.map((r) => r.file) as unknown as NzUploadFile[];
-      this.refusal = failureText(refused.map((r) => ({ name: r.file.name, message: r.error as string })), results.length);
-    }
-    this.cd.markForCheck();
-    if (results.length > refused.length) {
-      await this.loadDataFromServer({
-        filter: [...this.filter],
-        pageindex: this.pageIndex,
-        pagesize: this.pageSize
-      });
-    }
+  /** After a batch of uploads in which at least one file was stored: the list shows them. */
+  async uploaded(): Promise<void> {
+    await this.loadDataFromServer({
+      filter: [...this.filter],
+      pageindex: this.pageIndex,
+      pagesize: this.pageSize
+    });
   }
 
   async loadDataFromServer(paging: IPaging) {

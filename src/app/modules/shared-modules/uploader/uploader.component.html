@@ -7,50 +7,8 @@
     Upload
   </button>
 </span>
-<nz-modal
-  [nzWidth]="'calc(73vw)'"
-  [nzBodyStyle]="{ minheight: '300px' }"
-  [(nzVisible)]="showUpload"
-  nzTitle="Upload Document"
-  nzOkText="Submit"
-  nzCancelText="Cancel"
-  (nzOnOk)="handleUpload()"
-  (nzOnCancel)="hideuploadDocument()"
-  [nzOkLoading]="uploading"
->
-  <ng-container *nzModalContent>
-    <nz-spin [nzSpinning]="uploading">
-      <nz-alert
-        *ngIf="refusal"
-        class="upload-refusal"
-        nzType="error"
-        [nzMessage]="refusal"
-        nzShowIcon
-        style="margin-bottom: 12px; white-space: pre-line"
-      ></nz-alert>
-      <nz-upload
-        [(nzFileList)]="fileList"
-        [nzBeforeUpload]="beforeUpload"
-        nzType="drag"
-        [nzMultiple]="true"
-      >
-        <p class="ant-upload-drag-icon">
-          <i nz-icon nzType="inbox"></i>
-        </p>
-        <p class="ant-upload-text">Click or drag file to this area to upload</p>
-        <p class="ant-upload-hint">
-          Choose one or more files; each is uploaded on its own. Any file name
-          works. The title is optional. Strictly prohibit from uploading
-          company data or other band files
-        </p>
-      </nz-upload>
-      <app-document-metadata-fields
-        style="display: block; margin-top: 16px"
-        [model]="meta"
-        [titleLocked]="titleLocked"
-        [compact]="true"
-        idPrefix="uploader"
-      ></app-document-metadata-fields>
-    </nz-spin>
-  </ng-container>
-</nz-modal>
+<app-document-upload-modal
+  [(visible)]="showUpload"
+  [compact]="true"
+  idPrefix="uploader"
+></app-document-upload-modal>

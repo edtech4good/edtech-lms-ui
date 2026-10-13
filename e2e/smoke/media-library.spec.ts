@@ -65,6 +65,9 @@ async function chooseFile(p: Page, dialog: Locator, name: string, buffer: Buffer
   await dialog.locator('input[type="file"]').setInputFiles({ name, mimeType, buffer });
 }
 
+/** The title input beside a chosen file in the upload dialog. */
+const titleOf = (dialog: Locator, fileName: string) => dialog.getByLabel(`Title for ${fileName}`, { exact: true });
+
 /** Choose a licence in an open details form by its label (the select searches as you type). */
 async function chooseLicence(p: Page, dialog: Locator, label: string) {
   await dialog.locator('nz-select').click();
@@ -152,10 +155,10 @@ test('the document page: a Khmer-named PNG lands as a document labelled with its
   await page.goto('/document/index');
   await uploadButton(page).click();
   const dialog = modal(page, 'Upload Document');
-  await expect(dialog.getByText('Any file name works. The title is optional.')).toBeVisible();
+  await expect(dialog.getByText('Upload one or more files. Each becomes its own document.')).toBeVisible();
   await chooseFile(page, dialog, `${KHMER}.png`, PNG, 'image/png');
   // The title follows the file name, marks and all, and can be edited.
-  await expect(dialog.getByLabel('Title (optional)')).toHaveValue(KHMER);
+  await expect(titleOf(dialog, `${KHMER}.png`)).toHaveValue(KHMER);
   await dialog.getByRole('button', { name: 'Submit', exact: true }).click();
   await expect(toasts(page).filter({ hasText: 'Document uploaded sucessfully' })).toHaveCount(1);
   expect(await lastUpload(page)).toEqual({ documenttitle: KHMER, documentlicence: 'unspecified', 'files[]': `file:${KHMER}.png` });
@@ -177,7 +180,7 @@ test('licence and attribution round-trip: upload, edit details, clear', async ()
   await uploadButton(page).click();
   const dialog = modal(page, 'Upload Document');
   await chooseFile(page, dialog, 'licence-check.png', PNG, 'image/png');
-  await dialog.getByLabel('Title (optional)').fill('Licence check');
+  await titleOf(dialog, 'licence-check.png').fill('Licence check');
   await chooseLicence(page, dialog, 'CC BY-NC-SA 3.0');
   await dialog.getByLabel('Author').fill('Ana Example');
   await dialog.getByLabel('Source address').fill('https://example.org/a-page');
@@ -241,12 +244,12 @@ test('licence and attribution round-trip: upload, edit details, clear', async ()
   await expect(page.getByRole('button', { name: row.documentname, exact: true })).toBeVisible();
 });
 
-test('a refused file shows the server\'s message in the modal and adds nothing', async () => {
+test('a refused file is named with the server\'s message, in the dialog and in a notice, and adds nothing', async () => {
   const count = async () => (await listDocuments(api)).length;
   const start = await count();
   const cases: Array<{ name: string; buffer: Buffer; title?: string; says: string }> = [
     // a program renamed .png: the first bytes do not agree with the name
-    { name: 'looks-fine.png', buffer: NOT_AN_IMAGE, says: "That file isn't the kind its name says it is." },
+    { name: `${KHMER}.png`, buffer: NOT_AN_IMAGE, says: "That file isn't the kind its name says it is." },
     // a type that is not on the list
     { name: 'tool.exe', buffer: NOT_AN_IMAGE, says: "That file type isn't supported." },
     // a title the API will not take: its own message, not "some of the information isn't valid"
@@ -257,53 +260,86 @@ test('a refused file shows the server\'s message in the modal and adds nothing',
     await uploadButton(page).click();
     const dialog = modal(page, 'Upload Document');
     await chooseFile(page, dialog, c.name, c.buffer, 'image/png');
-    if (c.title) await dialog.getByLabel('Title (optional)').fill(c.title);
+    if (c.title) await titleOf(dialog, c.name).fill(c.title);
     await dialog.getByRole('button', { name: 'Submit', exact: true }).click();
-    // one file: the message alone, in the modal, and not a toast as well
-    await expect(dialog.locator('.upload-refusal')).toHaveText(c.says);
+    // the file's name in front of the server's words (the server never says the name), in the dialog and in one notice
+    const line = `${c.name}: ${c.says}`;
+    await expect(dialog.locator('.upload-file-error')).toHaveText(line);
+    await expect(toasts(page)).toHaveCount(1);
+    await expect(toasts(page).first()).toContainText(line);
     await expect(dialog).toBeVisible();
-    await expect(toasts(page)).toHaveCount(0);
   }
   expect(await count(), 'a refused upload adds no document').toBe(start);
+
+  // a file name is shown as text, never as markup
+  await page.goto('/document/index');
+  await uploadButton(page).click();
+  const dialog = modal(page, 'Upload Document');
+  await chooseFile(page, dialog, '<b>bold</b>.exe', NOT_AN_IMAGE);
+  await dialog.getByRole('button', { name: 'Submit', exact: true }).click();
+  await expect(toasts(page).first()).toContainText("<b>bold</b>.exe: That file type isn't supported.");
+  await expect(toasts(page).first().locator('b')).toHaveCount(0);
+  await expect(dialog.locator('.upload-file-error b')).toHaveCount(0);
 });
 
-test('several files: one request each, one title never shared, a refused file stays with its message', async () => {
+test('several files: one request each, its own title each, a refused file stays with its message and the batch goes on', async () => {
   const known = new Set((await listDocuments(api)).map((d) => d.documentid));
   await page.goto('/document/index');
   await uploadButton(page).click();
   const dialog = modal(page, 'Upload Document');
-  const title = dialog.getByLabel('Title (optional)');
-  await chooseFile(page, dialog, 'bulk-one.png', PNG, 'image/png');
-  await expect(title).toHaveValue('bulk-one');
-  await dialog.locator('input[type="file"]').setInputFiles({ name: 'bulk-two.png', mimeType: 'image/png', buffer: PNG });
-  // one title cannot name two files: the field is switched off, and each file's name is its title
-  await expect(title).toBeDisabled();
-  await expect(title).toHaveValue('');
+  // two files chosen together: each gets its own title from its own name
+  await dialog.locator('input[type="file"]').setInputFiles([
+    { name: 'bulk-one.png', mimeType: 'image/png', buffer: PNG },
+    { name: 'bulk-two.png', mimeType: 'image/png', buffer: PNG },
+  ]);
+  await expect(titleOf(dialog, 'bulk-one.png')).toHaveValue('bulk-one');
+  await expect(titleOf(dialog, 'bulk-two.png')).toHaveValue('bulk-two');
+  await titleOf(dialog, 'bulk-two.png').fill('Second one');
   await chooseLicence(page, dialog, 'CC BY 4.0');
   await dialog.getByRole('button', { name: 'Submit', exact: true }).click();
-  await expect(toasts(page).filter({ hasText: 'Documents uploaded sucessfully' })).toHaveCount(1);
+  await expect(toasts(page).filter({ hasText: '2 documents uploaded sucessfully' })).toHaveCount(1);
   await expect(dialog).toBeHidden();
-  const sent = await allUploads(page);
-  expect(sent.slice(-2)).toEqual([
-    { documentlicence: 'CC-BY-4.0', 'files[]': 'file:bulk-one.png' },
-    { documentlicence: 'CC-BY-4.0', 'files[]': 'file:bulk-two.png' },
+  // two requests, one file each, the batch's licence, the file's own title
+  expect((await allUploads(page)).slice(-2)).toEqual([
+    { documenttitle: 'bulk-one', documentlicence: 'CC-BY-4.0', 'files[]': 'file:bulk-one.png' },
+    { documenttitle: 'Second one', documentlicence: 'CC-BY-4.0', 'files[]': 'file:bulk-two.png' },
   ]);
   const added = (await listDocuments(api)).filter((d) => !known.has(d.documentid));
-  expect(added.map((d) => d.documenttitle).sort()).toEqual(['bulk-one', 'bulk-two']);
+  expect(added.map((d) => d.documenttitle).sort()).toEqual(['Second one', 'bulk-one']);
   expect(added.every((d) => d.documentlicence === 'CC-BY-4.0')).toBeTruthy();
+  // the list shows them after the batch
+  await expect(page.getByRole('button', { name: 'Second one', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'bulk-one', exact: true })).toBeVisible();
 
-  // one good file and one refused: the good one lands, the refused one stays in the form with the server's words
+  // one good file and one refused: the good one lands, the refused one stays with the server's words
   await page.goto('/document/index');
   await uploadButton(page).click();
-  await chooseFile(page, dialog, 'mixed-good.png', PNG, 'image/png');
-  await dialog.locator('input[type="file"]').setInputFiles({ name: 'mixed-bad.png', mimeType: 'image/png', buffer: NOT_AN_IMAGE });
+  await dialog.locator('input[type="file"]').setInputFiles([
+    { name: 'mixed-bad.png', mimeType: 'image/png', buffer: NOT_AN_IMAGE },
+    { name: 'mixed-good.png', mimeType: 'image/png', buffer: PNG },
+  ]);
   await dialog.getByRole('button', { name: 'Submit', exact: true }).click();
-  await expect(dialog.locator('.upload-refusal')).toHaveText("mixed-bad.png: That file isn't the kind its name says it is.");
+  const badLine = "mixed-bad.png: That file isn't the kind its name says it is.";
+  await expect(dialog.locator('.upload-file-error')).toHaveText(badLine);
   await expect(toasts(page).filter({ hasText: 'Document uploaded sucessfully' })).toHaveCount(1);
-  await expect(dialog.locator('.ant-upload-list-item')).toHaveCount(1);
-  await expect(dialog.locator('.ant-upload-list-item')).toContainText('mixed-bad.png');
+  await expect(toasts(page).filter({ hasText: badLine })).toHaveCount(1);
+  await expect(dialog.locator('.upload-file')).toHaveCount(1);
+  await expect(dialog.locator('.upload-file-name')).toHaveText('mixed-bad.png');
   const after = (await listDocuments(api)).filter((d) => !known.has(d.documentid));
-  expect(after.map((d) => d.documenttitle).sort()).toEqual(['bulk-one', 'bulk-two', 'mixed-good']);
+  expect(after.map((d) => d.documenttitle).sort()).toEqual(['Second one', 'bulk-one', 'mixed-good']);
+  // the batch went on past the refusal: the good file came AFTER the bad one
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+
+  // more than three refused: one notice that lists them all
+  await page.goto('/document/index');
+  await uploadButton(page).click();
+  await dialog.locator('input[type="file"]').setInputFiles(
+    [1, 2, 3, 4].map((n) => ({ name: `bad-${n}.exe`, mimeType: 'application/octet-stream', buffer: NOT_AN_IMAGE })),
+  );
+  await dialog.getByRole('button', { name: 'Submit', exact: true }).click();
+  await expect(dialog.locator('.upload-file-error')).toHaveCount(4);
+  await expect(toasts(page)).toHaveCount(1);
+  for (const n of [1, 2, 3, 4]) await expect(toasts(page).first()).toContainText(`bad-${n}.exe: That file type isn't supported.`);
 });
 
 test('the type filter sends one exact id, and the new types are named', async () => {
@@ -350,12 +386,11 @@ test('the shared uploader (question create): same fields, attribution behind an 
   await page.goto('/question/create');
   await uploadButton(page).click();
   const dialog = modal(page, 'Upload Document');
-  await expect(dialog.getByLabel('Title (optional)')).toBeVisible();
   await expect(dialog.locator('nz-select')).toBeVisible();
   // attribution is behind an expander
   await expect(dialog.getByLabel('Author')).toBeHidden();
   await chooseFile(page, dialog, `${KHMER}.png`, PNG, 'image/png');
-  await expect(dialog.getByLabel('Title (optional)')).toHaveValue(KHMER);
+  await expect(titleOf(dialog, `${KHMER}.png`)).toHaveValue(KHMER);
   await chooseLicence(page, dialog, 'CC BY 4.0');
   await dialog.getByText('Attribution (optional)').click();
   await expect(dialog.getByLabel('Author')).toBeVisible();

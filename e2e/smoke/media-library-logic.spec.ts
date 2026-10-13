@@ -10,17 +10,18 @@ import {
   attributionFields,
   buildAttribution,
   documentLabel,
-  failureText,
+  escapeHtml,
   documentTypeFilterValue,
   emptyMetadata,
   licenceLabel,
   licenceToSend,
-  nextTitle,
+  refusalLine,
+  refusalNotices,
   refusalMessage,
   titleFromFileName,
   updateBody,
   uploadFields,
-  uploadFieldsFor,
+  uploadFieldsForFile,
 } from '../../src/app/models/media-library';
 import { CHOOSE_ORGANISATION_NOTICE, needsOrganisation } from '../../src/app/modules/shell/org-context';
 
@@ -81,12 +82,6 @@ test.describe('the title a file gets', () => {
     expect(titleFromFileName('noextension')).toBe('noextension');
     expect(titleFromFileName('.hidden')).toBe('.hidden');
     expect(titleFromFileName('C:\\fakepath\\scan.PDF')).toBe('scan');
-  });
-
-  test('a file picked after the person typed a title leaves it alone; one picked after a prefill replaces it', () => {
-    expect(nextTitle('', '', 'a.png')).toBe('a');
-    expect(nextTitle('a', 'a', 'b.png')).toBe('b');
-    expect(nextTitle('my own', 'a', 'b.png')).toBe('my own');
   });
 });
 
@@ -208,15 +203,27 @@ test.describe('question pickers: title shown, file name stored', () => {
 });
 
 test.describe('several files and the platform view', () => {
-  test('with more than one file no title is sent (each file\'s name is its title); with one it is', () => {
-    const meta = { ...emptyMetadata(), title: 'T', licence: 'CC0-1.0' };
-    expect(uploadFieldsFor(meta, 1)).toEqual({ documenttitle: 'T', documentlicence: 'CC0-1.0' });
-    expect(uploadFieldsFor(meta, 2)).toEqual({ documentlicence: 'CC0-1.0' });
+  test('each file carries its own title and the batch\'s licence and attribution', () => {
+    const meta = { ...emptyMetadata(), title: 'ignored', licence: 'CC0-1.0', author: 'A' };
+    const attribution = JSON.stringify({ v: 1, author: 'A' });
+    expect(uploadFieldsForFile(meta, 'One')).toEqual({ documenttitle: 'One', documentlicence: 'CC0-1.0', documentattribution: attribution });
+    expect(uploadFieldsForFile(meta, 'Two')).toEqual({ documenttitle: 'Two', documentlicence: 'CC0-1.0', documentattribution: attribution });
+    // a blank title is left out: the API uses the file's name
+    expect(uploadFieldsForFile(meta, '  ')).toEqual({ documentlicence: 'CC0-1.0', documentattribution: attribution });
   });
 
-  test('the failure text is the message alone for one file, a line per file for several', () => {
-    expect(failureText([{ name: 'a.png', message: 'No.' }], 1)).toBe('No.');
-    expect(failureText([{ name: 'a.png', message: 'No.' }, { name: 'b.png', message: 'Nope.' }], 3)).toBe('a.png: No.\nb.png: Nope.');
+  test('a refused file is named in front of the server\'s words; up to three get a notice each, more get one list', () => {
+    expect(refusalLine(KHMER + '.png', 'No.')).toBe(KHMER + '.png: No.');
+    const r = (n: number) => Array.from({ length: n }, (_, i) => ({ name: `f${i}.png`, message: 'No.' }));
+    expect(refusalNotices(r(1))).toEqual(['f0.png: No.']);
+    expect(refusalNotices(r(3))).toHaveLength(3);
+    expect(refusalNotices(r(4))).toEqual(['f0.png: No.<br>f1.png: No.<br>f2.png: No.<br>f3.png: No.']);
+    expect(refusalNotices([])).toEqual([]);
+  });
+
+  test('a file name is text, never markup, in a notice', () => {
+    expect(escapeHtml('<img src=x onerror=alert(1)>&"\'.png')).toBe('&lt;img src=x onerror=alert(1)&gt;&amp;&quot;&#39;.png');
+    expect(refusalNotices([{ name: '<b>x</b>.png', message: 'No.' }])).toEqual(['&lt;b&gt;x&lt;/b&gt;.png: No.']);
   });
 
   test('only a platform account with no organisation chosen must choose one before creating content', () => {

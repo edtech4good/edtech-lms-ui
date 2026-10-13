@@ -71,14 +71,6 @@ export function titleFromFileName(fileName: string): string {
 }
 
 /**
- * The title field after a file is chosen: the file's name without its extension, unless the person has typed their
- * own title (anything other than empty or the title this function filled in last time).
- */
-export function nextTitle(current: string, lastPrefill: string, fileName: string): string {
-  return current.length === 0 || current === lastPrefill ? titleFromFileName(fileName) : current;
-}
-
-/**
  * The attribution as the API stores it: `{ v: 1, author?, sourceurl?, adaptedfrom? }`, empty keys left out, or null
  * when nothing was typed. (The API trims too, and decides what is valid; this does not repeat its rules.)
  */
@@ -119,17 +111,31 @@ export function uploadFields(meta: DocumentMetadataModel): Record<string, string
 }
 
 /**
- * The fields sent with each file when several are uploaded together (one request per file: the API takes one file per
- * request). One title cannot name several files, so with more than one file none is sent and each file's name is its title.
+ * The fields sent with ONE file. The API takes one file per request, so a batch is sent one request per file, in order:
+ * every file carries the batch's licence and attribution and its own title (blank: left out, and the API uses the file's
+ * name without its extension).
  */
-export function uploadFieldsFor(meta: DocumentMetadataModel, fileCount: number): Record<string, string> {
-  return uploadFields(fileCount > 1 ? { ...meta, title: '' } : meta);
+export function uploadFieldsForFile(meta: DocumentMetadataModel, title: string): Record<string, string> {
+  return uploadFields({ ...meta, title });
 }
 
-/** What the modal says after an upload in which some files were refused: the message alone for one file, else one line per file. */
-export function failureText(failures: Array<{ name: string; message: string }>, fileCount: number): string {
-  if (fileCount <= 1) return failures.map((f) => f.message).join(' ');
-  return failures.map((f) => `${f.name}: ${f.message}`).join('\n');
+/** A refused file as the person is told: the server's words never carry the name, so the name is put in front of them. */
+export function refusalLine(fileName: string, message: string): string {
+  return `${fileName}: ${message}`;
+}
+
+/** Text made safe to put inside an HTML string (the notification service renders a string as HTML). */
+export function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/**
+ * The error notices for a batch's refused files, as HTML strings: one notice per file when there are up to three, else
+ * one notice listing them all. File names and messages are escaped: they are shown as text.
+ */
+export function refusalNotices(refused: Array<{ name: string; message: string }>): string[] {
+  const lines = refused.map((r) => escapeHtml(refusalLine(r.name, r.message)));
+  return lines.length <= 3 ? lines : [lines.join('<br>')];
 }
 
 /** The body of `PUT /document/:documentid`: null clears the title (the name shows) and the attribution. */

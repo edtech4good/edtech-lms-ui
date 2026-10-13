@@ -1,0 +1,55 @@
+<nz-modal
+  [nzWidth]="'calc(73vw)'"
+  [nzBodyStyle]="{ minheight: '300px' }"
+  [nzVisible]="visible"
+  nzTitle="Upload Document"
+  nzOkText="Submit"
+  nzCancelText="Cancel"
+  (nzOnOk)="submit()"
+  (nzOnCancel)="close()"
+  [nzOkLoading]="uploading"
+>
+  <ng-container *nzModalContent>
+    <nz-spin [nzSpinning]="uploading">
+      <nz-upload
+        [nzBeforeUpload]="beforeUpload"
+        [nzShowUploadList]="false"
+        nzType="drag"
+        [nzMultiple]="true"
+      >
+        <p class="ant-upload-drag-icon">
+          <i nz-icon nzType="inbox"></i>
+        </p>
+        <p class="ant-upload-text">Click or drag files to this area to upload</p>
+        <p class="ant-upload-hint">
+          Upload one or more files. Each becomes its own document.
+        </p>
+      </nz-upload>
+      <ul class="upload-files" *ngIf="entries.length > 0">
+        <li class="upload-file" *ngFor="let entry of entries">
+          <div class="upload-file-row">
+            <span class="upload-file-name">{{ entry.file.name }}</span>
+            <input
+              nz-input
+              class="upload-file-title"
+              [attr.aria-label]="'Title for ' + entry.file.name"
+              placeholder="Title (optional)"
+              [(ngModel)]="entry.title"
+            />
+            <button nz-button nzType="text" nzSize="small" nzDanger [attr.aria-label]="'Remove ' + entry.file.name" (click)="remove(entry)">
+              Remove
+            </button>
+          </div>
+          <div class="upload-file-error" *ngIf="entry.error">{{ entry.error }}</div>
+        </li>
+      </ul>
+      <app-document-metadata-fields
+        style="display: block; margin-top: 16px"
+        [model]="meta"
+        [compact]="compact"
+        [showTitle]="false"
+        [idPrefix]="idPrefix"
+      ></app-document-metadata-fields>
+    </nz-spin>
+  </ng-container>
+</nz-modal>
