@@ -1,6 +1,7 @@
 <div nz-row>
   <div nz-col nzSpan="24">
     <nz-card [nzBordered]="true" nzTitle="Teachers" [nzExtra]="extraTemplate">
+      <app-owner-filter [value]="organisationId" (changed)="onOwnerFilter($event)"></app-owner-filter>
       <nz-table
         nzShowSizeChanger
         [nzData]="data"
@@ -33,6 +34,7 @@
                 <i nz-icon nzType="search"></i>
               </nz-filter-trigger>
             </th>
+            <th *ngIf="owner.active()" nzColumnKey="">Organisation</th>
             <th nzColumnKey="schoolname" nzCustomFilter>
               School
               <nz-filter-trigger
@@ -51,6 +53,7 @@
         <tbody>
           <tr *ngFor="let data of data">
             <td>{{ data["schoolusername"] }}</td>
+            <td *ngIf="owner.active()"><app-owner-name [id]="data.organisationid"></app-owner-name></td>
             <td>{{ data.schoolname }}</td>
             <td>
               <a
@@ -90,14 +93,17 @@
           ></i>
         </a>
   
-        <button
-          (click)="showuploadTeachers()"
-          type="button"
-          nzType="primary"
-          nz-button
-        >
-          Upload Teachers
-        </button>
+        <span nz-tooltip [nzTooltipTitle]="owner.createBlocked() ? chooseOrganisationNotice : null" class="create-action-blocked">
+          <button
+            (click)="showuploadTeachers()"
+            type="button"
+            nzType="primary"
+            nz-button
+            [disabled]="owner.createBlocked()"
+          >
+            Upload Teachers
+          </button>
+        </span>
       </ng-template>
     </ng-template>
     <nz-dropdown-menu #menu="nzDropdownMenu">

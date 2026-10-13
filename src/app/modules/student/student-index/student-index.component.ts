@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import * as csv from 'csvtojson';
 import { uniq } from 'lodash';
@@ -19,6 +19,8 @@ import { UtilService } from 'src/app/services/util.service';
 import { uploadEditedStudentsValidationSchema, uploadStudentsValidationSchema } from 'src/app/services/validator.service';
 import saveAs from 'file-saver';
 import { CountryService } from 'src/app/services/country.service';
+import { CHOOSE_ORGANISATION_NOTICE, ORGANISATION_FILTER_KEY } from 'src/app/shared/owner/owner-view';
+import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
 
 @Component({
     selector: 'app-student-index',
@@ -27,6 +29,16 @@ import { CountryService } from 'src/app/services/country.service';
     standalone: false
 })
 export class StudentIndexComponent implements OnInit {
+  readonly owner = inject(OwnerViewService);
+  readonly chooseOrganisationNotice = CHOOSE_ORGANISATION_NOTICE;
+  /** The organisation the platform view is narrowed to (null: all). */
+  organisationId: string | null = null;
+  async onOwnerFilter(organisationid: string | null) {
+    this.organisationId = organisationid;
+    this.pageIndex = 1;
+    await this.loadDataFromServer();
+  }
+
   curriculum$?: Observable<any>;
   school$?: Observable<any>;
   standard$?: Observable<any>;
@@ -193,7 +205,8 @@ export class StudentIndexComponent implements OnInit {
                 }
               ]
             ) => ({ key: x[0], value: x[1].value })
-          ),
+          )
+          .concat(this.organisationId ? [{ key: ORGANISATION_FILTER_KEY, value: this.organisationId }] : []),
       })
       .pipe(
         first(),

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
 import { EMPTY } from 'rxjs';
@@ -6,6 +6,8 @@ import { catchError, first } from 'rxjs/operators';
 import { IFilter, IPaging } from 'src/app/models/IPaging';
 import { BaseCurriculumService } from 'src/app/services/base-curriculum.service';
 import saveAs from 'file-saver';
+import { filterRowsByOrganisation } from 'src/app/shared/owner/owner-view';
+import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
 
 @Component({
     selector: 'app-baseline-curriculum-index',
@@ -14,6 +16,15 @@ import saveAs from 'file-saver';
     standalone: false
 })
 export class BaselineCurriculumIndexComponent {
+  readonly owner = inject(OwnerViewService);
+  /** The organisation the platform view is narrowed to (null: all). The list comes whole, so it is narrowed here. */
+  organisationId: string | null = null;
+  private rows: Array<any> = [];
+  onOwnerFilter(organisationid: string | null) {
+    this.organisationId = organisationid;
+    this.data = filterRowsByOrganisation(this.rows, (r) => r.organisationid, this.organisationId);
+  }
+
   dataloading = false;
   disable = true;
   searchValue = '';
@@ -41,7 +52,8 @@ export class BaselineCurriculumIndexComponent {
       .subscribe(
         (tempdata: any) => {
           this.total = tempdata.data.total;
-          this.data = tempdata.data;
+          this.rows = tempdata.data;
+          this.data = filterRowsByOrganisation(this.rows, (r) => r.organisationid, this.organisationId);
         },
         (error) => {
           if(error) {

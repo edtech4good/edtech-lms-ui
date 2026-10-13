@@ -1,10 +1,12 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
 import { first } from 'rxjs/operators';
 import { IFilter, IPaging } from 'src/app/models/IPaging';
 import { AuthService } from 'src/app/services/auth.service';
 import { UserService } from 'src/app/services/user.service';
+import { organisationOf, withOrganisationFilter } from 'src/app/shared/owner/owner-view';
+import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
 
 @Component({
     selector: 'app-user-index',
@@ -13,6 +15,19 @@ import { UserService } from 'src/app/services/user.service';
     standalone: false
 })
 export class UserIndexComponent {
+  readonly owner = inject(OwnerViewService);
+  /** The organisation the platform view is narrowed to (null: all). */
+  get organisationFilter(): string | null {
+    return organisationOf(this.filter);
+  }
+  async onOwnerFilter(organisationid: string | null) {
+    await this.loadDataFromServer({
+      filter: withOrganisationFilter(this.filter, organisationid),
+      pageindex: 1,
+      pagesize: this.pageSize,
+    });
+  }
+
   dataloading = false;
   /** A platform caller sees every organisation's staff, so the list says which organisation each belongs to. */
   readonly isPlatform = this.auth.staffScope().isPlatform;

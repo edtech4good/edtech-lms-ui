@@ -17,4 +17,6 @@ export class Question {
   questiontags: Array<string> = [];
   questioncorrectvalue: number = 0;
   questionfeedback?: { correctmessage: string | null; incorrectmessage: string | null } | null;
+  /** The organisation that owns the question (central names it; the platform view shows it). */
+  organisationid?: string | null;
 }

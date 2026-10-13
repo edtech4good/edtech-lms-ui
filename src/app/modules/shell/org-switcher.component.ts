@@ -11,6 +11,7 @@ import { OrganisationService } from '../organisation/organisation.service';
 import { pageMakesSenseInAnyContext } from './org-context';
 import { OrgContextService } from './org-context.service';
 import { ShellNavService } from './shell-nav.service';
+import { clearListCaches } from '../../services/list-cache';
 import { Router } from '@angular/router';
 
 const PLATFORM_INK = '#1E293B';
@@ -356,6 +357,8 @@ export class OrgSwitcherComponent {
    * record (an edit or view page) may not exist in the new context, so that goes Home.
    */
   private reloadForNewContext(): void {
+    // Rows kept from a visit read in the old context must not be shown in the new one.
+    clearListCaches();
     if (!pageMakesSenseInAnyContext(this.router.url)) {
       this.router.navigateByUrl(this.nav.homeRoute).then(() => window.location.reload());
     } else {

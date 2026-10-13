@@ -4,6 +4,7 @@
       <div nz-col nzSpan="24">
         <ng-template [ngxPermissionsOnly]="['create_student']"></ng-template>
         <nz-card [nzBordered]="true" nzTitle="Students" [nzExtra]="extraTemplate">
+          <app-owner-filter [value]="organisationId" (changed)="onOwnerFilter($event)"></app-owner-filter>
           <nz-table
             nzShowSizeChanger
             [nzData]="data"
@@ -36,6 +37,7 @@
                     <i nz-icon nzType="search"></i>
                   </nz-filter-trigger>
                 </th>
+                <th *ngIf="owner.active()" nzColumnKey="">Organisation</th>
                 <th nzColumnKey="schooluser.schoolusername" nzCustomFilter>
                   User Name
                   <nz-filter-trigger
@@ -113,6 +115,7 @@
                     >{{ data.studentfirstname }} {{ data.studentlastname }}</a
                   >
                 </td>
+                <td *ngIf="owner.active()"><app-owner-name [id]="data.organisationid"></app-owner-name></td>
                 <td>{{ data["schooluser.schoolusername"] }}</td>
                 <td>{{ data["curriculum.curriculumname"] }}</td>
                 <td>{{ data.schoolname }}</td>
@@ -148,14 +151,17 @@
               ></i>
             </a>
     
-            <button
-              (click)="showuploadStudents()"
-              type="button"
-              nzType="primary"
-              nz-button
-            >
-              Upload Users
-            </button>
+            <span nz-tooltip [nzTooltipTitle]="owner.createBlocked() ? chooseOrganisationNotice : null" class="create-action-blocked">
+              <button
+                (click)="showuploadStudents()"
+                type="button"
+                nzType="primary"
+                nz-button
+                [disabled]="owner.createBlocked()"
+              >
+                Upload Users
+              </button>
+            </span>
           </ng-template>
         </ng-template>
         <nz-dropdown-menu #menu="nzDropdownMenu">

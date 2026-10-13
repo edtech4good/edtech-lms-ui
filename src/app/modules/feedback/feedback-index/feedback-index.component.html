@@ -54,6 +54,7 @@
 <div nz-row>
   <div nz-col nzSpan="24">
     <nz-card [nzBordered]="true" nzTitle="Teacher Feedbacks">
+      <app-owner-filter [value]="organisationId" (changed)="onOwnerFilter($event)"></app-owner-filter>
       <nz-table
         nzShowSizeChanger
         [nzLoading]="dataloading"
@@ -83,6 +84,7 @@
                 <i nz-icon nzType="search"></i>
               </nz-filter-trigger> -->
             </th>
+            <th *ngIf="owner.active()" nzColumnKey="">Organisation</th>
             <th nzColumnKey="">School Name</th>
             <th nzColumnKey="">Teacher Name</th>
             <th nzColumnKey="">Created At</th>
@@ -92,6 +94,7 @@
         <tbody>
           <tr *ngFor="let data of data">
             <td >{{ data.curriculum.curriculumname }}</td>
+            <td *ngIf="owner.active()"><app-owner-name [id]="data.organisationid"></app-owner-name></td>
             <td >{{ data.schooluser.schoolname }}</td>
             <td >{{ data.teachername }}</td>
             <td >{{ data.created_at | date:'medium' }}</td>

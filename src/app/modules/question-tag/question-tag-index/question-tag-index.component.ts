@@ -1,9 +1,11 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
 import { first, catchError } from 'rxjs/operators';
 import { IFilter, IPaging } from 'src/app/models/IPaging';
 import { QuestionTagService } from 'src/app/services/question-tag.service';
+import { organisationOf, withOrganisationFilter } from 'src/app/shared/owner/owner-view';
+import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
 
 @Component({
     selector: 'app-question-tag-index',
@@ -12,6 +14,19 @@ import { QuestionTagService } from 'src/app/services/question-tag.service';
     standalone: false
 })
 export class QuestionTagIndexComponent {
+  readonly owner = inject(OwnerViewService);
+  /** The organisation the platform view is narrowed to (null: all). */
+  get organisationFilter(): string | null {
+    return organisationOf(this.filter);
+  }
+  async onOwnerFilter(organisationid: string | null) {
+    await this.loadDataFromServer({
+      filter: withOrganisationFilter(this.filter, organisationid),
+      pageindex: 1,
+      pagesize: this.pageSize,
+    });
+  }
+
   dataloading = false;
   searchValue = '';
   total = 1;

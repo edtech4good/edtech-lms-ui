@@ -24,6 +24,9 @@ import { OrgContextService } from '../../shell/org-context.service';
 import { CHOOSE_ORGANISATION_NOTICE, needsOrganisation } from '../../shell/org-context';
 import { DocumentService } from '../services/document.service';
 import { environment } from "./../../../../environments/environment";
+import { organisationOf, withOrganisationFilter } from 'src/app/shared/owner/owner-view';
+import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
+
 @Component({
     selector: 'app-document-index',
     templateUrl: './document-index.component.html',
@@ -32,6 +35,19 @@ import { environment } from "./../../../../environments/environment";
     standalone: false
 })
 export class DocumentIndexComponent implements OnInit, AfterContentInit {
+  readonly owner = inject(OwnerViewService);
+  /** The organisation the platform view is narrowed to (null: all). */
+  get organisationFilter(): string | null {
+    return organisationOf(this.filter);
+  }
+  async onOwnerFilter(organisationid: string | null) {
+    await this.loadDataFromServer({
+      filter: withOrganisationFilter(this.filter, organisationid),
+      pageindex: 1,
+      pagesize: this.pageSize,
+    });
+  }
+
   dataloading = false;
   selectedTag: any;
   currectdocument?: any;
@@ -131,7 +147,9 @@ export class DocumentIndexComponent implements OnInit, AfterContentInit {
     }
     let filter = this.route.snapshot.queryParamMap.get('filter');
     if (filter) {
-      this.filter = JSON.parse(filter);
+      // an organisation filter left in the address means nothing (and is not shown) outside the platform view
+      const restored: Array<IFilter> = JSON.parse(filter);
+      this.filter = this.owner.active() ? restored : withOrganisationFilter(restored, null);
     }
   }
 

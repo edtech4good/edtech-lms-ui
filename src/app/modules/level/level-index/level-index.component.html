@@ -1,6 +1,7 @@
 <div nz-row>
   <div nz-col nzSpan="24">
     <nz-card [nzBordered]="true" nzTitle="Level" [nzExtra]="extraTemplate">
+      <app-owner-filter [value]="organisationFilter" (changed)="onOwnerFilter($event)"></app-owner-filter>
       <nz-table
         nzShowSizeChanger
         [nzLoading]="dataloading"
@@ -30,6 +31,7 @@
                 <i nz-icon nzType="search"></i>
               </nz-filter-trigger>
             </th>
+            <th *ngIf="owner.active()" nzColumnKey="">Organisation</th>
             <th nzColumnKey="">Grade</th>
             <th nzColumnKey="">Order</th>
             <th nzColumnKey="">Description</th>
@@ -39,6 +41,7 @@
         <tbody>
           <tr *ngFor="let data of data">
             <td>{{ data.levelname }}</td>
+            <td *ngIf="owner.active()"><app-owner-name [id]="data.organisationid"></app-owner-name></td>
             <td>
               <a [routerLink]="'/grade/update/' + data.gradeid">{{
                 data.gradename
@@ -85,7 +88,7 @@
       </nz-table>
     </nz-card>
     <ng-template #extraTemplate>
-      <a nz-button routerLink="/level/create" nzType="primary" *ngxPermissionsOnly="['create_level']">Create</a>
+      <app-create-action link="/level/create" *ngxPermissionsOnly="['create_level']"></app-create-action>
     </ng-template>
     <nz-dropdown-menu #menu="nzDropdownMenu">
       <div class="ant-table-filter-dropdown">

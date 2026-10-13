@@ -5,6 +5,7 @@ import {
   ChangeDetectorRef,
   Component,
   OnInit,
+  inject,
 } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -19,6 +20,9 @@ import { QuestionTagService } from 'src/app/services/question-tag.service';
 import { UtilService } from 'src/app/services/util.service';
 import { QuestionService } from '../services/question.service';
 import { pipe } from 'rxjs';
+import { organisationOf, withOrganisationFilter } from 'src/app/shared/owner/owner-view';
+import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
+
 @Component({
     selector: 'app-question-index',
     templateUrl: './question-index.component.html',
@@ -27,6 +31,19 @@ import { pipe } from 'rxjs';
     standalone: false
 })
 export class QuestionIndexComponent implements OnInit, AfterContentInit {
+  readonly owner = inject(OwnerViewService);
+  /** The organisation the platform view is narrowed to (null: all). */
+  get organisationFilter(): string | null {
+    return organisationOf(this.filter);
+  }
+  async onOwnerFilter(organisationid: string | null) {
+    await this.loadDataFromServer({
+      filter: withOrganisationFilter(this.filter, organisationid),
+      pageindex: 1,
+      pagesize: this.pageSize,
+    });
+  }
+
   dataloading = false;
   expandSet = new Set<number>();
   onExpandChange(id: number, checked: boolean): void {

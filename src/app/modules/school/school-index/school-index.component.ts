@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
 import { catchError, first, map } from 'rxjs/operators';
@@ -8,6 +8,8 @@ import { CurriculumService } from 'src/app/services/curriculum.service';
 import { SchoolContributeService } from 'src/app/services/school-contribute.service';
 import { SchoolService } from 'src/app/services/school.service';
 import { StudentService } from 'src/app/services/student.service';
+import { organisationOf, withOrganisationFilter } from 'src/app/shared/owner/owner-view';
+import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
 
 @Component({
     selector: 'app-school-index',
@@ -16,6 +18,19 @@ import { StudentService } from 'src/app/services/student.service';
     standalone: false
 })
 export class SchoolIndexComponent implements OnInit {
+  readonly owner = inject(OwnerViewService);
+  /** The organisation the platform view is narrowed to (null: all). */
+  get organisationFilter(): string | null {
+    return organisationOf(this.filter);
+  }
+  async onOwnerFilter(organisationid: string | null) {
+    await this.loadDataFromServer({
+      filter: withOrganisationFilter(this.filter, organisationid),
+      pageindex: 1,
+      pagesize: this.pageSize,
+    });
+  }
+
   dataloading = false;
   searchValue = '';
   total = 1;

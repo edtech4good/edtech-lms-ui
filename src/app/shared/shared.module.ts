@@ -27,6 +27,10 @@ import { UtilService } from '../services/util.service';
 import { SHARED_ZORRO_MODULES } from './shared-zorro.module';
 import { LessonPlanService } from '../services/lesson.plan.service';
 import { DocumentLabelPipe } from './document-label.pipe';
+import { CreateActionComponent } from './owner/create-action.component';
+import { OwnedByComponent } from './owner/owned-by.component';
+import { OwnerFilterComponent } from './owner/owner-filter.component';
+import { OwnerNameComponent } from './owner/owner-name.component';
 // #region third libs
 
 const THIRDMODULES: any[] = [NgxSpinnerModule];
@@ -68,6 +72,10 @@ const DIRECTIVES: any[] = [];
     ...THIRDMODULES,
     NgxChartsModule,
     DocumentLabelPipe,
+    CreateActionComponent,
+    OwnedByComponent,
+    OwnerFilterComponent,
+    OwnerNameComponent,
   ],
   declarations: [
     // your components
@@ -89,6 +97,10 @@ const DIRECTIVES: any[] = [];
     NgxPermissionsModule,
     NgxChartsModule,
     DocumentLabelPipe,
+    CreateActionComponent,
+    OwnedByComponent,
+    OwnerFilterComponent,
+    OwnerNameComponent,
   ],
   providers: [
     // AuthService,

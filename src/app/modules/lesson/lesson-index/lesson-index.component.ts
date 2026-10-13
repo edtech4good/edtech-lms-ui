@@ -1,9 +1,10 @@
-import { Component, HostListener, OnInit } from '@angular/core';
+import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { orderBy } from 'lodash';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { catchError, first, map } from 'rxjs/operators';
 import { CurriculumService } from 'src/app/services/curriculum.service';
 import { LessonService } from 'src/app/services/lesson.service';
+import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
 
 @Component({
     selector: 'app-lesson-index',
@@ -12,6 +13,16 @@ import { LessonService } from 'src/app/services/lesson.service';
     standalone: false
 })
 export class LessonIndexComponent implements OnInit {
+  readonly owner = inject(OwnerViewService);
+  /** The organisation the platform view is narrowed to (null: all). The list comes whole, so it is narrowed here. */
+  organisationId: string | null = null;
+  onOwnerFilter(organisationid: string | null) {
+    this.organisationId = organisationid;
+  }
+  /** A lesson belongs to the organisation of its curriculum (a list kept from an earlier visit has the curriculum, not the owner). */
+  ownerOf = (row: any): string | null => row.organisationid ?? row.curriculum?.organisationid ?? null;
+  ownerMatches = (row: any): boolean => !this.organisationId || this.ownerOf(row) === this.organisationId;
+
   dataloading = false;
   filter: any = {
     levelname: {
