@@ -143,7 +143,7 @@ export function refusalMessage(error: { status?: number; error?: { errormessage?
   if (said.length > 0) return said.join(' ');
   if (typeof body?.errormessage === 'string' && body.errormessage.trim().length > 0) return body.errormessage;
   if (error?.status === 403) return "You don't have permission to do that.";
-  return 'The upload did not go through.';
+  return 'That did not go through.';
 }
 
 /**

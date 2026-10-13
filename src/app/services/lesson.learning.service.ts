@@ -1,6 +1,13 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import { Injectable } from '@angular/core';
+import { FIELD_ERRORS_INLINE } from 'src/app/interceptors/error-context';
 import { CoreService } from 'src/app/services/core.service';
+
+/**
+ * The create and update of a learning say why they refuse (a video item needs a video file) in the 400's field
+ * messages, which the generic toast leaves out: the lesson-learning page shows them itself.
+ */
+const REFUSAL_SHOWN_BY_CALLER = { context: new HttpContext().set(FIELD_ERRORS_INLINE, true) };
 
 @Injectable({
   providedIn: 'root'
@@ -65,7 +72,7 @@ export class LessonLearningService {
       {
         ...lessonlearning
       },
-      this.coreService.jsonhttpOptions
+      { ...this.coreService.jsonhttpOptions, ...REFUSAL_SHOWN_BY_CALLER }
     );
   }
 
@@ -84,7 +91,7 @@ export class LessonLearningService {
         "lessonlearningname": lessonlearning.lessonlearningname,
         "lessonlearningdescription": lessonlearning.lessonlearningdescription
       },
-      this.coreService.jsonhttpOptions
+      { ...this.coreService.jsonhttpOptions, ...REFUSAL_SHOWN_BY_CALLER }
     );
   }
 
