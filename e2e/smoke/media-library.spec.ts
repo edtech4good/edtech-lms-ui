@@ -611,5 +611,8 @@ test('the lesson plan list and picker show a document by its title, else its key
   const option = page.locator('.ant-select-item-option').filter({ hasText: 'Plan picture for the check' });
   await expect(option).toBeVisible({ timeout: 15_000 });
   await expect(option).not.toContainText(mine.documentname);
+  // the chosen document shows by its title in the select, too
+  await option.click();
+  await expect(dialog.locator('nz-select').first().locator('.ant-select-selection-item')).toHaveText('Plan picture for the check');
   await page.unroute(/\/document$/);
 });
