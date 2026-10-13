@@ -6,10 +6,14 @@ updates:
       interval: weekly
     open-pull-requests-limit: 3
     groups:
-      # Dependabot skips deprecated packages, and @angular/platform-browser-dynamic
-      # and @angular/animations are marked deprecated on npm, so it leaves them
-      # behind and the lockstep peer pins break npm ci. Bump those two by hand
-      # with each Angular patch until they are removed.
+      # Dependabot skips deprecated packages. @angular/animations is marked
+      # deprecated on npm, so it is left behind and its exact-version peer pin on
+      # @angular/core breaks npm ci: bump it by hand with each Angular patch. It
+      # cannot be removed yet because @swimlane/ngx-charts imports trigger()/
+      # transition() from it at runtime (the dashboard charts) and peers on it.
+      # @angular/platform-browser-dynamic is no longer a direct dependency, but
+      # ngx-charts peers on it too, so npm still installs it as a peer: check it
+      # moves with the rest of the group on each Angular patch.
       angular:
         patterns:
           - "@angular/*"
