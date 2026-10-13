@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { FileType } from '../../src/app/models/enums/filetype.enum';
 import {
   DEFAULT_DOCUMENT_LICENCE,
@@ -169,4 +171,35 @@ test.describe('the refusal an upload shows', () => {
     expect(refusalMessage({ status: 403, error: {} })).toBe("You don't have permission to do that.");
     expect(refusalMessage(null)).toBe('That did not go through.');
   });
+});
+
+/**
+ * The five question pickers store the document's FILE NAME in the question's JSON (`questionfile`, `headingfile`, ...),
+ * and every reader finds the file by it. They show the title; they must never store it. This reads the templates:
+ * every option's value is `documentname`, every label and visible text is the title-else-name pipe.
+ * (The question-create picker is also driven in a browser in media-library.spec.ts.)
+ */
+test.describe('question pickers: title shown, file name stored', () => {
+  const root = join(__dirname, '../../src/app/modules/question');
+  const pickers: Array<[string, number]> = [
+    ['question-create/question-create.component.html', 1],
+    ['question-update/question-update.component.html', 2],
+    ['question-heading/question-heading.component.html', 2],
+    ['question-option/question-option.component.html', 4],
+    ['question-associate/question-associate.component.html', 2],
+  ];
+  for (const [file, options] of pickers) {
+    test(file, () => {
+      const html = readFileSync(join(root, file), 'utf8');
+      // the options of the document pickers bind `o` (the other selects in these forms bind `option`)
+      const isPicker = (expr: string) => /^o(\s|\.|$)/.test(expr);
+      const values = [...html.matchAll(/\[nzValue\]="([^"]+)"/g)].map((m) => m[1]).filter(isPicker);
+      const labels = [...html.matchAll(/\[nzLabel\]="([^"]+)"/g)].map((m) => m[1]).filter(isPicker);
+      expect(values).toHaveLength(options);
+      expect(values.every((v) => v === 'o.documentname'), `values: ${values.join(', ')}`).toBeTruthy();
+      expect(labels).toHaveLength(options);
+      expect(labels.every((l) => l === 'o | documentLabel'), `labels: ${labels.join(', ')}`).toBeTruthy();
+      expect(html, 'a picker still prints the file name').not.toMatch(/\{\{\s*o\.documentname\s*\}\}/);
+    });
+  }
 });
