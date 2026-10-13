@@ -97,6 +97,24 @@ const LISTS: Array<[string, string]> = [
   ['baseline-curriculum/index', 'Curriculum Name'],
 ];
 
+/** The pages that create content or people, and what the control says. */
+const CREATES: Array<[string, string]> = [
+  ['document/index', 'Upload'],
+  ['documenttag/index', 'Create'],
+  ['questiontag/index', 'Create'],
+  ['curriculum/index', 'Create'],
+  ['subject/index', 'Create'],
+  ['question/index', 'Create'],
+  ['school/index', 'Create'],
+  ['standard/index', 'Create'],
+  ['grade/index', 'Create'],
+  ['level/index', 'Create'],
+  ['lesson/index', 'Create'],
+  ['student/index', 'Upload Users'],
+  ['teacher/index', 'Upload Teachers'],
+  ['baseline-curriculum/index', 'Create'],
+];
+
 test.beforeAll(async ({ browser }) => {
   // Before anything signs in on a page: one token per user, and switching evicts the last one.
   const root = await apiContext(await apiLogin());
@@ -183,40 +201,27 @@ test.describe('the platform view, signed in as the platform superadmin and actin
   });
 
   for (const [path, firstColumn] of LISTS) {
-    test(`${path}: the Organisation column and the filter are there, and the create control says why it is off`, async () => {
+    test(`${path}: the Organisation column and the filter are there`, async () => {
       await page.goto(`/${path}`);
       await expect(page.locator('thead th').filter({ hasText: firstColumn }).first()).toBeVisible();
       await expect(header(page)).toHaveCount(1);
       await expect(filterBox(page)).toBeVisible();
       await expect(filterBox(page).locator('nz-select')).toContainText('All organisations');
-      // Create (or Upload) is disabled where it is shown; the hint is the sentence central gives for a refused create.
-      const blocked = page.locator('.create-action-blocked, [data-testid="create-blocked"]');
-      if ((await blocked.count()) > 0) {
-        await expect(blocked.first().getByRole('button')).toBeDisabled();
-        await blocked.first().hover();
-        await expect(page.locator('.ant-tooltip')).toContainText(CHOOSE_HINT);
-      }
     });
   }
 
-  test('the pages that create content have a disabled control, not a link', async () => {
-    for (const [path, name] of [
-      ['curriculum/index', 'Create'],
-      ['subject/index', 'Create'],
-      ['school/index', 'Create'],
-      ['grade/index', 'Create'],
-      ['question/index', 'Create'],
-      ['document/index', 'Upload'],
-      ['student/index', 'Upload Users'],
-      ['teacher/index', 'Upload Teachers'],
-    ] as const) {
+  // Every page that creates something: the control is a disabled button (never a link), and says why on hover.
+  for (const [path, name] of CREATES) {
+    test(`${path}: ${name} is disabled, with the hint, and is not a link`, async () => {
       await page.goto(`/${path}`);
       // (The text only: the document page's button has an icon in front of it.)
       const button = page.locator('button').filter({ hasText: new RegExp(`^\\s*${name}\\s*$`) });
-      await expect(button, `${path}: ${name} is disabled in the platform view`).toBeDisabled();
-      await expect(page.getByRole('link', { name, exact: true }), `${path}: there is no ${name} link`).toHaveCount(0);
-    }
-  });
+      await expect(button).toBeDisabled();
+      await expect(page.getByRole('link', { name, exact: true })).toHaveCount(0);
+      await button.locator('xpath=..').hover();
+      await expect(page.locator('.ant-tooltip')).toContainText(CHOOSE_HINT);
+    });
+  }
 
   test('the documents list names the owner of each document, and the filter narrows it to the organisation chosen', async () => {
     const api = await apiContext(await tokenOf(page));
