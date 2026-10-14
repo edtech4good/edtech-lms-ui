@@ -1,8 +1,9 @@
 /* The Playwright suite runs in Node, not the browser: it needs node types and
    CommonJS, which the Angular tsconfig deliberately does not provide.
-   Playwright transpiles specs itself with esbuild (no type checking) on Node
-   22, so this file is for editor support and for
-   `npx tsc --noEmit -p e2e/tsconfig.json`, which is expected to pass.
+   Playwright transpiles specs itself with Babel (types stripped, no type
+   checking) on Node 22, so this file is for editor support and for
+   `npx tsc --noEmit -p e2e/tsconfig.json`, which is expected to pass and runs
+   in CI.
    moduleResolution is node10 because the parent's "bundler" is not allowed
    with module commonjs (TS5095). lib is es2022 because the specs use
    Array.prototype.at, and @types/node no longer shims it from version 25. */
@@ -19,6 +20,6 @@
     "sourceMap": false,
     "strict": true
   },
-  "include": ["**/*.ts", "../playwright.config.ts"],
+  "include": ["**/*.ts", "../playwright.config.ts", "../playwright.expo.config.ts"],
   "exclude": []
 }

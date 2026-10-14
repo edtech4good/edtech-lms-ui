@@ -31,6 +31,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The Playwright specs are transpiled by Babel at run time and compiled
+      # nowhere else, so a @types/node or @playwright/test bump can break their
+      # types unseen (lms-ui#111 did). About four seconds after npm ci.
+      - name: Typecheck the Playwright suite
+        run: npx tsc --noEmit -p e2e/tsconfig.json
+
       # Build the shipped configuration. src/environments/environment.prod.ts
       # IS committed, with placeholder values (workspace#63 confirmed the
       # prod build passes: 3.11 MB initial bundle, a budget warning, not an
