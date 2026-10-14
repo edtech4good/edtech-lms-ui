@@ -167,6 +167,9 @@ type ApiLesson = {
   completed?: boolean;
   progress?: number;
 };
+// The only fields the status rule reads. Narrower than ApiLesson so a /steps
+// lesson (which has no lessonname) type-checks where only the status is needed.
+type LessonStatusFields = Pick<ApiLesson, "lessonid" | "completed" | "progress">;
 
 // Raw shape of GET /lesson/level/:levelid/steps (src/models/Lesson.ts's
 // LevelSteps / LevelStepsLesson) — item status is a plain ActivityStatus
@@ -193,10 +196,10 @@ type StepInfoFull = { state: StepState; done: number; total: number };
 // LevelSelectionScreen.tsx's own isLessonDone/fallback rule, copied
 // verbatim — the fallback used when a lesson's `/steps` structure is
 // entirely missing (never merely empty — see stepStateFor below).
-const isLessonDone = (lesson: ApiLesson): boolean =>
+const isLessonDone = (lesson: LessonStatusFields): boolean =>
   lesson.completed === true || (lesson.progress ?? 0) >= 100;
 
-const fallbackStatusFor = (lesson: ApiLesson): ExpectedStatus => {
+const fallbackStatusFor = (lesson: LessonStatusFields): ExpectedStatus => {
   if (isLessonDone(lesson)) return "done";
   if ((lesson.progress ?? 0) > 0) return "inProgress";
   return "todo";
@@ -253,7 +256,7 @@ const toFullFromApprox = (state: StepState): StepInfoFull => ({
  * or every known type is empty.
  */
 function derivedStatusFor(
-  lesson: ApiLesson,
+  lesson: LessonStatusFields,
   stepsLesson: StepsApiLesson | undefined
 ): {
   status: ExpectedStatus;
@@ -953,7 +956,7 @@ test.describe("expo web lesson status icons — intercepted /steps (#97 proof)",
         // structure) — not the raw `completed`/`progress` fields — so a
         // lesson the screen would already show as done from real /steps
         // data is correctly left alone rather than reset to todo.
-        const statusFor = (lesson: ApiLesson) =>
+        const statusFor = (lesson: LessonStatusFields) =>
           derivedStatusFor(lesson, stepsByLessonId.get(lesson.lessonid)).status;
 
         const sortedNonDone = apiLessonsForPick

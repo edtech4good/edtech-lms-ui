@@ -374,13 +374,13 @@ test('the type filter sends one exact id, and the new types are named', async ()
   };
 
   // type 1 (AUDIO) is not a prefix of type 10: no spreadsheet comes back for it
-  const audio = await typeFilter('AUDIO');
+  const audio = (await typeFilter('AUDIO'))!; // expectRequest defaults to true: a request is awaited, so the filter is never null here
   expect(audio.find((f) => f.key === 'documenttypeid')).toEqual({ key: 'documenttypeid', value: '1' });
   await expect(page.locator('tbody tr').filter({ hasText: 'figures' })).toHaveCount(0);
   // (whatever else the organisation holds, nothing listed under AUDIO is anything but audio)
   for (const type of await page.locator('tbody tr.ant-table-row td:nth-child(2)').allTextContents()) expect(type.trim()).toBe('AUDIO');
 
-  const sheet = await typeFilter('spreadsheet');
+  const sheet = (await typeFilter('spreadsheet'))!; // expectRequest defaults to true: a request is awaited, so the filter is never null here
   expect(sheet.find((f) => f.key === 'documenttypeid')).toEqual({ key: 'documenttypeid', value: '10' });
   await expect(page.locator('tbody tr').filter({ hasText: 'figures' })).toHaveCount(1);
   const types = await page.locator('tbody tr.ant-table-row td:nth-child(2)').allTextContents();
