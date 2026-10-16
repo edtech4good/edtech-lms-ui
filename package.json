@@ -45,7 +45,7 @@
     "@ngrx/schematics": "21.1.1",
     "@ngrx/store": "21.1.1",
     "@ngrx/store-devtools": "21.1.1",
-    "@swimlane/ngx-charts": "^20.1.2",
+    "@swimlane/ngx-charts": "^25.0.3",
     "csvtojson": "^2.0.14",
     "date-fns": "^4.4.0",
     "file-extension": "^4.0.5",
