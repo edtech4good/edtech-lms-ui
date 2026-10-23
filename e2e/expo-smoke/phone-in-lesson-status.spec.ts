@@ -146,11 +146,12 @@ const TYPE_FOR: Record<ActivityKind, 'learning' | 'practice' | 'quiz'> = {
   quizzes: 'quiz',
 };
 
-/** screen.lesson.stepType.<type> from km.json — same Khmer string as the
- *  old section titles (learningTitle/practiceTitle/quizTitle), but this is
- *  the key the v2.1 screen's `stepTypeLabel` actually reads. */
+/** screen.lesson.stepType.<type> from km.json — the key the v2.1 screen's
+ *  `stepTypeLabel` actually reads. `learning` no longer equals the old
+ *  section title (learningTitle) since the 23 Oct 2026 review; practice and
+ *  quiz still do. */
 const STEP_TYPE_KM: Record<'learning' | 'practice' | 'quiz', string> = {
-  learning: 'សិក្សា',
+  learning: 'កំពុងសិក្សា',
   practice: 'អនុវត្ត',
   quiz: 'តេស្ត',
 };
@@ -234,7 +235,7 @@ function statusTextKm(step: Step, unsynced: boolean): string {
   if (step.status === 'inProgress') return 'កំពុងដំណើរការ';
   // todo
   return step.type === 'quiz'
-    ? 'មិនទាន់ចាប់ផ្តើម · ត្រូវប្រលងជាប់ដើម្បីបញ្ចប់មេរៀន'
+    ? 'មិនទាន់ចាប់ផ្ដើម · ត្រូវប្រឡងឱ្យជាប់ដើម្បីបញ្ចប់មេរៀន'
     : 'មិនទាន់ចាប់ផ្តើម';
 }
 

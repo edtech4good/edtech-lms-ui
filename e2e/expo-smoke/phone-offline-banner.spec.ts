@@ -49,7 +49,7 @@ test.describe.configure({ mode: "serial" });
  * edtech-expo/src/locales/km.json key `offline.banner`. Never hand-typed.
  */
 const OFFLINE_BANNER_KM =
-  "អ្នកកំពុងនៅក្រៅបណ្ដាញ។ មេរៀនដែលបានទាញយកនៅតែអាចប្រើបាន។";
+  "អ្នកមិនមានអ៊ិនធឺណេតទេ។ មេរៀនដែលបានទាញយកនៅតែអាចប្រើបាន។";
 
 test.describe("expo web offline banner (phone)", () => {
   let corporateContext: BrowserContext;
