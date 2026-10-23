@@ -52,7 +52,7 @@
  *    Cohort II -> Module 1: Business Vision & Goals -> "Your business
  *    vision", lesson c0000000-0000-4000-8000-000000000009): the meta line
  *    reads exactly "Cohort II · Module 1: Business Vision & Goals ·
- *    វីដេអូ 1 · លំហាត់ 1 · តេស្ត 1"; the captured activities/progress
+ *    វីដេអូ 1 · លំហាត់អនុវត្ត 1 · តេស្ត 1"; the captured activities/progress
  *    response is
  *    {"lessonid":"...09","pass_percentage":80,
  *     "learnings":[{"lessonlearningid":"...11","status":"done","progress_percentage":100}],
@@ -255,7 +255,7 @@ function footerLabelKm(nextStep: Step): string {
 function metaLineKm(data: ActivityProgressResponse): string {
   const parts = [GRADENAME_KM, LEVELNAME_KM];
   if (data.learnings.length > 0) parts.push(`វីដេអូ ${data.learnings.length}`);
-  if (data.practices.length > 0) parts.push(`លំហាត់ ${data.practices.length}`);
+  if (data.practices.length > 0) parts.push(`លំហាត់អនុវត្ត ${data.practices.length}`);
   if (data.quizzes.length > 0) parts.push(`តេស្ត ${data.quizzes.length}`);
   return parts.join(' · ');
 }
