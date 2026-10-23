@@ -52,7 +52,9 @@
  *    Cohort II -> Module 1: Business Vision & Goals -> "Your business
  *    vision", lesson c0000000-0000-4000-8000-000000000009): the meta line
  *    reads exactly "Cohort II · Module 1: Business Vision & Goals ·
- *    វីដេអូ 1 · លំហាត់អនុវត្ត 1 · តេស្ត 1"; the captured activities/progress
+ *    វីដេអូ 1 · លំហាត់ 1 · តេស្ត 1" (the practices word has since been
+ *    corrected to លំហាត់អនុវត្ត by the native-speaker review of 23 Oct 2026;
+ *    metaLineKm() follows the corrected value); the captured activities/progress
  *    response is
  *    {"lessonid":"...09","pass_percentage":80,
  *     "learnings":[{"lessonlearningid":"...11","status":"done","progress_percentage":100}],
