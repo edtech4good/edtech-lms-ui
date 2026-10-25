@@ -107,7 +107,7 @@ const API_COUNTRY_HAS_SCHOOLS = 'A school of this organisation is in a country y
  *   code sentences go to those fields (both, if both are in the message), the
  *   countries sentence to Countries, and any other 409 shows the API's own message
  *   for the form (it is written for users), or the generic line when it has none.
- * - Anything else (401, 502, 503, ...) is the generic line.
+ * - Anything else (502, 503, ...) is the generic line. (A 401 reaches here only when the error interceptor could not ask for a refresh, e.g. the refresh call itself was unavailable; otherwise it recovers the session or ends it.)
  */
 export function serverFieldErrors(error: HttpErrorResponse): ServerFieldErrors {
   const body = (error.error ?? {}) as ApiErrorBody;

@@ -1,13 +1,14 @@
-import { HttpClient, HttpContext } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpErrorResponse } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { JwtHelperService } from '@auth0/angular-jwt';
 import { Store } from '@ngrx/store';
 import { differenceInMilliseconds } from 'date-fns';
 import { NgxPermissionsService } from 'ngx-permissions';
-import { Observable, firstValueFrom } from 'rxjs';
-import { first, tap } from 'rxjs/operators';
-import { FIELD_ERRORS_INLINE } from '../interceptors/error-context';
+import { NzNotificationService } from 'ng-zorro-antd/notification';
+import { Observable, defer, firstValueFrom } from 'rxjs';
+import { finalize, first, tap } from 'rxjs/operators';
+import { FIELD_ERRORS_INLINE, ISSUES_TOKENS } from '../interceptors/error-context';
 import { ResetPasswordBody } from '../models/changepassword';
 import { lmsuser } from '../models/lmsuser.model';
 import { LoginRequestBody } from '../models/loginrequestbody';
@@ -19,6 +20,10 @@ import { lmsuserstate } from '../store/lmsuser/lmsuser.reducer';
 import { CoreService } from './core.service';
 import { clearListCaches } from './list-cache';
 import { TokenService } from './token.service';
+
+/** What the person is told when the session is over. One text, one key: notices that arrive together show once. */
+export const SESSION_ENDED_MESSAGE = 'Your session ended. Sign in again.';
+export const SESSION_ENDED_TOAST_KEY = 'http-401';
 
 @Injectable({
   providedIn: 'root',
@@ -37,6 +42,7 @@ export class AuthService {
     private readonly userstore: Store<lmsuserstate>,
     private readonly router: Router,
     private route: ActivatedRoute,
+    private readonly notification: NzNotificationService,
   ) {
     this.setAuthTimer();
   }
@@ -86,6 +92,9 @@ export class AuthService {
     this.permissionsService.loadPermissions(this.getLmsUser()?.permissions ?? []);
   }
   private fetchrefreshtoken = async () => {
+    // A token update in flight from before the request goes out until the new pair is stored (or the
+    // refresh failed): a call refused meanwhile waits for it rather than refreshing with a dying token.
+    const updated = this.beginTokenUpdate();
     try {
       const result = await this.refreshtoken(
         this.tokenService.getrefreshtoken()
@@ -93,6 +102,8 @@ export class AuthService {
       this.setlogin(result.data.accessToken, result.data.refreshToken);
     } catch (e) {
       this.logout();
+    } finally {
+      updated();
     }
   };
 
@@ -130,12 +141,20 @@ export class AuthService {
 
   logout(): void {
     this.serverlogout().pipe(first()).subscribe();
+    this.clearSession();
+    this.routetoLogin();
+  }
+
+  /**
+   * Forget the signed-in session here, without telling the server. For a session the API has
+   * already refused (a 401): the token is dead, so calling auth/logout would only 401 again.
+   */
+  clearSession(): void {
     clearListCaches();
     this.userstore.dispatch(clearuserAction());
     clearTimeout(this.tokenTimer);
     this.tokenService.logout();
     this.isLoggedIn = false;
-    this.routetoLogin();
   }
   // login api call
   login(credentials: LoginRequestBody): Observable<any> {
@@ -158,11 +177,22 @@ export class AuthService {
    * also covers 403) and still toasts 429, 500 and no connection.
    */
   switchOrganisation(organisationid: string | null): Observable<{ data: { accessToken: string; refreshToken: string } }> {
-    return this.http.post<{ data: { accessToken: string; refreshToken: string } }>(
-      `${this.coreService.CORE_API()}auth/organisation`,
-      { organisationid },
-      { ...this.coreService.jsonhttpOptions, context: new HttpContext().set(FIELD_ERRORS_INLINE, true) }
-    );
+    // The server cancels the old tokens the moment it issues the new pair, so this is a token update in
+    // flight from before the request goes out until the caller has stored the pair (its next handler runs
+    // before the observable finishes) or the switch failed.
+    return defer(() => {
+      const updated = this.beginTokenUpdate();
+      return this.http
+        .post<{ data: { accessToken: string; refreshToken: string } }>(
+          `${this.coreService.CORE_API()}auth/organisation`,
+          { organisationid },
+          {
+            ...this.coreService.jsonhttpOptions,
+            context: new HttpContext().set(FIELD_ERRORS_INLINE, true).set(ISSUES_TOKENS, true),
+          }
+        )
+        .pipe(finalize(updated));
+    });
   }
 
   /** Can this token be read at all (three parts, a JSON payload)? Checked before a reissued token is stored. */
@@ -178,22 +208,89 @@ export class AuthService {
 
   /**
    * The API no longer accepts the stored access token (a 401): try the refresh token once.
-   * True when it gave a new pair (stored, as a refresh does); false when it did not, which
-   * means the session is gone.
+   * 'renewed': it gave a new pair (stored, as a refresh does). 'refused': the refresh token is no good either
+   * (a 401, or an answer that cannot be read), so the session is gone. 'unavailable': the refresh could not be
+   * asked (no connection, a 429, a server error), which says nothing about the session.
    */
-  async recoverSession(): Promise<boolean> {
+  private async exchangeRefreshToken(): Promise<'renewed' | 'refused' | 'unavailable'> {
     try {
       const result = await firstValueFrom(this.refreshtoken(this.tokenService.getrefreshtoken()));
       // Both tokens must be readable before either is stored: an unreadable answer keeps the old
       // tokens and counts as a failed recovery.
       if (!this.isReadableToken(result?.data?.accessToken) || !this.isReadableToken(result?.data?.refreshToken)) {
-        return false;
+        return 'refused';
       }
       this.setlogin(result.data.accessToken, result.data.refreshToken);
-      return true;
-    } catch {
-      return false;
+      return 'renewed';
+    } catch (e) {
+      return e instanceof HttpErrorResponse && e.status !== 401 ? 'unavailable' : 'refused';
     }
+  }
+
+  /** The token updates in flight (a refresh, an organisation switch): each ends when its new pair is stored or it failed. */
+  private readonly tokenUpdates = new Set<Promise<void>>();
+
+  /** Register a token update as in flight, before its request goes out. Call the result when it is over. */
+  private beginTokenUpdate(): () => void {
+    let end!: () => void;
+    const update = new Promise<void>((resolve) => (end = resolve));
+    this.tokenUpdates.add(update);
+    return () => {
+      this.tokenUpdates.delete(update);
+      end();
+    };
+  }
+
+  /** The refresh in flight, if any: calls refused together share it. */
+  private recovery: Promise<boolean> | null = null;
+
+  /**
+   * A call the API refused with a 401 (the token it was sent with is `sentToken`). The server cancels the old
+   * access and refresh tokens when it issues a new pair, so a call can be refused while a switch or a refresh
+   * is about to store a good pair: wait for any token update in flight first, then compare. A token that
+   * differs from the one the call was sent with is a good one: true, send the call again. Otherwise get the
+   * session back with the refresh token, once however many calls were refused together.
+   * True: the session is good, so the caller may send its call again. False: the call stays refused. The
+   * session is ended (once, with its one notice) only when the refresh token is refused too; a refresh that
+   * could not be asked leaves the session as it is. A caller never navigates for this.
+   * `issuesTokens`: the refused call is itself a token update (the organisation switch), which must not wait
+   * for itself.
+   */
+  async recoverOrEndSession(sentToken: string, issuesTokens = false): Promise<boolean> {
+    while (!issuesTokens && this.tokenUpdates.size > 0) {
+      await Promise.all([...this.tokenUpdates]);
+    }
+    const now = this.tokenService.gettoken();
+    // Signed out meanwhile (the session was ended by an earlier refusal): nothing to recover.
+    if (!now) return false;
+    // A new pair has been stored since this call went out: send it again with the new one.
+    if (now !== sentToken) return true;
+    if (!this.recovery) {
+      const updated = this.beginTokenUpdate();
+      const done = () => {
+        this.recovery = null;
+        updated();
+      };
+      this.recovery = this.exchangeRefreshToken().then(
+        (outcome) => {
+          if (outcome === 'refused') this.endSession();
+          done();
+          return outcome === 'renewed';
+        },
+        (e) => {
+          done();
+          throw e;
+        }
+      );
+    }
+    return this.recovery;
+  }
+
+  /** The session is over and cannot be got back (a refused refresh token): clear it, go to sign-in, say so once. */
+  endSession(): void {
+    this.clearSession();
+    this.router.navigateByUrl('/auth/login');
+    this.notification.info(SESSION_ENDED_MESSAGE, '', { nzKey: SESSION_ENDED_TOAST_KEY });
   }
 
   // refresh token api call

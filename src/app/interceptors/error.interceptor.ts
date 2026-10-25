@@ -1,13 +1,16 @@
 import { HttpErrorResponse, HttpEvent, HttpHandler, HttpInterceptor, HttpRequest } from '@angular/common/http';
-import { Injectable } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Injectable, Injector } from '@angular/core';
+import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
-import { Observable, throwError } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { Observable, from, throwError } from 'rxjs';
+import { catchError, map, switchMap } from 'rxjs/operators';
+import { AuthService } from '../services/auth.service';
+import { CoreService } from '../services/core.service';
+import { TokenService } from '../services/token.service';
 import { unsetloadingAction } from '../store/appstate/appstate.action';
 import { appState } from '../store/appstate/appstate.reducer';
-import { FAILURES_SHOWN_BY_CALLER, FIELD_ERRORS_INLINE, FORBIDDEN_HANDLED, NOT_FOUND_HANDLED } from './error-context';
+import { FAILURES_SHOWN_BY_CALLER, FIELD_ERRORS_INLINE, FORBIDDEN_HANDLED, ISSUES_TOKENS, NOT_FOUND_HANDLED } from './error-context';
 
 /** What a 404 says when the API gave no words of its own. */
 export const NOT_FOUND_MESSAGE = 'That record was not found. It may have been removed, or it may not be yours to see.';
@@ -15,12 +18,24 @@ export const NOT_FOUND_MESSAGE = 'That record was not found. It may have been re
 /** The ng-zorro key of the 404 notice: a repeat replaces the one showing. */
 export const NOT_FOUND_TOAST_KEY = 'http-404';
 
+/**
+ * A 401 on these is not an ended session. The sign-in call answers it for the form (a wrong
+ * password), a logout and a refresh are made with a token that is already dead, and the
+ * refresh's failure is read by whoever asked for it.
+ */
+const SESSION_FREE_URL = /\/auth\/(login|logout|refreshtoken)(\?|$)/;
+
+/** The sign-in pages (the bare /auth redirects to the sign-in form). */
+const ON_SIGN_IN_PAGES = /^\/auth(\/|\?|#|$)/;
+
 @Injectable({ providedIn: 'root' })
 export class ErrorInterceptor implements HttpInterceptor {
   constructor(
     private readonly notification: NzNotificationService,
     private readonly router: Router,
-    private readonly route: ActivatedRoute,
+    private readonly injector: Injector,
+    private readonly core: CoreService,
+    private readonly tokens: TokenService,
     private appStore: Store<appState>
   ) {}
 
@@ -28,12 +43,24 @@ export class ErrorInterceptor implements HttpInterceptor {
     req: HttpRequest<any>,
     next: HttpHandler
   ): Observable<HttpEvent<any>> {
+    return this.send(req, next, false);
+  }
+
+  /** `retried`: this is the second send of a call a 401 refused, after the session was recovered. */
+  private send(
+    req: HttpRequest<any>,
+    next: HttpHandler,
+    retried: boolean
+  ): Observable<HttpEvent<any>> {
+    // The token this call goes out with, so a refusal can tell whether a refresh has replaced it since.
+    const sentToken = this.tokens.gettoken();
     // Two requests never toast. Signing out clears the session whether or not the
     // server hears about it, so a failed logout must not put an error toast on the
     // sign-in page. And the sign-in form owns every sign-in failure: it says what
     // went wrong beside the form (login.component.ts), so a toast would be a
     // second, louder, message.
-    const quiet = /\/auth\/(logout|login)(\?|$)/.test(req.url) || req.context.get(FAILURES_SHOWN_BY_CALLER);
+    // A refresh that fails says nothing of its own either: the call that needed it shows its usual message.
+    const quiet = /\/auth\/(logout|login|refreshtoken)(\?|$)/.test(req.url) || req.context.get(FAILURES_SHOWN_BY_CALLER);
     const toast = (type: string, data: any, key?: string): void => {
       if (!quiet) this.createNotification(type, data, key);
     };
@@ -67,13 +94,29 @@ export class ErrorInterceptor implements HttpInterceptor {
           // replaces a notice that has the same key.
           toast('error', typeof said === 'string' && said.trim() ? said : NOT_FOUND_MESSAGE, NOT_FOUND_TOAST_KEY);
         }
-        if (error.status === 401) {
-          // The API returns 401 for role failures too (access.guard.ts), not just
-          // a bad/expired token, so this must not clear the session here until the
-          // API returns 403 for role failures instead (tracked separately).
-          if (this.route.snapshot.url.length > 0) {
-            this.router.navigateByUrl('/auth/login');
+        if (
+          error.status === 401 &&
+          req.url.startsWith(this.core.CORE_API()) &&
+          !SESSION_FREE_URL.test(req.url) &&
+          !ON_SIGN_IN_PAGES.test(this.router.url)
+        ) {
+          // Both APIs answer a role failure with 403 (edtech-lms-api#54, edtech-lms-rpi-api#35, 18 Sep
+          // 2026), so a 401 means the token itself is no longer good: it expired, or a later sign-in
+          // evicted it (one token per user). Get the session back with the refresh token, once however
+          // many calls were refused together, and send this call again; if that cannot be done the
+          // session is ended (cleared, sign-in page, one notice). Not on a sign-in page (the emailed-link
+          // pages answer 401 for a bad link), and only the API's own answers count, not another host's.
+          // The notice is shown even for a call that opted out of toasts: the person is being moved.
+          // AuthService needs HttpClient, which needs the interceptors, so it is asked for only now.
+          const auth = this.injector.get(AuthService);
+          if (retried) {
+            // Refused again with the new token: nothing more to try.
+            auth.endSession();
+            return throwError(error);
           }
+          return from(auth.recoverOrEndSession(sentToken, req.context.get(ISSUES_TOKENS))).pipe(
+            switchMap((recovered) => (recovered ? this.send(req, next, true) : throwError(error)))
+          );
         }
         if (error.status === 500) {
           toast(

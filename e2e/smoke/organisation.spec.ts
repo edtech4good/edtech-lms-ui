@@ -467,7 +467,8 @@ test.describe('organisations, signed in as the platform superadmin', () => {
   }
   const submitButton = () => drawer().getByRole('button', { name: /Create organisation|Save changes/ });
 
-  for (const status of [401, 502, 503]) {
+  // (Not 401: a 401 means the session has ended, and the error interceptor signs the person out; see session-ended.spec.ts.)
+  for (const status of [502, 503]) {
     test(`a create answered with HTTP ${status} says it could not be saved, once, in the form`, async () => {
       await mockCreate((route) => route.fulfill(json(status)));
       await openNew();

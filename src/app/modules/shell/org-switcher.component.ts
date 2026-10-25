@@ -71,8 +71,6 @@ export class OrgSwitcherComponent {
   private readonly memberOrgName = signal<string | null>(null);
   /** The lookup of the organisation behind the chip failed: say so, not "Organisation". */
   private readonly lookupFailed = signal(false);
-  /** One recovery of a refused session at a time. */
-  private recovering = false;
 
   readonly shown = computed<Shown>(() => {
     const c = this.claims();
@@ -173,31 +171,13 @@ export class OrgSwitcherComponent {
     }
   }
 
-  /** A refused lookup: a 401 means the session is gone; anything else leaves an honest chip. */
-  private lookupRefused(error: HttpErrorResponse): void {
-    if (error.status === 401) {
-      this.sessionRefused();
-    } else {
-      this.lookupFailed.set(true);
-    }
-  }
-
   /**
-   * The API no longer accepts this tab's token (the organisation it acted in was suspended or
-   * deleted, or another tab signed in or switched, and the API revokes the previous tokens). Try
-   * the refresh token once; if that fails the session is gone: sign out, with one message.
-   * Resolves true when the session was recovered.
+   * A refused lookup. A 401 is the error interceptor's: it gets the session back with the refresh token and
+   * sends the lookup again, or ends the session; either way the chip has nothing to add. Anything else leaves
+   * an honest chip.
    */
-  private async sessionRefused(): Promise<boolean> {
-    if (this.recovering) return false;
-    this.recovering = true;
-    const ok = await this.auth.recoverSession();
-    this.recovering = false;
-    if (!ok) {
-      this.notification.info('Your session ended. Sign in again.', '');
-      this.auth.logout();
-    }
-    return ok;
+  private lookupRefused(error: HttpErrorResponse): void {
+    if (error.status !== 401) this.lookupFailed.set(true);
   }
 
   // ---- Open and close -------------------------------------------------------
@@ -305,7 +285,7 @@ export class OrgSwitcherComponent {
     return this.claims().organisationid === organisationid;
   }
 
-  choose(organisationid: string | null, suspended = false, retried = false): void {
+  choose(organisationid: string | null, suspended = false): void {
     if (this.busy() || suspended) return;
     if (this.isCurrent(organisationid)) {
       this.close(true);
@@ -332,11 +312,10 @@ export class OrgSwitcherComponent {
           this.close();
           this.reloadForNewContext();
         },
-        error: async (error: HttpErrorResponse) => {
+        error: (error: HttpErrorResponse) => {
           this.busy.set(false);
           if (error.status === 401) {
-            // The session is gone, or can be got back with the refresh token, once.
-            if ((await this.sessionRefused()) && !retried) this.choose(organisationid, false, true);
+            // The error interceptor has already recovered the session and sent the switch again, or ended the session.
             return;
           }
           this.message.set(switchRefusal(error));
