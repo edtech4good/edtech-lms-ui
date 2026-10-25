@@ -1,7 +1,7 @@
 import { HttpClient, HttpContext, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import { FIELD_ERRORS_INLINE, FORBIDDEN_HANDLED, NOT_FOUND_HANDLED } from 'src/app/interceptors/error-context';
+import { FIELD_ERRORS_INLINE, FORBIDDEN_HANDLED, NOT_FOUND_HANDLED, SESSION_RECOVERED_BY_CALLER } from 'src/app/interceptors/error-context';
 import { CoreService } from 'src/app/services/core.service';
 import {
   Country,
@@ -33,11 +33,14 @@ export class OrganisationService {
       .pipe(map((r) => r.data));
   }
 
-  /** One organisation by id (platform routes). */
-  get(organisationid: string): Observable<Organisation> {
+  /**
+   * One organisation by id (platform routes). `sessionRecoveredByCaller`: the caller deals with a 401
+   * itself (the switcher's chip), so the error interceptor leaves it alone.
+   */
+  get(organisationid: string, sessionRecoveredByCaller = false): Observable<Organisation> {
     return this.http
       .get<{ data: Organisation }>(this.url(`/${organisationid}`), {
-        context: new HttpContext().set(FORBIDDEN_HANDLED, true),
+        context: new HttpContext().set(FORBIDDEN_HANDLED, true).set(SESSION_RECOVERED_BY_CALLER, sessionRecoveredByCaller),
       })
       .pipe(map((r) => r.data));
   }

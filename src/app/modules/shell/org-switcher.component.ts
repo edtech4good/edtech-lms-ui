@@ -158,13 +158,13 @@ export class OrgSwitcherComponent {
     if (organisationid === null) return;
     if (isplatform) {
       this.organisations
-        .get(organisationid)
+        .get(organisationid, true)
         .pipe(first())
         .subscribe({ next: (o) => this.currentOrg.set(o), error: (e: HttpErrorResponse) => this.lookupRefused(e) });
     } else if (lmsuserid && this.permissions.getPermission('view_user')) {
       // An account that may read staff can read its own record, which names its organisation.
       this.users
-        .get(lmsuserid)
+        .get(lmsuserid, true)
         .pipe(first())
         .subscribe({
           next: (r: any) => this.memberOrgName.set(r?.data?.user?.organisation?.organisationname ?? null),

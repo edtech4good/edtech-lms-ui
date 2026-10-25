@@ -1,7 +1,7 @@
 import { HttpClient, HttpContext } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { EMPTY, Observable, expand, reduce } from 'rxjs';
-import { FIELD_ERRORS_INLINE, NOT_FOUND_HANDLED } from 'src/app/interceptors/error-context';
+import { FIELD_ERRORS_INLINE, NOT_FOUND_HANDLED, SESSION_RECOVERED_BY_CALLER } from 'src/app/interceptors/error-context';
 import { IPaging } from 'src/app/models/IPaging';
 import { CoreService } from 'src/app/services/core.service';
 import { Organisation } from 'src/app/modules/organisation/organisation.model';
@@ -67,13 +67,14 @@ export class UserService {
     return this.http.post(`${this.coreService.CORE_API()}user/create`, body, this.ownErrors());
   }
 
-  get(lmsuserid: string) {
+  /** `sessionRecoveredByCaller`: the caller deals with a 401 itself (the switcher's chip), so the error interceptor leaves it alone. */
+  get(lmsuserid: string, sessionRecoveredByCaller = false) {
     return this.http.get(
       `${this.coreService.CORE_API()}user/${lmsuserid}`,
       {
         ...this.coreService.jsonhttpOptions,
         // The edit page says a missing account itself (a message in place of the form).
-        context: new HttpContext().set(NOT_FOUND_HANDLED, true),
+        context: new HttpContext().set(NOT_FOUND_HANDLED, true).set(SESSION_RECOVERED_BY_CALLER, sessionRecoveredByCaller),
       }
     );
   }

@@ -7,7 +7,7 @@ import { differenceInMilliseconds } from 'date-fns';
 import { NgxPermissionsService } from 'ngx-permissions';
 import { Observable, firstValueFrom } from 'rxjs';
 import { first, tap } from 'rxjs/operators';
-import { FIELD_ERRORS_INLINE } from '../interceptors/error-context';
+import { FIELD_ERRORS_INLINE, SESSION_RECOVERED_BY_CALLER } from '../interceptors/error-context';
 import { ResetPasswordBody } from '../models/changepassword';
 import { lmsuser } from '../models/lmsuser.model';
 import { LoginRequestBody } from '../models/loginrequestbody';
@@ -130,12 +130,20 @@ export class AuthService {
 
   logout(): void {
     this.serverlogout().pipe(first()).subscribe();
+    this.clearSession();
+    this.routetoLogin();
+  }
+
+  /**
+   * Forget the signed-in session here, without telling the server. For a session the API has
+   * already refused (a 401): the token is dead, so calling auth/logout would only 401 again.
+   */
+  clearSession(): void {
     clearListCaches();
     this.userstore.dispatch(clearuserAction());
     clearTimeout(this.tokenTimer);
     this.tokenService.logout();
     this.isLoggedIn = false;
-    this.routetoLogin();
   }
   // login api call
   login(credentials: LoginRequestBody): Observable<any> {
@@ -161,7 +169,10 @@ export class AuthService {
     return this.http.post<{ data: { accessToken: string; refreshToken: string } }>(
       `${this.coreService.CORE_API()}auth/organisation`,
       { organisationid },
-      { ...this.coreService.jsonhttpOptions, context: new HttpContext().set(FIELD_ERRORS_INLINE, true) }
+      {
+        ...this.coreService.jsonhttpOptions,
+        context: new HttpContext().set(FIELD_ERRORS_INLINE, true).set(SESSION_RECOVERED_BY_CALLER, true),
+      }
     );
   }
 

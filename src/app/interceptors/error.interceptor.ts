@@ -1,13 +1,21 @@
 import { HttpErrorResponse, HttpEvent, HttpHandler, HttpInterceptor, HttpRequest } from '@angular/common/http';
-import { Injectable } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Injectable, Injector } from '@angular/core';
+import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { Observable, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
+import { AuthService } from '../services/auth.service';
+import { CoreService } from '../services/core.service';
 import { unsetloadingAction } from '../store/appstate/appstate.action';
 import { appState } from '../store/appstate/appstate.reducer';
-import { FAILURES_SHOWN_BY_CALLER, FIELD_ERRORS_INLINE, FORBIDDEN_HANDLED, NOT_FOUND_HANDLED } from './error-context';
+import {
+  FAILURES_SHOWN_BY_CALLER,
+  FIELD_ERRORS_INLINE,
+  FORBIDDEN_HANDLED,
+  NOT_FOUND_HANDLED,
+  SESSION_RECOVERED_BY_CALLER,
+} from './error-context';
 
 /** What a 404 says when the API gave no words of its own. */
 export const NOT_FOUND_MESSAGE = 'That record was not found. It may have been removed, or it may not be yours to see.';
@@ -15,12 +23,29 @@ export const NOT_FOUND_MESSAGE = 'That record was not found. It may have been re
 /** The ng-zorro key of the 404 notice: a repeat replaces the one showing. */
 export const NOT_FOUND_TOAST_KEY = 'http-404';
 
+/** What a 401 says when it ends the session. */
+export const SESSION_ENDED_MESSAGE = 'Your session has ended. Sign in again.';
+
+/** The ng-zorro key of the session-ended notice: calls that fail together show one notice. */
+export const SESSION_ENDED_TOAST_KEY = 'http-401';
+
+/**
+ * A 401 on these is not an ended session. The sign-in call answers it for the form (a wrong
+ * password), a logout and a refresh are made with a token that is already dead, and the callers
+ * of the refresh handle its failure themselves.
+ */
+const SESSION_FREE_URL = /\/auth\/(login|logout|refreshtoken)(\?|$)/;
+
+/** The sign-in pages (the bare /auth redirects to the sign-in form). */
+const ON_SIGN_IN_PAGES = /^\/auth(\/|\?|#|$)/;
+
 @Injectable({ providedIn: 'root' })
 export class ErrorInterceptor implements HttpInterceptor {
   constructor(
     private readonly notification: NzNotificationService,
     private readonly router: Router,
-    private readonly route: ActivatedRoute,
+    private readonly injector: Injector,
+    private readonly core: CoreService,
     private appStore: Store<appState>
   ) {}
 
@@ -67,12 +92,24 @@ export class ErrorInterceptor implements HttpInterceptor {
           // replaces a notice that has the same key.
           toast('error', typeof said === 'string' && said.trim() ? said : NOT_FOUND_MESSAGE, NOT_FOUND_TOAST_KEY);
         }
-        if (error.status === 401) {
-          // The API returns 401 for role failures too (access.guard.ts), not just
-          // a bad/expired token, so this must not clear the session here until the
-          // API returns 403 for role failures instead (tracked separately).
-          if (this.route.snapshot.url.length > 0) {
+        if (
+          error.status === 401 &&
+          req.url.startsWith(this.core.CORE_API()) &&
+          !SESSION_FREE_URL.test(req.url) &&
+          !req.context.get(SESSION_RECOVERED_BY_CALLER)
+        ) {
+          // Both APIs answer a role failure with 403 (edtech-lms-api#54, edtech-lms-rpi-api#35, 18 Sep
+          // 2026), so a 401 means the token itself is no longer good: it expired, or a later sign-in
+          // evicted it (one token per user). Clear the session and go to the sign-in page, once. Not
+          // while already on a sign-in page (the emailed-link pages answer 401 for a bad link, and the
+          // sign-in page has nothing to clear). Only the API's own answers count, not another host's.
+          if (!ON_SIGN_IN_PAGES.test(this.router.url)) {
+            // AuthService needs HttpClient, which needs the interceptors, so it is asked for only now.
+            this.injector.get(AuthService).clearSession();
+            // The sign-in page has no return target, so this goes to it plainly.
             this.router.navigateByUrl('/auth/login');
+            // Keyed, so calls that fail together show one notice, not several.
+            this.notification.info(SESSION_ENDED_MESSAGE, '', { nzKey: SESSION_ENDED_TOAST_KEY });
           }
         }
         if (error.status === 500) {
