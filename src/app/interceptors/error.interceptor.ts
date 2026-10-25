@@ -114,7 +114,7 @@ export class ErrorInterceptor implements HttpInterceptor {
             auth.endSession();
             return throwError(error);
           }
-          return from(auth.recoverOrEndSession(sentToken, req.context.get(ISSUES_TOKENS))).pipe(
+          return from(auth.recoverOrEndSession(sentToken, req.context.get(ISSUES_TOKENS) ?? undefined)).pipe(
             switchMap((recovered) => (recovered ? this.send(req, next, true) : throwError(error)))
           );
         }

@@ -229,6 +229,166 @@ test.describe('a 401 the refresh token can answer is not an ended session', () =
   });
 });
 
+/**
+ * The hourly refresh is set with a timer of about an hour. Keep that one callback instead of waiting for it, so a
+ * spec fires the real `fetchrefreshtoken` when it chooses (`fireHourlyRefresh`). Installed before the page loads.
+ */
+async function holdHourlyRefreshTimer(p: Page): Promise<void> {
+  await p.addInitScript(() => {
+    const w = window as unknown as { __hourly?: () => void };
+    const real = window.setTimeout.bind(window);
+    window.setTimeout = ((fn: TimerHandler, ms?: number, ...args: unknown[]) => {
+      if (typeof fn === 'function' && typeof ms === 'number' && ms > 3_000_000 && ms < 3_700_000) {
+        w.__hourly = () => (fn as (...a: unknown[]) => void)(...args);
+        return real(() => undefined, 2_147_483_647);
+      }
+      return real(fn, ms, ...args);
+    }) as typeof window.setTimeout;
+  });
+}
+
+async function fireHourlyRefresh(p: Page): Promise<void> {
+  await expect
+    .poll(() => p.evaluate(() => typeof (window as unknown as { __hourly?: unknown }).__hourly), { message: 'the hourly timer is set' })
+    .toBe('function');
+  await p.evaluate(() => (window as unknown as { __hourly: () => void }).__hourly());
+}
+
+const storedSession = (p: Page) =>
+  p.evaluate(() => Object.fromEntries(Object.entries(sessionStorage).filter(([k]) => k.startsWith('lms_'))));
+
+test.describe('a token update in flight', () => {
+  test('a switch that never completes holds a refused call for about 20 s, not for ever: then the call recovers with a refresh', async ({ page }) => {
+    test.setTimeout(120_000);
+    await loginViaUi(page, platform.username, PASSWORD);
+    await page.goto('/user/index');
+    await page.waitForLoadState('networkidle');
+    // The switch goes out and is never answered (and the server never hears of it, so the token stays good).
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    let switched = 0;
+    await page.route(`${API_URL}/auth/organisation`, async (route) => {
+      if (route.request().method() !== 'POST') return route.fallback();
+      switched++;
+      await held;
+      return route.abort();
+    });
+    let listed = 0;
+    await page.route(`${API_URL}/user`, (route) =>
+      route.request().method() === 'POST' && ++listed === 1
+        ? route.fulfill({ status: 401, contentType: 'application/json', body: '{}' })
+        : route.fallback(),
+    );
+    const refreshes = countRefreshes(page);
+    const before = await storedSession(page);
+    try {
+      await page.getByRole('button', { name: /^Organisation: .*Switch organisation$/ }).click();
+      await page.getByRole('menuitemradio', { name: 'E2E Fixture Organisation' }).click();
+      await expect.poll(() => switched, { message: 'the switch is on its way' }).toBe(1);
+
+      const refused = page.waitForResponse((r) => r.url() === `${API_URL}/user` && r.status() === 401);
+      await searchStaff(page);
+      await refused;
+      const refusedAt = Date.now();
+      await page.waitForTimeout(10_000);
+      expect(refreshes(), 'ten seconds on, the call is still waiting for the switch').toBe(0);
+
+      await expect.poll(() => refreshes(), { message: 'the wait ended and the refresh was asked', timeout: 30_000 }).toBe(1);
+      const waited = Date.now() - refusedAt;
+      expect(waited, 'about 20 s').toBeGreaterThan(18_000);
+      expect(waited, 'about 20 s').toBeLessThan(26_000);
+      await expect.poll(() => listed, { message: 'and the call was sent again', timeout: 10_000 }).toBeGreaterThan(1);
+      await expect(page.getByRole('row').filter({ hasText: admin.username })).toBeVisible();
+      await page.waitForTimeout(750);
+      expect(await toasts(page).filter({ hasText: ENDED }).count(), 'no session-ended notice').toBe(0);
+      await expect(page).toHaveURL(/\/user\/index/);
+      expect(await storedSession(page), 'the session was renewed, not ended').not.toEqual(before);
+      expect(Object.keys(await storedSession(page)).length, 'still signed in').toBeGreaterThan(0);
+    } finally {
+      release();
+    }
+  });
+
+  test('an hourly refresh that cannot be asked (503) keeps the session: nothing is stored or said, the next call works', async ({ page }) => {
+    await holdHourlyRefreshTimer(page);
+    await loginViaUi(page, admin.username, PASSWORD);
+    await page.goto('/user/index');
+    await page.waitForLoadState('networkidle');
+    const before = await storedSession(page);
+    let refreshed = 0;
+    await page.route(`${API_URL}/auth/refreshtoken*`, (route) => {
+      refreshed++;
+      return route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+    });
+    let logouts = 0;
+    page.on('request', (r) => {
+      if (new URL(r.url()).pathname === '/auth/logout') logouts++;
+    });
+
+    await fireHourlyRefresh(page);
+    await expect.poll(() => refreshed, { message: 'the refresh was asked' }).toBe(1);
+    await page.waitForTimeout(750);
+    await expect(page).toHaveURL(/\/user\/index/);
+    expect(await toasts(page).count(), 'no notice').toBe(0);
+    expect(logouts, 'the server was not told to sign out').toBe(0);
+    expect(await storedSession(page), 'the stored session is untouched').toEqual(before);
+
+    await searchStaff(page);
+    await expect(page.getByRole('row').filter({ hasText: admin.username })).toBeVisible();
+    expect(refreshed, 'no second refresh').toBe(1);
+  });
+
+  test('an hourly refresh the server refuses (401) ends the session once, with its notice', async ({ page }) => {
+    await holdHourlyRefreshTimer(page);
+    await loginViaUi(page, admin.username, PASSWORD);
+    await page.goto('/user/index');
+    await page.waitForLoadState('networkidle');
+    expect((await heldKeys(page)).length, 'a session is held').toBeGreaterThan(0);
+    await page.route(`${API_URL}/auth/refreshtoken*`, (route) =>
+      route.fulfill({ status: 401, contentType: 'application/json', body: '{}' }),
+    );
+
+    await fireHourlyRefresh(page);
+    await expect(page).toHaveURL(/\/auth\/login/, { timeout: 5_000 });
+    await expect(toasts(page).filter({ hasText: ENDED })).toHaveCount(1);
+    await page.waitForTimeout(750);
+    expect(await toasts(page).count(), 'one notice, and nothing else').toBe(1);
+    expect(await heldKeys(page), 'the stored session is gone').toEqual([]);
+  });
+
+  test('an organisation switch clicked while the hourly refresh is in flight waits for it: no second refresh, no sign-out', async ({ page }) => {
+    await holdHourlyRefreshTimer(page);
+    await loginViaUi(page, platform.username, PASSWORD);
+    await page.goto('/user/index');
+    await page.waitForLoadState('networkidle');
+    // The server cancels the old tokens the moment it issues the new pair; the answer is held for 5 s after that.
+    await page.route(`${API_URL}/auth/refreshtoken*`, async (route) => {
+      const answer = await route.fetch();
+      await new Promise((resolve) => setTimeout(resolve, 5_000));
+      return route.fulfill({ response: answer });
+    });
+    const refreshes = countRefreshes(page);
+    const switchStatuses: number[] = [];
+    page.on('response', (r) => {
+      if (r.url() === `${API_URL}/auth/organisation` && r.request().method() === 'POST') switchStatuses.push(r.status());
+    });
+
+    await fireHourlyRefresh(page);
+    await expect.poll(() => refreshes(), { message: 'the refresh is in flight' }).toBe(1);
+    await page.getByRole('button', { name: /^Organisation: .*Switch organisation$/ }).click();
+    await page.getByRole('menuitemradio', { name: 'E2E Fixture Organisation' }).click();
+
+    await expect(page.getByRole('button', { name: /^Organisation: E2E Fixture Organisation, / })).toBeVisible({ timeout: 20_000 });
+    expect(switchStatuses, 'the switch went out with the cancelled token and was refused').toContain(401);
+    expect(switchStatuses[switchStatuses.length - 1], 'and was sent again with the new one').toBe(200);
+    expect(refreshes(), 'no second refresh with the used refresh token').toBe(1);
+    await page.waitForTimeout(750);
+    expect(await toasts(page).filter({ hasText: ENDED }).count(), 'no session-ended notice').toBe(0);
+    await expect(page).not.toHaveURL(/\/auth\//);
+    expect((await heldKeys(page)).length, 'still signed in').toBeGreaterThan(0);
+  });
+});
+
 test.describe('a sign-in that fails is not an ended session', () => {
   test('a wrong password stays on the sign-in page, in the form, with no session-ended notice', async ({ page }) => {
     const alert = page.getByRole('main').getByRole('alert');

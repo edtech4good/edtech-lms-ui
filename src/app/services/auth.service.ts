@@ -25,6 +25,9 @@ import { TokenService } from './token.service';
 export const SESSION_ENDED_MESSAGE = 'Your session ended. Sign in again.';
 export const SESSION_ENDED_TOAST_KEY = 'http-401';
 
+/** How long a refused call waits for the token updates in flight (a switch, a refresh) before it goes on without them. */
+export const TOKEN_UPDATE_WAIT_MS = 20_000;
+
 @Injectable({
   providedIn: 'root',
 })
@@ -92,18 +95,20 @@ export class AuthService {
     this.permissionsService.loadPermissions(this.getLmsUser()?.permissions ?? []);
   }
   private fetchrefreshtoken = async () => {
+    // A refresh a refused call started is already asking with this refresh token (and stores the new pair,
+    // which sets the timer again): a second ask with it would be refused and end a good session.
+    if (this.recovery) return;
     // A token update in flight from before the request goes out until the new pair is stored (or the
     // refresh failed): a call refused meanwhile waits for it rather than refreshing with a dying token.
-    const updated = this.beginTokenUpdate();
+    const update = this.beginTokenUpdate();
     try {
-      const result = await this.refreshtoken(
-        this.tokenService.getrefreshtoken()
-      ).toPromise();
-      this.setlogin(result.data.accessToken, result.data.refreshToken);
-    } catch (e) {
-      this.logout();
+      // The same exchange a refused call uses: a refresh token the server refuses ends the session, but a
+      // refresh that could not be asked (no connection, a 429, a server error) says nothing about it, so
+      // the session is kept (the next refused call tries the refresh again).
+      const outcome = await this.exchangeRefreshToken();
+      if (outcome === 'refused') this.endSession();
     } finally {
-      updated();
+      update.end();
     }
   };
 
@@ -179,19 +184,20 @@ export class AuthService {
   switchOrganisation(organisationid: string | null): Observable<{ data: { accessToken: string; refreshToken: string } }> {
     // The server cancels the old tokens the moment it issues the new pair, so this is a token update in
     // flight from before the request goes out until the caller has stored the pair (its next handler runs
-    // before the observable finishes) or the switch failed.
+    // before the observable finishes) or the switch failed. The request carries its own update, so a 401 on
+    // it does not wait for itself (and still waits for any other).
     return defer(() => {
-      const updated = this.beginTokenUpdate();
+      const update = this.beginTokenUpdate();
       return this.http
         .post<{ data: { accessToken: string; refreshToken: string } }>(
           `${this.coreService.CORE_API()}auth/organisation`,
           { organisationid },
           {
             ...this.coreService.jsonhttpOptions,
-            context: new HttpContext().set(FIELD_ERRORS_INLINE, true).set(ISSUES_TOKENS, true),
+            context: new HttpContext().set(FIELD_ERRORS_INLINE, true).set(ISSUES_TOKENS, update.done),
           }
         )
-        .pipe(finalize(updated));
+        .pipe(finalize(update.end));
     });
   }
 
@@ -230,15 +236,47 @@ export class AuthService {
   /** The token updates in flight (a refresh, an organisation switch): each ends when its new pair is stored or it failed. */
   private readonly tokenUpdates = new Set<Promise<void>>();
 
-  /** Register a token update as in flight, before its request goes out. Call the result when it is over. */
-  private beginTokenUpdate(): () => void {
-    let end!: () => void;
-    const update = new Promise<void>((resolve) => (end = resolve));
-    this.tokenUpdates.add(update);
-    return () => {
-      this.tokenUpdates.delete(update);
-      end();
+  /**
+   * Register a token update as in flight, before its request goes out. `end` when it is over; `done` is the
+   * promise that ends then, which the update's own request carries so it does not wait for itself.
+   */
+  private beginTokenUpdate(): { done: Promise<void>; end: () => void } {
+    let resolve!: () => void;
+    const done = new Promise<void>((r) => (resolve = r));
+    this.tokenUpdates.add(done);
+    return {
+      done,
+      end: () => {
+        this.tokenUpdates.delete(done);
+        resolve();
+      },
     };
+  }
+
+  /**
+   * Wait for the token updates in flight, except `own` (the caller's), for at most TOKEN_UPDATE_WAIT_MS in all.
+   * An update that has not ended by then is taken to have done nothing: it is forgotten (so the next refused
+   * call does not wait for it again) and the caller goes on to compare the token and refresh. If it does end
+   * later and stores a pair, that pair is simply the stored one.
+   */
+  private async waitForTokenUpdates(own?: Promise<void>): Promise<void> {
+    const deadline = Date.now() + TOKEN_UPDATE_WAIT_MS;
+    for (;;) {
+      const pending = [...this.tokenUpdates].filter((u) => u !== own);
+      if (pending.length === 0) return;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const timedOut = await Promise.race([
+        Promise.all(pending).then(() => false),
+        new Promise<boolean>((resolve) => {
+          timer = setTimeout(() => resolve(true), Math.max(0, deadline - Date.now()));
+        }),
+      ]);
+      clearTimeout(timer);
+      if (timedOut) {
+        for (const u of pending) this.tokenUpdates.delete(u);
+        return;
+      }
+    }
   }
 
   /** The refresh in flight, if any: calls refused together share it. */
@@ -253,23 +291,22 @@ export class AuthService {
    * True: the session is good, so the caller may send its call again. False: the call stays refused. The
    * session is ended (once, with its one notice) only when the refresh token is refused too; a refresh that
    * could not be asked leaves the session as it is. A caller never navigates for this.
-   * `issuesTokens`: the refused call is itself a token update (the organisation switch), which must not wait
-   * for itself.
+   * `ownUpdate`: the refused call is itself a token update (the organisation switch); this is its update,
+   * which it must not wait for (any other it still waits for). The wait is bounded (TOKEN_UPDATE_WAIT_MS):
+   * an update that has not ended by then is taken to have changed nothing.
    */
-  async recoverOrEndSession(sentToken: string, issuesTokens = false): Promise<boolean> {
-    while (!issuesTokens && this.tokenUpdates.size > 0) {
-      await Promise.all([...this.tokenUpdates]);
-    }
+  async recoverOrEndSession(sentToken: string, ownUpdate?: Promise<void>): Promise<boolean> {
+    await this.waitForTokenUpdates(ownUpdate);
     const now = this.tokenService.gettoken();
     // Signed out meanwhile (the session was ended by an earlier refusal): nothing to recover.
     if (!now) return false;
     // A new pair has been stored since this call went out: send it again with the new one.
     if (now !== sentToken) return true;
     if (!this.recovery) {
-      const updated = this.beginTokenUpdate();
+      const update = this.beginTokenUpdate();
       const done = () => {
         this.recovery = null;
-        updated();
+        update.end();
       };
       this.recovery = this.exchangeRefreshToken().then(
         (outcome) => {
