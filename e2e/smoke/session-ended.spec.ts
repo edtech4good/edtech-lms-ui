@@ -1,6 +1,6 @@
 import { APIRequestContext, Page, expect, test } from '@playwright/test';
 import { ROLE } from '../fixtures/accounts';
-import { apiContext, apiLogin, loginViaUi } from '../fixtures/auth';
+import { apiContext, apiLogin, loginViaUi, waitOutThrottle } from '../fixtures/auth';
 import { API_URL } from '../fixtures/env';
 import { skipUnlessLocalApi } from '../fixtures/local-only';
 import { fixtureOrganisationId } from '../fixtures/organisation';
@@ -231,11 +231,21 @@ test.describe('a 401 the refresh token can answer is not an ended session', () =
 
 test.describe('a sign-in that fails is not an ended session', () => {
   test('a wrong password stays on the sign-in page, in the form, with no session-ended notice', async ({ page }) => {
-    await page.goto('/auth');
-    await page.getByLabel('Email', { exact: true }).fill(admin.username);
-    await page.getByLabel('Password', { exact: true }).fill('Wrong_Password1');
-    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-    await expect(page.getByRole('main').getByRole('alert')).toHaveText('The email or password is incorrect.');
+    const alert = page.getByRole('main').getByRole('alert');
+    for (let attempt = 0; ; attempt++) {
+      await page.goto('/auth');
+      await page.getByLabel('Email', { exact: true }).fill(admin.username);
+      await page.getByLabel('Password', { exact: true }).fill('Wrong_Password1');
+      await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+      // The API allows 10 sign-ins a minute and this file signs in often: when it says so, wait the window out once.
+      await expect(alert).toHaveText(/The email or password is incorrect\.|Too many sign-in attempts/);
+      if (attempt === 0 && /Too many/.test(await alert.innerText())) {
+        await waitOutThrottle(61_000);
+        continue;
+      }
+      break;
+    }
+    await expect(alert).toHaveText('The email or password is incorrect.');
     await page.waitForTimeout(750);
     expect(await toasts(page).count(), 'no notice at all').toBe(0);
     await expect(page).toHaveURL(/\/auth\/login/);
