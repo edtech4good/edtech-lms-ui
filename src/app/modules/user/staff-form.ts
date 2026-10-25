@@ -46,7 +46,7 @@ const isField = (name: string): name is StaffField =>
  * - 409 is an email that is already registered (the API's sentence, on the email field), else its message for the form.
  * - 403 is the API's wording when it has some, else the generic line.
  * - 404 means the account is gone or is not in the caller's organisation.
- * - Anything else (401, 502, 503, ...) is the generic "couldn't be saved" line.
+ * - Anything else (502, 503, ...) is the generic "couldn't be saved" line. (A 401 never gets here: the error interceptor ends the session.)
  */
 export function serverStaffErrors(error: HttpErrorResponse): StaffErrors {
   const out: StaffErrors = { fields: {} };

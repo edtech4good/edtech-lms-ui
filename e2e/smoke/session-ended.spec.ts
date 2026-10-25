@@ -19,7 +19,7 @@ skipUnlessLocalApi('creates an Organisation Admin account');
 
 const RUN = `e2e${Math.random().toString(36).slice(2, 8)}`;
 const PASSWORD = 'Session_Pass1';
-const ENDED = 'Your session has ended. Sign in again.';
+const ENDED = 'Your session ended. Sign in again.';
 const FORBIDDEN = "You don't have permission to do that.";
 
 const toasts = (p: Page) => p.locator('.ant-notification-notice');
@@ -89,6 +89,38 @@ test.describe('a 401 ends the session', () => {
       await first.close();
       await second.close();
     }
+  });
+});
+
+test.describe('a 401 the refresh token can answer is not an ended session', () => {
+  test('calls refused together share one refresh and are sent again: the page loads, no notice, still signed in', async ({ page }) => {
+    await loginViaUi(page, admin.username, PASSWORD);
+    const before = await page.evaluate(() => sessionStorage.getItem('lms_access_hash'));
+
+    // Every API call the staff list makes is refused once, as when the access token has just expired (the
+    // refresh token still works). More than one call is refused, so the refresh has to be shared.
+    const refusedOnce = new Set<string>();
+    await page.route(`${API_URL}/**`, (route) => {
+      const r = route.request();
+      const path = new URL(r.url()).pathname;
+      const key = `${r.method()} ${path}`;
+      if (path.startsWith('/auth/') || r.method() === 'OPTIONS' || refusedOnce.has(key)) return route.fallback();
+      refusedOnce.add(key);
+      return route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
+    });
+    let refreshes = 0;
+    page.on('request', (r) => {
+      if (new URL(r.url()).pathname === '/auth/refreshtoken') refreshes++;
+    });
+
+    await page.goto('/user/index');
+    await expect(page.getByRole('row').filter({ hasText: admin.username })).toBeVisible();
+    expect(refusedOnce.size, 'more than one call was refused together').toBeGreaterThan(1);
+    expect(refreshes, 'one refresh for all of them').toBe(1);
+    await page.waitForTimeout(750);
+    expect(await toasts(page).count(), 'no notice').toBe(0);
+    await expect(page).toHaveURL(/\/user\/index/);
+    expect(await page.evaluate(() => sessionStorage.getItem('lms_access_hash')), 'the session was renewed').not.toBe(before);
   });
 });
 

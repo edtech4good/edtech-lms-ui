@@ -32,11 +32,3 @@ export const FORBIDDEN_HANDLED = new HttpContextToken<boolean>(() => false);
  * well. FIELD_ERRORS_INLINE implies it: those callers show a 404 beside the form.
  */
 export const NOT_FOUND_HANDLED = new HttpContextToken<boolean>(() => false);
-
-/**
- * Set on a request whose caller gets a refused session back itself: it tries the refresh token once and, if that
- * fails, signs out with its own message (the organisation switcher's chip lookups and its switch). The error
- * interceptor then leaves a 401 to the caller, so the session is not cleared under it and the person is not told
- * twice.
- */
-export const SESSION_RECOVERED_BY_CALLER = new HttpContextToken<boolean>(() => false);

@@ -5,9 +5,10 @@ import { JwtHelperService } from '@auth0/angular-jwt';
 import { Store } from '@ngrx/store';
 import { differenceInMilliseconds } from 'date-fns';
 import { NgxPermissionsService } from 'ngx-permissions';
+import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { Observable, firstValueFrom } from 'rxjs';
 import { first, tap } from 'rxjs/operators';
-import { FIELD_ERRORS_INLINE, SESSION_RECOVERED_BY_CALLER } from '../interceptors/error-context';
+import { FIELD_ERRORS_INLINE } from '../interceptors/error-context';
 import { ResetPasswordBody } from '../models/changepassword';
 import { lmsuser } from '../models/lmsuser.model';
 import { LoginRequestBody } from '../models/loginrequestbody';
@@ -19,6 +20,10 @@ import { lmsuserstate } from '../store/lmsuser/lmsuser.reducer';
 import { CoreService } from './core.service';
 import { clearListCaches } from './list-cache';
 import { TokenService } from './token.service';
+
+/** What the person is told when the session is over. One text, one key: notices that arrive together show once. */
+export const SESSION_ENDED_MESSAGE = 'Your session ended. Sign in again.';
+export const SESSION_ENDED_TOAST_KEY = 'http-401';
 
 @Injectable({
   providedIn: 'root',
@@ -37,6 +42,7 @@ export class AuthService {
     private readonly userstore: Store<lmsuserstate>,
     private readonly router: Router,
     private route: ActivatedRoute,
+    private readonly notification: NzNotificationService,
   ) {
     this.setAuthTimer();
   }
@@ -169,10 +175,7 @@ export class AuthService {
     return this.http.post<{ data: { accessToken: string; refreshToken: string } }>(
       `${this.coreService.CORE_API()}auth/organisation`,
       { organisationid },
-      {
-        ...this.coreService.jsonhttpOptions,
-        context: new HttpContext().set(FIELD_ERRORS_INLINE, true).set(SESSION_RECOVERED_BY_CALLER, true),
-      }
+      { ...this.coreService.jsonhttpOptions, context: new HttpContext().set(FIELD_ERRORS_INLINE, true) }
     );
   }
 
@@ -205,6 +208,47 @@ export class AuthService {
     } catch {
       return false;
     }
+  }
+
+  /** The refresh in flight, if any: calls refused together share it. */
+  private recovery: Promise<boolean> | null = null;
+
+  /**
+   * A call the API refused with a 401 (the token it was sent with is `sentToken`). Gets the session back with
+   * the refresh token, once however many calls were refused together, and ends the session when it cannot.
+   * True: the session is good, so the caller may send its call again. False: the session is over (it has
+   * already been ended, with its one notice). A caller never navigates for this.
+   */
+  recoverOrEndSession(sentToken: string): Promise<boolean> {
+    const now = this.tokenService.gettoken();
+    // Signed out meanwhile (the session was ended by an earlier refusal): nothing to recover.
+    if (!now) return Promise.resolve(false);
+    // A refresh has already replaced the token this call was sent with: send it again with the new one.
+    if (now !== sentToken) return Promise.resolve(true);
+    if (!this.recovery) {
+      const done = () => {
+        this.recovery = null;
+      };
+      this.recovery = this.recoverSession().then(
+        (ok) => {
+          if (!ok) this.endSession();
+          done();
+          return ok;
+        },
+        (e) => {
+          done();
+          throw e;
+        }
+      );
+    }
+    return this.recovery;
+  }
+
+  /** The session is over and cannot be got back (a refused refresh token): clear it, go to sign-in, say so once. */
+  endSession(): void {
+    this.clearSession();
+    this.router.navigateByUrl('/auth/login');
+    this.notification.info(SESSION_ENDED_MESSAGE, '', { nzKey: SESSION_ENDED_TOAST_KEY });
   }
 
   // refresh token api call
