@@ -104,7 +104,7 @@ export const KM = {
  */
 export const Q1_FEEDBACK = {
   correctMessage: "ល្អណាស់! អ្នកយល់ច្បាស់ហើយ។",
-  incorrectMessage: "សាកល្បងម្តងទៀត ហើយពិនិត្យមេរៀនឡើងវិញ។",
+  incorrectMessage: "សាកល្បងម្តងទៀត សូមពិនិត្យមេរៀនឡើងវិញ។",
 } as const;
 
 /** Matches whichever of the two ResultPopUp buttons is currently showing. */

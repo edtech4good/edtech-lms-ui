@@ -52,7 +52,9 @@
  *    Cohort II -> Module 1: Business Vision & Goals -> "Your business
  *    vision", lesson c0000000-0000-4000-8000-000000000009): the meta line
  *    reads exactly "Cohort II · Module 1: Business Vision & Goals ·
- *    វីដេអូ 1 · លំហាត់ 1 · តេស្ត 1"; the captured activities/progress
+ *    វីដេអូ 1 · លំហាត់ 1 · តេស្ត 1" (the practices word has since been
+ *    corrected to លំហាត់អនុវត្ត by the native-speaker review of 23 Oct 2026;
+ *    metaLineKm() follows the corrected value); the captured activities/progress
  *    response is
  *    {"lessonid":"...09","pass_percentage":80,
  *     "learnings":[{"lessonlearningid":"...11","status":"done","progress_percentage":100}],
@@ -146,11 +148,12 @@ const TYPE_FOR: Record<ActivityKind, 'learning' | 'practice' | 'quiz'> = {
   quizzes: 'quiz',
 };
 
-/** screen.lesson.stepType.<type> from km.json — same Khmer string as the
- *  old section titles (learningTitle/practiceTitle/quizTitle), but this is
- *  the key the v2.1 screen's `stepTypeLabel` actually reads. */
+/** screen.lesson.stepType.<type> from km.json — the key the v2.1 screen's
+ *  `stepTypeLabel` actually reads. `learning` no longer equals the old
+ *  section title (learningTitle) since the 23 Oct 2026 review; practice and
+ *  quiz still do. */
 const STEP_TYPE_KM: Record<'learning' | 'practice' | 'quiz', string> = {
-  learning: 'សិក្សា',
+  learning: 'កំពុងសិក្សា',
   practice: 'អនុវត្ត',
   quiz: 'តេស្ត',
 };
@@ -234,7 +237,7 @@ function statusTextKm(step: Step, unsynced: boolean): string {
   if (step.status === 'inProgress') return 'កំពុងដំណើរការ';
   // todo
   return step.type === 'quiz'
-    ? 'មិនទាន់ចាប់ផ្តើម · ត្រូវប្រលងជាប់ដើម្បីបញ្ចប់មេរៀន'
+    ? 'មិនទាន់ចាប់ផ្ដើម · ត្រូវប្រឡងឱ្យជាប់ដើម្បីបញ្ចប់មេរៀន'
     : 'មិនទាន់ចាប់ផ្តើម';
 }
 
@@ -254,7 +257,7 @@ function footerLabelKm(nextStep: Step): string {
 function metaLineKm(data: ActivityProgressResponse): string {
   const parts = [GRADENAME_KM, LEVELNAME_KM];
   if (data.learnings.length > 0) parts.push(`វីដេអូ ${data.learnings.length}`);
-  if (data.practices.length > 0) parts.push(`លំហាត់ ${data.practices.length}`);
+  if (data.practices.length > 0) parts.push(`លំហាត់អនុវត្ត ${data.practices.length}`);
   if (data.quizzes.length > 0) parts.push(`តេស្ត ${data.quizzes.length}`);
   return parts.join(' · ');
 }
