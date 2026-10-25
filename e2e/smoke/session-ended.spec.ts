@@ -11,11 +11,11 @@ import { fixtureOrganisationId } from '../fixtures/organisation';
  * the stored session and sends the person to the sign-in page with ONE notice. It does not do that for the
  * sign-in call itself (the form owns that failure), and it does not do it for a 403.
  *
- * Real API. Makes one Organisation Admin account with a password that is written in this public repository, so
- * it runs only against a local API; the account is disabled in teardown (DELETE /user/:id disables, so the row
+ * Real API. Makes an Organisation Admin account and a platform (Super Admin) account with a password that is written
+ * in this public repository, so it runs only against a local API; the account is disabled in teardown (DELETE /user/:id disables, so the row
  * stays in lmsusers: e2e-session-<RUN>-*).
  */
-skipUnlessLocalApi('creates an Organisation Admin account');
+skipUnlessLocalApi('creates an Organisation Admin and a Super Admin account');
 
 const RUN = `e2e${Math.random().toString(36).slice(2, 8)}`;
 const PASSWORD = 'Session_Pass1';
@@ -27,28 +27,36 @@ const heldKeys = (p: Page) => p.evaluate(() => Object.keys(sessionStorage).filte
 
 let sa: APIRequestContext;
 let admin: { id: string; username: string };
+let platform: { id: string; username: string };
 
-test.beforeAll(async () => {
-  sa = await apiContext(await apiLogin());
-  const username = `e2e-session-${RUN}-admin@example.com`;
+async function makeAccount(tag: string, role: string, organisationid?: string): Promise<{ id: string; username: string }> {
+  const username = `e2e-session-${RUN}-${tag}@example.com`;
   const res = await sa.post('/user/create', {
     data: {
       lmsusername: username,
       lmsuserpasswordhash: PASSWORD,
-      lmsuserroles: [ROLE.organisationadmin],
-      organisationid: await fixtureOrganisationId(sa),
+      lmsuserroles: [role],
+      ...(organisationid ? { organisationid } : {}),
       countryids: [],
       schoolids: [],
     },
   });
   expect(res.ok(), `could not create ${username}: ${res.status()}`).toBeTruthy();
-  admin = { id: (await res.json()).data.lmsuserid, username };
+  return { id: (await res.json()).data.lmsuserid, username };
+}
+
+test.beforeAll(async () => {
+  sa = await apiContext(await apiLogin());
+  admin = await makeAccount('admin', ROLE.organisationadmin, await fixtureOrganisationId(sa));
+  platform = await makeAccount('platform', ROLE.superadmin);
 });
 
 test.afterAll(async () => {
   // Never swallowed: an account left enabled has a password anyone can read here.
-  const res = await sa.delete(`/user/${admin.id}`);
-  if (!res.ok()) throw new Error(`failed to disable ${admin.id}: HTTP ${res.status()}`);
+  for (const who of [admin, platform]) {
+    const res = await sa.delete(`/user/${who.id}`);
+    if (!res.ok()) throw new Error(`failed to disable ${who.id}: HTTP ${res.status()}`);
+  }
   await sa.dispose();
 });
 
@@ -92,35 +100,132 @@ test.describe('a 401 ends the session', () => {
   });
 });
 
+/** Count the refresh requests a page makes. */
+function countRefreshes(p: Page): () => number {
+  let n = 0;
+  p.on('request', (r) => {
+    if (new URL(r.url()).pathname === '/auth/refreshtoken') n++;
+  });
+  return () => n;
+}
+
+/**
+ * Refuse each distinct API call (not /auth/*) once with a 401, as when the access token has just expired and the
+ * refresh token still works. The first call refused is answered at once; every later one after `lateMs`.
+ * Installed only after the page has gone quiet, so no earlier call is caught mid-flight by the next navigation.
+ */
+async function refuseEachCallOnce(p: Page, lateMs = 0): Promise<Set<string>> {
+  const refused = new Set<string>();
+  await p.route(`${API_URL}/**`, async (route) => {
+    const r = route.request();
+    const path = new URL(r.url()).pathname;
+    const key = `${r.method()} ${path}`;
+    if (path.startsWith('/auth/') || r.method() === 'OPTIONS' || refused.has(key)) return route.fallback();
+    const late = refused.size > 0 ? lateMs : 0;
+    refused.add(key);
+    if (late) await new Promise((resolve) => setTimeout(resolve, late));
+    return route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
+  });
+  return refused;
+}
+
 test.describe('a 401 the refresh token can answer is not an ended session', () => {
   test('calls refused together share one refresh and are sent again: the page loads, no notice, still signed in', async ({ page }) => {
     await loginViaUi(page, admin.username, PASSWORD);
+    await page.waitForLoadState('networkidle');
     const before = await page.evaluate(() => sessionStorage.getItem('lms_access_hash'));
-
-    // Every API call the staff list makes is refused once, as when the access token has just expired (the
-    // refresh token still works). More than one call is refused, so the refresh has to be shared.
-    const refusedOnce = new Set<string>();
-    await page.route(`${API_URL}/**`, (route) => {
-      const r = route.request();
-      const path = new URL(r.url()).pathname;
-      const key = `${r.method()} ${path}`;
-      if (path.startsWith('/auth/') || r.method() === 'OPTIONS' || refusedOnce.has(key)) return route.fallback();
-      refusedOnce.add(key);
-      return route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
-    });
-    let refreshes = 0;
-    page.on('request', (r) => {
-      if (new URL(r.url()).pathname === '/auth/refreshtoken') refreshes++;
-    });
+    const refused = await refuseEachCallOnce(page);
+    const refreshes = countRefreshes(page);
 
     await page.goto('/user/index');
     await expect(page.getByRole('row').filter({ hasText: admin.username })).toBeVisible();
-    expect(refusedOnce.size, 'more than one call was refused together').toBeGreaterThan(1);
-    expect(refreshes, 'one refresh for all of them').toBe(1);
+    expect(refused.size, 'more than one call was refused together').toBeGreaterThan(1);
+    expect(refreshes(), 'one refresh for all of them').toBe(1);
     await page.waitForTimeout(750);
     expect(await toasts(page).count(), 'no notice').toBe(0);
     await expect(page).toHaveURL(/\/user\/index/);
     expect(await page.evaluate(() => sessionStorage.getItem('lms_access_hash')), 'the session was renewed').not.toBe(before);
+  });
+
+  test('a call refused after a refresh has already replaced its token is sent again without a second refresh', async ({ page }) => {
+    await loginViaUi(page, admin.username, PASSWORD);
+    await page.waitForLoadState('networkidle');
+    // The first call refused starts the refresh; the others are refused 1.5 s later, long after the new pair is
+    // stored, still carrying the token they were sent with.
+    const refused = await refuseEachCallOnce(page, 1_500);
+    const refreshes = countRefreshes(page);
+
+    await page.goto('/user/index');
+    await expect(page.getByRole('row').filter({ hasText: admin.username })).toBeVisible({ timeout: 15_000 });
+    expect(refused.size, 'more than one call was refused').toBeGreaterThan(1);
+    expect(refreshes(), 'one refresh in all: the late refusals found a new token already stored').toBe(1);
+    await page.waitForTimeout(750);
+    expect(await toasts(page).count(), 'no notice').toBe(0);
+    await expect(page).toHaveURL(/\/user\/index/);
+  });
+
+  test('a refresh that cannot be asked (503) does not end the session: the call stays refused, nothing is stored or said', async ({ page }) => {
+    await loginViaUi(page, admin.username, PASSWORD);
+    await page.waitForLoadState('networkidle');
+    const stored = () => page.evaluate(() => Object.fromEntries(Object.entries(sessionStorage).filter(([k]) => k.startsWith('lms_'))));
+    const before = await stored();
+    let listed = 0;
+    await page.route(`${API_URL}/user`, (route) =>
+      route.request().method() === 'POST' && ++listed === 1
+        ? route.fulfill({ status: 401, contentType: 'application/json', body: '{}' })
+        : route.fallback(),
+    );
+    let refreshed = 0;
+    await page.route(`${API_URL}/auth/refreshtoken*`, (route) => {
+      refreshed++;
+      return route.fulfill({ status: 503, contentType: 'application/json', body: '{}' });
+    });
+
+    await page.goto('/user/index');
+    await expect.poll(() => refreshed, 'the refresh was asked').toBe(1);
+    await page.waitForTimeout(750);
+    expect(await toasts(page).filter({ hasText: ENDED }).count(), 'no session-ended notice').toBe(0);
+    expect(await toasts(page).count(), 'no notice at all, not even for the refresh').toBe(0);
+    await expect(page).toHaveURL(/\/user\/index/);
+    expect(await stored(), 'the stored session is untouched').toEqual(before);
+
+    // The token is still good: the next call works.
+    await searchStaff(page);
+    await expect(page.getByRole('row').filter({ hasText: admin.username })).toBeVisible();
+    expect(refreshed, 'no second refresh').toBe(1);
+  });
+
+  test('a call refused while an organisation switch is about to store the new pair waits for it: no refresh, no sign-out', async ({ page }) => {
+    // The server cancels the old tokens the moment it issues the new pair, so a call made while the answer is
+    // still on its way is refused. The answer is held for 2.5 s after the server has made it.
+    await loginViaUi(page, platform.username, PASSWORD);
+    await page.goto('/user/index');
+    await page.waitForLoadState('networkidle');
+    await page.route(`${API_URL}/auth/organisation`, async (route) => {
+      if (route.request().method() !== 'POST') return route.fallback();
+      const answer = await route.fetch();
+      await new Promise((resolve) => setTimeout(resolve, 2_500));
+      return route.fulfill({ response: answer });
+    });
+    const refreshes = countRefreshes(page);
+    const listStatuses: number[] = [];
+    page.on('response', (r) => {
+      if (r.url() === `${API_URL}/user` && r.request().method() === 'POST') listStatuses.push(r.status());
+    });
+
+    await page.getByRole('button', { name: /^Organisation: .*Switch organisation$/ }).click();
+    await page.getByRole('menuitemradio', { name: 'E2E Fixture Organisation' }).click();
+    await page.waitForTimeout(800);
+    await searchStaff(page);
+
+    await expect(page.getByRole('button', { name: /^Organisation: E2E Fixture Organisation, / })).toBeVisible({ timeout: 15_000 });
+    expect(listStatuses, 'the call went out with the cancelled token and was refused').toContain(401);
+    await expect.poll(() => listStatuses[listStatuses.length - 1], 'and was sent again with the new one').toBe(200);
+    expect(refreshes(), 'no refresh with the dying refresh token').toBe(0);
+    await page.waitForTimeout(750);
+    expect(await toasts(page).filter({ hasText: ENDED }).count(), 'no session-ended notice').toBe(0);
+    await expect(page).not.toHaveURL(/\/auth\//);
+    expect((await heldKeys(page)).length, 'still signed in').toBeGreaterThan(0);
   });
 });
 

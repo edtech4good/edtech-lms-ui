@@ -32,3 +32,10 @@ export const FORBIDDEN_HANDLED = new HttpContextToken<boolean>(() => false);
  * well. FIELD_ERRORS_INLINE implies it: those callers show a 404 beside the form.
  */
 export const NOT_FOUND_HANDLED = new HttpContextToken<boolean>(() => false);
+
+/**
+ * Set on a request that is itself a token update (the organisation switch: the server issues a new pair
+ * when it answers). When it is refused with a 401 the error interceptor must not wait for token updates in
+ * flight before it recovers the session, because this request is one of them.
+ */
+export const ISSUES_TOKENS = new HttpContextToken<boolean>(() => false);
