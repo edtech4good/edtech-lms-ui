@@ -7,7 +7,7 @@ import { differenceInMilliseconds } from 'date-fns';
 import { NgxPermissionsService } from 'ngx-permissions';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { Observable, defer, firstValueFrom } from 'rxjs';
-import { finalize, first, tap } from 'rxjs/operators';
+import { finalize, first, map, tap } from 'rxjs/operators';
 import { FIELD_ERRORS_INLINE, ISSUES_TOKENS } from '../interceptors/error-context';
 import { ResetPasswordBody } from '../models/changepassword';
 import { lmsuser } from '../models/lmsuser.model';
@@ -33,6 +33,8 @@ export const TOKEN_UPDATE_WAIT_MS = 20_000;
 })
 export class AuthService {
   private tokenTimer: any;
+  /** Counts the sessions cleared here: an answer to a token request asked in an earlier session is stale. */
+  private sessionEpoch = 0;
   isLoggedIn = false;
   autherisationcheck = false;
   lmsuser: lmsuser | null = null;
@@ -95,21 +97,11 @@ export class AuthService {
     this.permissionsService.loadPermissions(this.getLmsUser()?.permissions ?? []);
   }
   private fetchrefreshtoken = async () => {
-    // A refresh a refused call started is already asking with this refresh token (and stores the new pair,
-    // which sets the timer again): a second ask with it would be refused and end a good session.
-    if (this.recovery) return;
-    // A token update in flight from before the request goes out until the new pair is stored (or the
-    // refresh failed): a call refused meanwhile waits for it rather than refreshing with a dying token.
-    const update = this.beginTokenUpdate();
-    try {
-      // The same exchange a refused call uses: a refresh token the server refuses ends the session, but a
-      // refresh that could not be asked (no connection, a 429, a server error) says nothing about it, so
-      // the session is kept (the next refused call tries the refresh again).
-      const outcome = await this.exchangeRefreshToken();
-      if (outcome === 'refused') this.endSession();
-    } finally {
-      update.end();
-    }
+    // The hourly refresh is THE refresh in flight (`this.recovery`, the same single flight a refused call joins):
+    // a refused call meanwhile waits for its answer instead of asking again with the same refresh token, and the
+    // timer joins a refresh a refused call already started. Its outcome is the one a refused call's would be: a
+    // refresh token the server refuses ends the session, a refresh that could not be asked keeps it.
+    await this.refreshOnce();
   };
 
   getuser(): lmsuser {
@@ -155,6 +147,8 @@ export class AuthService {
    * already refused (a 401): the token is dead, so calling auth/logout would only 401 again.
    */
   clearSession(): void {
+    // A token pair that arrives after this (a late answer to a refresh or a switch asked before) is not stored.
+    this.sessionEpoch++;
     clearListCaches();
     this.userstore.dispatch(clearuserAction());
     clearTimeout(this.tokenTimer);
@@ -188,6 +182,7 @@ export class AuthService {
     // it does not wait for itself (and still waits for any other).
     return defer(() => {
       const update = this.beginTokenUpdate();
+      const epoch = this.sessionEpoch;
       return this.http
         .post<{ data: { accessToken: string; refreshToken: string } }>(
           `${this.coreService.CORE_API()}auth/organisation`,
@@ -197,7 +192,15 @@ export class AuthService {
             context: new HttpContext().set(FIELD_ERRORS_INLINE, true).set(ISSUES_TOKENS, update.done),
           }
         )
-        .pipe(finalize(update.end));
+        .pipe(
+          // The session ended while the switch was on its way (the wait for it ran out, the refresh token was refused):
+          // the pair it brings must not bring the session back. The caller reads this as the 401 it is.
+          map((response) => {
+            if (this.sessionEpoch !== epoch) throw new HttpErrorResponse({ status: 401, statusText: 'Session ended' });
+            return response;
+          }),
+          finalize(update.end)
+        );
     });
   }
 
@@ -213,27 +216,35 @@ export class AuthService {
   }
 
   /**
-   * The API no longer accepts the stored access token (a 401): try the refresh token once.
-   * 'renewed': it gave a new pair (stored, as a refresh does). 'refused': the refresh token is no good either
-   * (a 401, or an answer that cannot be read), so the session is gone. 'unavailable': the refresh could not be
-   * asked (no connection, a 429, a server error), which says nothing about the session.
+   * Ask for a new pair with the stored refresh token, once.
+   * 'renewed': it gave a new pair (stored, as a refresh does). 'refused': the refresh token is no good (a 401, or an
+   * answer that cannot be read), so the session is gone. 'unavailable': the refresh could not be asked (no
+   * connection, a 429, a server error), which says nothing about the session. 'rotated': it was refused, but the
+   * stored refresh token is no longer the one that was sent, so another token update stored a new pair meanwhile
+   * and the session is good. 'ended': the session was cleared while the request was on its way; whatever it
+   * brought is dropped.
    */
-  private async exchangeRefreshToken(): Promise<'renewed' | 'refused' | 'unavailable'> {
+  private async exchangeRefreshToken(): Promise<'renewed' | 'refused' | 'unavailable' | 'rotated' | 'ended'> {
+    const sent = this.tokenService.getrefreshtoken();
+    const epoch = this.sessionEpoch;
+    const refusedOrRotated = () => (this.tokenService.getrefreshtoken() === sent ? 'refused' : 'rotated');
     try {
-      const result = await firstValueFrom(this.refreshtoken(this.tokenService.getrefreshtoken()));
+      const result = await firstValueFrom(this.refreshtoken(sent));
+      if (this.sessionEpoch !== epoch) return 'ended';
       // Both tokens must be readable before either is stored: an unreadable answer keeps the old
       // tokens and counts as a failed recovery.
       if (!this.isReadableToken(result?.data?.accessToken) || !this.isReadableToken(result?.data?.refreshToken)) {
-        return 'refused';
+        return refusedOrRotated();
       }
       this.setlogin(result.data.accessToken, result.data.refreshToken);
       return 'renewed';
     } catch (e) {
-      return e instanceof HttpErrorResponse && e.status !== 401 ? 'unavailable' : 'refused';
+      if (this.sessionEpoch !== epoch) return 'ended';
+      return e instanceof HttpErrorResponse && e.status !== 401 ? 'unavailable' : refusedOrRotated();
     }
   }
 
-  /** The token updates in flight (a refresh, an organisation switch): each ends when its new pair is stored or it failed. */
+  /** The organisation switches in flight: each ends when its new pair is stored or it failed. (A refresh is `recovery`.) */
   private readonly tokenUpdates = new Set<Promise<void>>();
 
   /**
@@ -254,10 +265,12 @@ export class AuthService {
   }
 
   /**
-   * Wait for the token updates in flight, except `own` (the caller's), for at most TOKEN_UPDATE_WAIT_MS in all.
-   * An update that has not ended by then is taken to have done nothing: it is forgotten (so the next refused
-   * call does not wait for it again) and the caller goes on to compare the token and refresh. If it does end
-   * later and stores a pair, that pair is simply the stored one.
+   * Wait for the organisation switches in flight, except `own` (the caller's), for at most TOKEN_UPDATE_WAIT_MS in all.
+   * A switch that has not ended by then is taken to have changed nothing: it is forgotten (so the next refused call
+   * does not wait for it again) and the caller goes on to compare the token and refresh. If the switch does end
+   * later, its pair is stored only if the session has not ended meanwhile (see `switchOrganisation`); if the server
+   * had already rotated the refresh token for it, that refresh is refused and the session ends, which is why the wait
+   * is a bound and not a guess about the server.
    */
   private async waitForTokenUpdates(own?: Promise<void>): Promise<void> {
     const deadline = Date.now() + TOKEN_UPDATE_WAIT_MS;
@@ -279,21 +292,41 @@ export class AuthService {
     }
   }
 
-  /** The refresh in flight, if any: calls refused together share it. */
+  /** The refresh in flight, if any (a refused call's or the hourly timer's): everything that needs one joins it. */
   private recovery: Promise<boolean> | null = null;
 
   /**
+   * Refresh the session with the refresh token, once however many ask: a refresh already in flight is joined, never
+   * repeated (a second ask with the same refresh token is refused once the first has been answered, and would end a
+   * good session). True: the stored pair is good (renewed, or another update stored one). False: it is not usable
+   * now. The session is ended (once, with its one notice) only when the refresh token is refused and is still the
+   * stored one; a refresh that could not be asked leaves the session as it is.
+   */
+  private refreshOnce(): Promise<boolean> {
+    if (!this.recovery) {
+      const run = this.exchangeRefreshToken().then((outcome) => {
+        if (outcome === 'refused') this.endSession();
+        return outcome === 'renewed' || outcome === 'rotated';
+      });
+      const clear = () => {
+        if (this.recovery === run) this.recovery = null;
+      };
+      run.then(clear, clear);
+      this.recovery = run;
+    }
+    return this.recovery;
+  }
+
+  /**
    * A call the API refused with a 401 (the token it was sent with is `sentToken`). The server cancels the old
-   * access and refresh tokens when it issues a new pair, so a call can be refused while a switch or a refresh
-   * is about to store a good pair: wait for any token update in flight first, then compare. A token that
-   * differs from the one the call was sent with is a good one: true, send the call again. Otherwise get the
-   * session back with the refresh token, once however many calls were refused together.
-   * True: the session is good, so the caller may send its call again. False: the call stays refused. The
-   * session is ended (once, with its one notice) only when the refresh token is refused too; a refresh that
-   * could not be asked leaves the session as it is. A caller never navigates for this.
+   * access and refresh tokens when it issues a new pair, so a call can be refused while a switch is about to store
+   * a good pair: wait for any switch in flight first (at most TOKEN_UPDATE_WAIT_MS), then compare. A token that
+   * differs from the one the call was sent with is a good one: true, send the call again. Otherwise refresh once
+   * (joining the refresh in flight, the hourly timer's included).
+   * True: the session is good, so the caller may send its call again. False: the call stays refused. A caller
+   * never navigates for this.
    * `ownUpdate`: the refused call is itself a token update (the organisation switch); this is its update,
-   * which it must not wait for (any other it still waits for). The wait is bounded (TOKEN_UPDATE_WAIT_MS):
-   * an update that has not ended by then is taken to have changed nothing.
+   * which it must not wait for (any other it still waits for).
    */
   async recoverOrEndSession(sentToken: string, ownUpdate?: Promise<void>): Promise<boolean> {
     await this.waitForTokenUpdates(ownUpdate);
@@ -302,25 +335,7 @@ export class AuthService {
     if (!now) return false;
     // A new pair has been stored since this call went out: send it again with the new one.
     if (now !== sentToken) return true;
-    if (!this.recovery) {
-      const update = this.beginTokenUpdate();
-      const done = () => {
-        this.recovery = null;
-        update.end();
-      };
-      this.recovery = this.exchangeRefreshToken().then(
-        (outcome) => {
-          if (outcome === 'refused') this.endSession();
-          done();
-          return outcome === 'renewed';
-        },
-        (e) => {
-          done();
-          throw e;
-        }
-      );
-    }
-    return this.recovery;
+    return this.refreshOnce();
   }
 
   /** The session is over and cannot be got back (a refused refresh token): clear it, go to sign-in, say so once. */

@@ -383,9 +383,7 @@ test.describe('a token update in flight', () => {
     await fireHourlyRefresh(page);
     await expect.poll(() => issued, { message: 'the server has issued the new pair, which is on its way' }).toBe(true);
     expect(refreshes(), 'one refresh').toBe(1);
-    // The page's loading cover is up while a request is in flight and would hold a real click until the refresh
-    // ends, so the click is dispatched to the menu item itself.
-    await choice.dispatchEvent('click');
+    await choice.click();
 
     await expect(page.getByRole('button', { name: /^Organisation: E2E Fixture Organisation, / })).toBeVisible({ timeout: 20_000 });
     expect(switchStatuses, 'the switch went out with the cancelled token and was refused').toContain(401);
@@ -395,6 +393,135 @@ test.describe('a token update in flight', () => {
     expect(await toasts(page).filter({ hasText: ENDED }).count(), 'no session-ended notice').toBe(0);
     await expect(page).not.toHaveURL(/\/auth\//);
     expect((await heldKeys(page)).length, 'still signed in').toBeGreaterThan(0);
+  });
+
+  // The hourly refresh is the refresh in flight: a refused call that comes while it is on its way joins it, and a
+  // refresh token is never used twice. Both cases below are the two ways the timer's refresh can be slow.
+  test('an hourly refresh the server has answered but the page has not yet received (25 s): the refused call waits for it, no second refresh, nothing said', async ({ page }) => {
+    test.setTimeout(120_000);
+    await holdHourlyRefreshTimer(page);
+    await loginViaUi(page, admin.username, PASSWORD);
+    await page.goto('/user/index');
+    await page.waitForLoadState('networkidle');
+    const before = await storedSession(page);
+    // The server rotates the pair at once (so the old access token is dead); the answer reaches the page 25 s later.
+    let issued = false;
+    await page.route(`${API_URL}/auth/refreshtoken*`, async (route) => {
+      const answer = await route.fetch();
+      issued = true;
+      await new Promise((resolve) => setTimeout(resolve, 25_000));
+      return route.fulfill({ response: answer });
+    });
+    const refreshes = countRefreshes(page);
+
+    await fireHourlyRefresh(page);
+    await expect.poll(() => issued, { message: 'the server has rotated the pair' }).toBe(true);
+    const listStatuses: number[] = [];
+    page.on('response', (r) => {
+      if (r.url() === `${API_URL}/user` && r.request().method() === 'POST') listStatuses.push(r.status());
+    });
+    await searchStaff(page);
+    await expect(page.getByRole('row').filter({ hasText: admin.username })).toBeVisible({ timeout: 45_000 });
+    expect(listStatuses, 'the call went out with the dead token and was refused').toContain(401);
+    expect(listStatuses[listStatuses.length - 1], 'and was sent again with the new one').toBe(200);
+    expect(refreshes(), 'one refresh in all').toBe(1);
+    await page.waitForTimeout(750);
+    expect(await toasts(page).count(), 'no notice').toBe(0);
+    await expect(page).toHaveURL(/\/user\/index/);
+    const after = await storedSession(page);
+    expect(Object.keys(after).length, 'signed in, with a whole session').toBe(Object.keys(before).length);
+    expect(after, 'the session was renewed').not.toEqual(before);
+  });
+
+  test('an hourly refresh held before the server has seen it (25 s): the refused call waits for it, and the refresh is asked once', async ({ page }) => {
+    test.setTimeout(120_000);
+    await holdHourlyRefreshTimer(page);
+    await loginViaUi(page, admin.username, PASSWORD);
+    await page.goto('/user/index');
+    await page.waitForLoadState('networkidle');
+    const before = await storedSession(page);
+    await page.route(`${API_URL}/auth/refreshtoken*`, async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 25_000));
+      return route.fallback();
+    });
+    let listed = 0;
+    await page.route(`${API_URL}/user`, (route) =>
+      route.request().method() === 'POST' && ++listed === 1
+        ? route.fulfill({ status: 401, contentType: 'application/json', body: '{}' })
+        : route.fallback(),
+    );
+    const refreshes = countRefreshes(page);
+
+    await fireHourlyRefresh(page);
+    await expect.poll(() => refreshes(), { message: 'the refresh is on its way' }).toBe(1);
+    await searchStaff(page);
+    await expect(page.getByRole('row').filter({ hasText: admin.username })).toBeVisible({ timeout: 45_000 });
+    expect(listed, 'the call was refused once and sent again').toBeGreaterThan(1);
+    // Past the point where a second ask would have gone out and been refused.
+    await page.waitForTimeout(8_000);
+    expect(refreshes(), 'one refresh in all').toBe(1);
+    expect(await toasts(page).count(), 'no notice').toBe(0);
+    await expect(page).toHaveURL(/\/user\/index/);
+    expect(Object.keys(await storedSession(page)).length, 'signed in').toBe(Object.keys(before).length);
+  });
+
+  test('the hourly timer firing while a refused call\'s refresh is in flight joins it: one refresh', async ({ page }) => {
+    await holdHourlyRefreshTimer(page);
+    await loginViaUi(page, admin.username, PASSWORD);
+    await page.goto('/user/index');
+    await page.waitForLoadState('networkidle');
+    await page.route(`${API_URL}/auth/refreshtoken*`, async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 4_000));
+      return route.fallback();
+    });
+    let listed = 0;
+    await page.route(`${API_URL}/user`, (route) =>
+      route.request().method() === 'POST' && ++listed === 1
+        ? route.fulfill({ status: 401, contentType: 'application/json', body: '{}' })
+        : route.fallback(),
+    );
+    const refreshes = countRefreshes(page);
+
+    await searchStaff(page);
+    await expect.poll(() => refreshes(), { message: 'the refused call\'s refresh is on its way' }).toBe(1);
+    await fireHourlyRefresh(page);
+    await expect(page.getByRole('row').filter({ hasText: admin.username })).toBeVisible({ timeout: 20_000 });
+    await page.waitForTimeout(2_000);
+    expect(refreshes(), 'the timer did not ask again').toBe(1);
+    expect(await toasts(page).count(), 'no notice').toBe(0);
+    await expect(page).toHaveURL(/\/user\/index/);
+    expect((await heldKeys(page)).length, 'still signed in').toBeGreaterThan(0);
+  });
+
+  test('a switch answered after the wait ran out and the session ended: its pair is not stored, the sign-in page stays', async ({ page }) => {
+    test.setTimeout(120_000);
+    await loginViaUi(page, platform.username, PASSWORD);
+    await page.goto('/user/index');
+    await page.waitForLoadState('networkidle');
+    // The server rotates the pair at once (the refresh token is used up); the answer reaches the page 24 s later,
+    // after the refused call has given up waiting at 20 s, asked for a refresh with the used token and ended the session.
+    let issued = false;
+    await page.route(`${API_URL}/auth/organisation`, async (route) => {
+      if (route.request().method() !== 'POST') return route.fallback();
+      const answer = await route.fetch();
+      issued = true;
+      await new Promise((resolve) => setTimeout(resolve, 24_000));
+      return route.fulfill({ response: answer });
+    });
+    await page.getByRole('button', { name: /^Organisation: .*Switch organisation$/ }).click();
+    const choice = page.getByRole('menuitemradio', { name: 'E2E Fixture Organisation' });
+    await expect(choice).toBeVisible();
+    await choice.click();
+    await expect.poll(() => issued, { message: 'the server has rotated the pair' }).toBe(true);
+    await searchStaff(page);
+
+    await expect(page).toHaveURL(/\/auth\/login/, { timeout: 35_000 });
+    await expect(toasts(page).filter({ hasText: ENDED })).toHaveCount(1);
+    // The switch's answer arrives (about 24 s after it was asked) and must change nothing.
+    await page.waitForTimeout(8_000);
+    expect(await heldKeys(page), 'the stored session is still gone').toEqual([]);
+    await expect(page).toHaveURL(/\/auth\/login/);
+    expect(await toasts(page).count(), 'one notice, and nothing else').toBe(1);
   });
 });
 
