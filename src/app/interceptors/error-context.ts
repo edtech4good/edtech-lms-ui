@@ -35,7 +35,8 @@ export const NOT_FOUND_HANDLED = new HttpContextToken<boolean>(() => false);
 
 /**
  * Set on a request that is itself a token update (the organisation switch: the server issues a new pair
- * when it answers). When it is refused with a 401 the error interceptor must not wait for token updates in
- * flight before it recovers the session, because this request is one of them.
+ * when it answers), to the promise that ends when that update is over. When the request is refused with a
+ * 401 the error interceptor must not wait for that update (it is waiting for itself), but it still waits
+ * for any other token update in flight.
  */
-export const ISSUES_TOKENS = new HttpContextToken<boolean>(() => false);
+export const ISSUES_TOKENS = new HttpContextToken<Promise<void> | null>(() => null);
