@@ -36,7 +36,7 @@ const settled = (page: Page) =>
 async function syncContentAnswering(page: Page, answer: ReturnType<typeof json>): Promise<void> {
   await page.route(`${API_URL}/sync/cloud`, (route) => (route.request().method() === 'POST' ? route.fulfill(answer) : route.fallback()));
   await page.goto('/curriculum/index');
-  await page.getByRole('link', { name: 'Sync Content' }).click();
+  await page.getByText('Sync Content', { exact: true }).click();
   const synced = page.waitForResponse((r) => r.url() === `${API_URL}/sync/cloud` && r.request().method() === 'POST');
   await page.getByRole('button', { name: 'OK' }).click();
   await synced;
