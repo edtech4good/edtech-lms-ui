@@ -362,8 +362,10 @@ test.describe('a token update in flight', () => {
     await page.goto('/user/index');
     await page.waitForLoadState('networkidle');
     // The server cancels the old tokens the moment it issues the new pair; the answer is held for 5 s after that.
+    let issued = false;
     await page.route(`${API_URL}/auth/refreshtoken*`, async (route) => {
       const answer = await route.fetch();
+      issued = true;
       await new Promise((resolve) => setTimeout(resolve, 5_000));
       return route.fulfill({ response: answer });
     });
@@ -373,10 +375,17 @@ test.describe('a token update in flight', () => {
       if (r.url() === `${API_URL}/auth/organisation` && r.request().method() === 'POST') switchStatuses.push(r.status());
     });
 
-    await fireHourlyRefresh(page);
-    await expect.poll(() => refreshes(), { message: 'the refresh is in flight' }).toBe(1);
+    // The menu is open with its list loaded before the refresh starts (opening it later would send the list
+    // call while the refresh is in flight, and that call would be the one to wait).
     await page.getByRole('button', { name: /^Organisation: .*Switch organisation$/ }).click();
-    await page.getByRole('menuitemradio', { name: 'E2E Fixture Organisation' }).click();
+    const choice = page.getByRole('menuitemradio', { name: 'E2E Fixture Organisation' });
+    await expect(choice).toBeVisible();
+    await fireHourlyRefresh(page);
+    await expect.poll(() => issued, { message: 'the server has issued the new pair, which is on its way' }).toBe(true);
+    expect(refreshes(), 'one refresh').toBe(1);
+    // The page's loading cover is up while a request is in flight and would hold a real click until the refresh
+    // ends, so the click is dispatched to the menu item itself.
+    await choice.dispatchEvent('click');
 
     await expect(page.getByRole('button', { name: /^Organisation: E2E Fixture Organisation, / })).toBeVisible({ timeout: 20_000 });
     expect(switchStatuses, 'the switch went out with the cancelled token and was refused').toContain(401);
