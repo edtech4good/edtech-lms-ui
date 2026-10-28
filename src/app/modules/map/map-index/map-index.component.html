@@ -1,6 +1,9 @@
 <div nz-row>
   <div nz-col nzSpan="12" style="overflow: auto">
-    <nz-card [nzBordered]="true" nzTitle="Curriculum Map" [nzLoading]="dataloading">
+    <nz-card [nzBordered]="true" nzTitle="Curriculum Map" [nzExtra]="countsTpl" [nzLoading]="dataloading">
+      @if (showCounts && countsState === 'ready' && !hasTranslations) {
+        <p class="counts-note" data-testid="no-translations">No curriculum in this organisation has a translation yet.</p>
+      }
       <nz-tree
         [nzMultiple]="false"
         [nzData]="nodes"
@@ -12,6 +15,18 @@
     </nz-card>
   </div>
 </div>
+<ng-template #countsTpl>
+  <label class="counts-switch">
+    <nz-switch
+      [ngModel]="showCounts"
+      (ngModelChange)="setCounts($event)"
+      [nzLoading]="countsState === 'loading'"
+      nzSize="small"
+      data-testid="translation-counts-switch"
+    ></nz-switch>
+    <span>Translation counts</span>
+  </label>
+</ng-template>
 <ng-template #nzTreeTemplate let-node let-origin="origin">
   <span class="custom-node">
     <span *ngIf="!node.isLeaf" (click)="openFolder(node)">
@@ -20,6 +35,12 @@
         class="folder-name"
         >{{ node.title }}</span
       >
+
+      @if (showCounts) {
+        @for (chip of (origin.data.type === 'LESSON' ? lessonChipsById.get(origin.data.lessonid) : origin.data.type === 'CURRICULUM' ? curriculumChipsById.get(origin.data.curriculumid) : null) ?? []; track chip.language) {
+          <span class="chip" [class.done]="chip.tone === 'done'" [class.stale]="chip.tone === 'stale'" [class.open]="chip.tone === 'open'" [attr.data-testid]="'chip-' + chip.language">{{ chip.text }}</span>
+        }
+      }
     </span>
     <span *ngIf="node.isLeaf" (click)="openFolder(node)">
       <span
@@ -27,6 +48,12 @@
         class="folder-name"
         >{{ node.title }}</span
       >
+
+      @if (showCounts) {
+        @for (chip of (origin.data.type === 'LESSON' ? lessonChipsById.get(origin.data.lessonid) : origin.data.type === 'CURRICULUM' ? curriculumChipsById.get(origin.data.curriculumid) : null) ?? []; track chip.language) {
+          <span class="chip" [class.done]="chip.tone === 'done'" [class.stale]="chip.tone === 'stale'" [class.open]="chip.tone === 'open'" [attr.data-testid]="'chip-' + chip.language">{{ chip.text }}</span>
+        }
+      }
     </span>
   </span>
 </ng-template>
