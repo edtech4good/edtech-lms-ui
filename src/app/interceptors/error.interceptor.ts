@@ -10,7 +10,7 @@ import { CoreService } from '../services/core.service';
 import { TokenService } from '../services/token.service';
 import { unsetloadingAction } from '../store/appstate/appstate.action';
 import { appState } from '../store/appstate/appstate.reducer';
-import { FAILURES_SHOWN_BY_CALLER, FIELD_ERRORS_INLINE, FORBIDDEN_HANDLED, ISSUES_TOKENS, NOT_FOUND_HANDLED } from './error-context';
+import { FAILURES_SHOWN_BY_CALLER, FIELD_ERRORS_INLINE, FORBIDDEN_HANDLED, GATEWAY_HANDLED, ISSUES_TOKENS, NOT_FOUND_HANDLED } from './error-context';
 
 /** What a 404 says when the API gave no words of its own. */
 export const NOT_FOUND_MESSAGE = 'That record was not found. It may have been removed, or it may not be yours to see.';
@@ -133,7 +133,7 @@ export class ErrorInterceptor implements HttpInterceptor {
                 : '')
           );
         }
-        if (error.status === 502 || error.status === 503) {
+        if ((error.status === 502 || error.status === 503) && !req.context.get(GATEWAY_HANDLED)) {
           // The API answers 502 when the student server refused it (edtech-lms-api#150) and 503 when something it
           // needs is down. It says what happened and what to try, with a reference; shown as it is, so the person
           // is not left with a button that did nothing. Keyed, so calls that fail together show one notice.

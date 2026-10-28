@@ -34,6 +34,14 @@ export const FORBIDDEN_HANDLED = new HttpContextToken<boolean>(() => false);
 export const NOT_FOUND_HANDLED = new HttpContextToken<boolean>(() => false);
 
 /**
+ * Set on a request whose caller says what a 502 or 503 means itself (organisation create and update, whose drawer
+ * shows "could not be saved" beside the form). The error interceptor's gateway notice is then not shown as well, so
+ * a refused save is one message, never two. Unlike FIELD_ERRORS_INLINE it is asked for by name: other callers of
+ * that token still get the gateway notice.
+ */
+export const GATEWAY_HANDLED = new HttpContextToken<boolean>(() => false);
+
+/**
  * Set on a request that is itself a token update (the organisation switch: the server issues a new pair
  * when it answers), to the promise that ends when that update is over. When the request is refused with a
  * 401 the error interceptor must not wait for that update (it is waiting for itself), but it still waits

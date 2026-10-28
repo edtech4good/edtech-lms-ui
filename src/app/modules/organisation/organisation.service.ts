@@ -1,7 +1,7 @@
 import { HttpClient, HttpContext, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import { FIELD_ERRORS_INLINE, FORBIDDEN_HANDLED, NOT_FOUND_HANDLED } from 'src/app/interceptors/error-context';
+import { FIELD_ERRORS_INLINE, FORBIDDEN_HANDLED, GATEWAY_HANDLED, NOT_FOUND_HANDLED } from 'src/app/interceptors/error-context';
 import { CoreService } from 'src/app/services/core.service';
 import {
   Country,
@@ -45,7 +45,8 @@ export class OrganisationService {
   create(body: OrganisationCreate): Observable<Organisation> {
     return this.http
       .post<{ data: Organisation }>(this.url(), body, {
-        context: new HttpContext().set(FIELD_ERRORS_INLINE, true),
+        // A 502/503 is said by the drawer ("couldn't be saved"), in the form, so no gateway toast as well.
+        context: new HttpContext().set(FIELD_ERRORS_INLINE, true).set(GATEWAY_HANDLED, true),
       })
       .pipe(map((r) => r.data));
   }
@@ -53,7 +54,8 @@ export class OrganisationService {
   update(organisationid: string, body: OrganisationWrite): Observable<Organisation> {
     return this.http
       .put<{ data: Organisation }>(this.url(`/${organisationid}`), body, {
-        context: new HttpContext().set(FIELD_ERRORS_INLINE, true),
+        // A 502/503 is said by the drawer ("couldn't be saved"), in the form, so no gateway toast as well.
+        context: new HttpContext().set(FIELD_ERRORS_INLINE, true).set(GATEWAY_HANDLED, true),
       })
       .pipe(map((r) => r.data));
   }
