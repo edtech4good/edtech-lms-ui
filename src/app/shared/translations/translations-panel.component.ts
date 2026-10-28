@@ -5,6 +5,7 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzDrawerModule } from 'ng-zorro-antd/drawer';
 import { NzModalService } from 'ng-zorro-antd/modal';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
+import { NgxPermissionsModule } from 'ngx-permissions';
 import { Observable, concat, last, of } from 'rxjs';
 import { confirmDialog } from 'src/app/modules/organisation/confirm-dialog';
 import { TranslationsService } from './translations.service';
@@ -24,6 +25,18 @@ import {
   textsOf,
   translationErrorMessage,
 } from './translations.model';
+
+/**
+ * The permission an editor's own Submit needs, per table: the Translations button, Save and Remove need it too, as the
+ * editors' own actions do (`*ngxPermissionsOnly`). A table not listed here is hidden: the panel fails closed.
+ */
+const UPDATE_PERMISSION: Readonly<Record<string, string>> = {
+  curriculums: 'update_curriculum',
+  grades: 'update_grade',
+  levels: 'update_level',
+  lessons: 'update_lesson',
+  questions: 'update_question',
+};
 
 type Drafts = Record<string, Record<string, string>>;
 type Confirmed = Record<string, string[]>;
@@ -47,7 +60,7 @@ type Confirmed = Record<string, string[]>;
 @Component({
   selector: 'app-translations-panel',
   standalone: true,
-  imports: [FormsModule, NzButtonModule, NzDrawerModule],
+  imports: [FormsModule, NgxPermissionsModule, NzButtonModule, NzDrawerModule],
   templateUrl: './translations-panel.component.html',
   styleUrl: './translations-panel.component.less',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -65,6 +78,9 @@ export class TranslationsPanelComponent {
   readonly row = input<object | null | undefined>(null);
   /** What the row is called in the panel's header ("Lesson", "Question"). */
   readonly what = input('this');
+
+  /** The permission to change this row's translations; one array per table, so the directive sees no change between checks. */
+  readonly updatePermission = computed(() => [UPDATE_PERMISSION[this.tablename()] ?? `update_${this.tablename()}`]);
 
   readonly open = signal(false);
   readonly state = signal<'idle' | 'loading' | 'ready' | 'error'>('idle');

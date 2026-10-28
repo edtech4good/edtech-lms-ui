@@ -23,6 +23,7 @@ skipUnlessLocalApi('creates a staff account and sets an organisation\'s content 
 const RUN = `e2e${Math.random().toString(36).slice(2, 8)}`;
 const PASSWORD = 'Staff_Pass1';
 const ADMIN = `e2e-trans-${RUN}@example.com`;
+const LIMITED = `e2e-trans-lim-${RUN}@example.com`;
 
 /** Translations: the fixture organisations' Khmer names, byte for byte. */
 const KM_NAME = SECOND_FIXTURE_ORGANISATION.name;
@@ -35,7 +36,7 @@ const LESSON_DESCRIPTION = `Description ${RUN}`;
 let sa: APIRequestContext; // the platform superadmin
 let saPage: Page;
 let orgId: string;
-const ids: { subject?: string; curriculum?: string; grade?: string; level?: string; lesson?: string; mcq?: string; fill?: string; userId?: string } = {};
+const ids: { subject?: string; curriculum?: string; grade?: string; level?: string; lesson?: string; mcq?: string; fill?: string; userId?: string; limitedId?: string } = {};
 
 const toasts = (p: Page) => p.locator('.ant-notification-notice');
 const panel = (p: Page) => p.getByRole('dialog', { name: 'Translations' });
@@ -192,6 +193,7 @@ test.afterAll(async () => {
       data: { organisationname: org.organisationname, organisationshortname: org.organisationshortname, brandingconfig: org.brandingconfig, countryids: org.countries.map((c: any) => c.countryid), contentlanguage: null },
     });
   });
+  if (ids.limitedId) await step('disable the limited account', () => sa.delete(`/user/${ids.limitedId}`));
   if (ids.userId) await step('disable the account', () => sa.delete(`/user/${ids.userId}`));
   await sa?.dispose();
   await saPage?.close();
@@ -356,22 +358,32 @@ test.describe('the Translations panel, signed in as the organisation\'s admin', 
   });
 
   test('the curriculum map shows the counts for the lesson once they are switched on', async () => {
+    // The listener goes on before the page loads: a fetch made while the tree loads, with the switch off, must be seen.
+    const asked: string[] = [];
+    const onRequest = (r: { url(): string }) => {
+      if (r.url().includes('/curriculum/publication/')) asked.push(r.url());
+    };
+    page.on('request', onRequest);
     await page.goto('/map/index');
     await expect(page.getByText(`Curriculum ${RUN} (Curriculum)`)).toBeVisible();
-    // Off by default: no chips, and nothing asked of the publication route.
+    // Off by default: no chips, and nothing asked of the publication route. Let the tree and its requests settle first.
+    await page.waitForLoadState('networkidle');
     await expect(page.locator('[data-testid^="chip-"]')).toHaveCount(0);
-    const asked: string[] = [];
-    page.on('request', (r) => {
-      if (r.url().includes('/curriculum/publication/')) asked.push(r.url());
-    });
+    expect(asked, 'the publication route was asked for with the switch off').toHaveLength(0);
+    // The switch is the handoff's 44 x 26.
+    const box = await page.getByTestId('translation-counts-switch').locator('button').boundingBox();
+    expect([box?.width, box?.height]).toEqual([44, 26]);
     await page.getByTestId('translation-counts-switch').click();
     await expect(page.getByTestId('chip-km').first()).toBeVisible();
+    // A chip, like every status pill, pairs an icon with its words.
+    await expect(page.getByTestId('chip-km').first().locator('svg')).toHaveCount(1);
     // Open the tree down to the lesson.
     await openTreeDown(page);
     const lessonRow = page.locator('.custom-node').filter({ hasText: `${LESSON_NAME} (Lesson)` });
     // The lesson has a name (translated) and a description (not): one untranslated text.
     await expect(lessonRow.getByTestId('chip-km')).toHaveText('km: 1 untranslated');
     expect(asked.length, 'the overview was asked for once per curriculum, only after the switch').toBeGreaterThan(0);
+    page.off('request', onRequest);
   });
 
   test('after the lesson is renamed the translated name is marked "Base text changed", and counted as stale', async () => {
@@ -385,6 +397,7 @@ test.describe('the Translations panel, signed in as the organisation\'s admin', 
     await panel(page).getByTestId('lang-km').click();
     await expect(textBlock('lessonname').getByTestId('base-text')).toHaveText(LESSON_RENAMED);
     await expect(textBlock('lessonname').getByTestId('stale')).toHaveText('Base text changed');
+    await expect(textBlock('lessonname').getByTestId('stale').locator('svg')).toHaveCount(1);
     await expect(textBlock('lessondescription').getByTestId('stale')).toHaveCount(0);
     // An untouched stale translation is not saved by a save of something else: it stays stale.
     await input('lessondescription').fill(KM_SHORT);
@@ -480,5 +493,39 @@ test.describe('the Translations panel, signed in as the organisation\'s admin', 
     expect((await listFor(sa, 'lessons', ids.lesson!)).translations).toHaveLength(0);
     // The question's Khmer is its own: untouched by removing the lesson's.
     expect((await listFor(sa, 'questions', ids.mcq!)).translations).toHaveLength(1);
+  });
+});
+
+// ---- 3. an account that may view lessons but not change them -------------------------------------
+test.describe('an account without update_lesson', () => {
+  test('is not offered the Translations button on the lesson editor, and the API refuses its save', async ({ browser }) => {
+    const made = await created(
+      await sa.post('/user/create', {
+        data: { lmsusername: LIMITED, lmsuserpasswordhash: PASSWORD, lmsuserroles: [ROLE.user, ROLE.teacher], organisationid: orgId, countryids: [], schoolids: [] },
+      }),
+      'the limited account',
+    );
+    ids.limitedId = made.lmsuserid;
+    const lp = await (await browser.newContext()).newPage();
+    try {
+      await loginViaUi(lp, LIMITED, PASSWORD);
+      // The editor has loaded the lesson (it may be opened by a link) ...
+      await lp.goto(`/lesson/update/${ids.lesson}`);
+      await expect(lp.locator('input[formcontrolname="lessonname"]')).toHaveValue(LESSON_RENAMED);
+      // ... and offers no way into the panel. The same page, signed in as the admin, offers it (the tests above).
+      await expect(lp.getByTestId('open-translations')).toHaveCount(0);
+      // The rule is the API's: a direct call with this account's token is refused and writes nothing.
+      const token = await lp.evaluate(() => {
+        const g = (k: string) => sessionStorage.getItem(k);
+        return `${g('lms_access_alg')}.${g('lms_access_payload')}.${g('lms_access_hash')}`;
+      });
+      const limited = await apiContext(token);
+      const refused = await limited.put(`/translations/lessons/${ids.lesson}`, { data: { language: 'km', fields: { lessonname: KM_NAME } } });
+      expect(refused.status()).toBe(403);
+      expect((await listFor(sa, 'lessons', ids.lesson!)).translations).toHaveLength(0);
+      await limited.dispose();
+    } finally {
+      await lp.context().close();
+    }
   });
 });
