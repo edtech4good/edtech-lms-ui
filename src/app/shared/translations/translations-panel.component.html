@@ -1,0 +1,185 @@
+<button
+  nz-button
+  type="button"
+  data-testid="open-translations"
+  [disabled]="!rowid()"
+  (click)="show()"
+>
+  Translations
+</button>
+
+<nz-drawer
+  [nzVisible]="open()"
+  nzPlacement="right"
+  nzWidth="560px"
+  [nzClosable]="false"
+  [nzMaskClosable]="true"
+  nzWrapClassName="org-drawer"
+  [nzMaskStyle]="{ background: 'rgba(30, 41, 59, 0.35)' }"
+  (nzOnClose)="requestClose()"
+>
+  <ng-container *nzDrawerContent>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="translations-title" data-testid="translations-panel">
+      <header class="head">
+        <div class="titles">
+          <h2 id="translations-title" class="title">Translations</h2>
+          @if (baseLabel(); as base) {
+            <p class="sub">Base language: <span data-testid="base-language">{{ base }}</span>. Translating {{ what() === 'this' ? 'this row' : 'this ' + what().toLowerCase() }}.</p>
+          }
+        </div>
+        <button type="button" class="close" aria-label="Close" (click)="requestClose()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" focusable="false">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </header>
+
+      <div class="body">
+        @switch (state()) {
+          @case ('loading') {
+            <p class="help" role="status">Loading the translations…</p>
+          }
+          @case ('error') {
+            <p class="field-error" role="alert">
+              The translations couldn't be loaded.
+              <button type="button" class="link" (click)="load()">Try again</button>
+            </p>
+          }
+          @case ('ready') {
+            @if (contentLanguage() === null) {
+              <div class="note" role="status" data-testid="no-content-language">
+                <strong>This organisation has no content language yet.</strong>
+                <span>Platform staff set it on the organisation (Organisations, Edit). Until then there is nothing to translate from.</span>
+              </div>
+            } @else if (translatable().length === 0) {
+              <div class="note" role="status">
+                <strong>Nothing to translate yet.</strong>
+                <span>This {{ what() === 'this' ? 'row' : what().toLowerCase() }} has no text. Add some and save it first.</span>
+              </div>
+            } @else {
+              <div class="languages" role="tablist" aria-label="Languages">
+                @for (language of languages(); track language) {
+                  <button
+                    type="button"
+                    role="tab"
+                    class="lang"
+                    [class.on]="language === active()"
+                    [attr.aria-selected]="language === active()"
+                    [attr.data-testid]="'lang-' + language"
+                    (click)="select(language)"
+                  >
+                    {{ label(language) }}
+                    <span class="count">{{ doneCount(language) }}/{{ translatable().length }}</span>
+                  </button>
+                }
+              </div>
+
+              <div class="add">
+                <label class="label" for="translations-add">Add a language</label>
+                <div class="add-row">
+                  <input
+                    id="translations-add"
+                    class="input"
+                    type="text"
+                    autocomplete="off"
+                    autocapitalize="none"
+                    spellcheck="false"
+                    placeholder="Language code, such as km"
+                    data-testid="add-language-code"
+                    [class.invalid]="addError()"
+                    [attr.aria-invalid]="addError() ? 'true' : null"
+                    [attr.aria-describedby]="addError() ? 'translations-add-error' : null"
+                    [ngModel]="addCode()"
+                    (ngModelChange)="setAddCode($event)"
+                    (keydown.enter)="addLanguage(); $event.preventDefault()"
+                  />
+                  <button nz-button type="button" data-testid="add-language" (click)="addLanguage()">Add</button>
+                </div>
+                @if (addError(); as message) {
+                  <p class="field-error" id="translations-add-error" role="alert">{{ message }}</p>
+                }
+              </div>
+
+              @if (active(); as language) {
+                <section class="texts" [attr.aria-label]="label(language) + ' translations'" [attr.data-testid]="'texts-' + language">
+                  @for (item of items(); track item.key) {
+                    <div class="text" [attr.data-testid]="'text-' + item.key">
+                      <div class="text-head">
+                        <span class="label">{{ item.label }}</span>
+                        @if (item.answerBearing) {
+                          <span class="tag fixed" data-testid="not-translatable">Not translatable</span>
+                        } @else if (isStale(item)) {
+                          <span class="tag stale" data-testid="stale">Base text changed</span>
+                        } @else if (activeSaved().has(item.key)) {
+                          <span class="tag done">Translated</span>
+                        } @else {
+                          <span class="tag open">Not translated</span>
+                        }
+                      </div>
+                      <p class="base" [attr.lang]="contentLanguage()" data-testid="base-text">{{ item.base }}</p>
+                      @if (item.answerBearing) {
+                        <p class="help">An answer is graded by this text, so it is not translated. Learners see it in {{ baseLabel() }}.</p>
+                      } @else {
+                        <textarea
+                          class="input area"
+                          rows="2"
+                          [class.invalid]="problemOf(item.key)"
+                          [attr.lang]="language"
+                          [attr.aria-label]="item.label + ' in ' + label(language)"
+                          [attr.aria-invalid]="problemOf(item.key) ? 'true' : null"
+                          [attr.data-testid]="'input-' + item.key"
+                          [ngModel]="draftOf(language, item.key)"
+                          (ngModelChange)="setDraft(language, item.key, $event)"
+                        ></textarea>
+                        @if (problemOf(item.key); as message) {
+                          <p class="field-error" role="alert">{{ message }}</p>
+                        }
+                        @if (isStale(item)) {
+                          <p class="help">
+                            The {{ baseLabel() }} text changed after this was translated. Update it, or
+                            <button type="button" class="link" (click)="confirmStill(item.key)">it is still correct</button>.
+                          </p>
+                        }
+                      }
+                    </div>
+                  }
+                </section>
+              } @else {
+                <p class="help" data-testid="no-languages">No translations yet. Add a language to start.</p>
+              }
+            }
+          }
+        }
+      </div>
+
+      <footer class="foot">
+        @if (active(); as language) {
+          <button
+            nz-button
+            nzDanger
+            type="button"
+            class="foot-button remove"
+            data-testid="remove-language"
+            [disabled]="saving()"
+            (click)="removeLanguage(language)"
+          >
+            Remove {{ label(language) }}
+          </button>
+        }
+        <span class="spacer"></span>
+        <button nz-button type="button" class="foot-button" (click)="requestClose()">Close</button>
+        <button
+          nz-button
+          nzType="primary"
+          type="button"
+          class="foot-button"
+          data-testid="save-translations"
+          [disabled]="saving() || !canSaveAll()"
+          (click)="save()"
+        >
+          {{ saving() ? 'Saving…' : 'Save translations' }}
+        </button>
+      </footer>
+    </div>
+  </ng-container>
+</nz-drawer>

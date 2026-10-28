@@ -1,0 +1,312 @@
+// The Translations side panel. No drawn reference exists for it: it follows the organisation drawer
+// (modules/organisation/organisation-drawer.component.less; handoff-v2, "Admin v2.1 Platform and Settings", artboard o2),
+// whose frame ("org-drawer", styles/zorro-overrides.less) it reuses, with the same tokens.
+
+:host {
+  display: contents;
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: #fff;
+  color: var(--color-ink);
+  font-family: var(--font-body);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 22px 24px 10px;
+}
+
+.titles {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 700;
+}
+
+.sub {
+  margin: 2px 0 0;
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--color-text-2);
+}
+
+.close {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--color-ink);
+  box-shadow: 0 3px 0 var(--color-secondary-edge), inset 0 0 0 1.5px var(--color-field-edge);
+  cursor: pointer;
+
+  &:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 var(--color-secondary-edge), inset 0 0 0 1.5px var(--color-field-edge);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 3px 0 var(--color-secondary-edge), inset 0 0 0 1.5px var(--color-field-edge),
+      var(--shadow-focus-visible);
+  }
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 10px 24px 16px;
+}
+
+.label {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--color-text-2-dark);
+}
+
+.input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1.5px solid var(--color-field-ring);
+  border-radius: 14px;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  // Khmer must not clip: no fixed height, a Khmer fallback, generous line height.
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.7;
+  transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
+
+  &:focus {
+    outline: none;
+    border-color: var(--color-action);
+    background: #fff;
+    box-shadow: var(--shadow-focus-input);
+  }
+
+  &.invalid {
+    border-color: var(--color-danger-ring);
+    background: var(--color-danger-tint);
+  }
+
+  &.area {
+    padding: 8px 14px;
+    resize: vertical;
+  }
+}
+
+.help {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-text-2);
+}
+
+.field-error {
+  margin: 0;
+  font-size: 13px;
+  line-height: 19px;
+  font-weight: 500;
+  color: var(--color-danger);
+}
+
+.link {
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--color-action);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus-visible);
+  }
+}
+
+.note {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--color-action-tint);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+// ---- Languages ---------------------------------------------------------------------------
+.languages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lang {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1.5px var(--color-field-edge);
+  cursor: pointer;
+
+  &.on {
+    background: var(--color-ink);
+    color: #fff;
+    box-shadow: none;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus-visible);
+  }
+
+  .count {
+    font-size: 12px;
+    font-weight: 500;
+    opacity: 0.8;
+  }
+}
+
+.add {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.add-row {
+  display: flex;
+  gap: 10px;
+
+  button {
+    height: 46px;
+    padding: 0 20px;
+  }
+}
+
+// ---- Texts -------------------------------------------------------------------------------
+.texts {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1.5px solid #f1f3fa;
+}
+
+.text-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.base {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--color-slate-tint);
+  color: var(--color-text-2-dark);
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.tag {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 600;
+
+  &.done {
+    background: var(--color-published-tint);
+    color: var(--color-published-ink);
+  }
+
+  &.stale {
+    background: var(--color-plan-tint);
+    color: var(--color-plan-ink);
+  }
+
+  &.open,
+  &.fixed {
+    background: var(--color-slate-tint);
+    color: var(--color-text-2-dark);
+  }
+}
+
+// ---- Footer ------------------------------------------------------------------------------
+.foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1.5px solid #f1f3fa;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.foot-button {
+  height: 48px;
+  padding: 0 22px;
+  font-size: 15px;
+}
+
+@media (max-width: 480px) {
+  .head {
+    padding: 18px 16px 8px;
+  }
+
+  .body {
+    padding: 8px 16px 16px;
+  }
+
+  .foot {
+    flex-wrap: wrap;
+    padding: 12px 16px;
+  }
+}

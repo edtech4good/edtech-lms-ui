@@ -1,6 +1,6 @@
 <div nz-row>
   <div nz-col nzSpan="12">
-    <nz-card [nzBordered]="true" nzTitle="Level" [nzLoading]="dataloading">
+    <nz-card [nzBordered]="true" nzTitle="Level" [nzExtra]="translationsTpl" [nzLoading]="dataloading">
       <form nz-form [formGroup]="editForm">
         <nz-form-item>
           <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="gradeid"
@@ -116,3 +116,4 @@
     </nz-card>
   </div>
 </div>
+<ng-template #translationsTpl><app-translations-panel tablename="levels" [rowid]="level?.levelid" [row]="level" what="Level"></app-translations-panel></ng-template>

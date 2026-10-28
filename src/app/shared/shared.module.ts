@@ -29,6 +29,7 @@ import { LessonPlanService } from '../services/lesson.plan.service';
 import { DocumentLabelPipe } from './document-label.pipe';
 import { CreateActionComponent } from './owner/create-action.component';
 import { OwnedByComponent } from './owner/owned-by.component';
+import { TranslationsPanelComponent } from './translations/translations-panel.component';
 import { OwnerFilterComponent } from './owner/owner-filter.component';
 import { OwnerNameComponent } from './owner/owner-name.component';
 // #region third libs
@@ -76,6 +77,7 @@ const DIRECTIVES: any[] = [];
     OwnedByComponent,
     OwnerFilterComponent,
     OwnerNameComponent,
+    TranslationsPanelComponent,
   ],
   declarations: [
     // your components
@@ -101,6 +103,7 @@ const DIRECTIVES: any[] = [];
     OwnedByComponent,
     OwnerFilterComponent,
     OwnerNameComponent,
+    TranslationsPanelComponent,
   ],
   providers: [
     // AuthService,
