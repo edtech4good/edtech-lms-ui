@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { LANGUAGE_CODE, normaliseLanguage } from 'src/app/shared/translations/translations.model';
 import { ApiErrorBody, OrganisationBranding } from './organisation.model';
 
 /** The five tile colours (design o2). White text is at least 4.5:1 on each. */
@@ -12,7 +13,7 @@ export const SWATCHES = [
 
 export const DEFAULT_TILE_COLOUR: string = SWATCHES[0].colour;
 
-export type FieldKey = 'organisationname' | 'organisationshortname' | 'organisationcode' | 'countryids';
+export type FieldKey = 'organisationname' | 'organisationshortname' | 'organisationcode' | 'countryids' | 'contentlanguage';
 
 export const NAME_MAX = 250;
 export const CODE_MIN = 2;
@@ -59,6 +60,41 @@ export function codeError(value: string): string | null {
   return null;
 }
 
+/** The languages offered for an organisation's content; anything else is typed as a code. */
+export const CONTENT_LANGUAGES: ReadonlyArray<{ code: string; name: string }> = [
+  { code: 'en', name: 'English' },
+  { code: 'km', name: 'Khmer' },
+  { code: 'fr', name: 'French' },
+  { code: 'th', name: 'Thai' },
+  { code: 'vi', name: 'Vietnamese' },
+  { code: 'id', name: 'Indonesian' },
+];
+
+/** The select's value for "another language", typed as a code. */
+export const OTHER_LANGUAGE = '__other';
+
+/** The select's value and the typed code for an organisation's stored content language. */
+export function contentLanguageChoice(stored: string | null | undefined): { choice: string; other: string } {
+  if (!stored) return { choice: '', other: '' };
+  return CONTENT_LANGUAGES.some((l) => l.code === stored)
+    ? { choice: stored, other: '' }
+    : { choice: OTHER_LANGUAGE, other: stored };
+}
+
+/** What is sent: the language code as the API stores it, or null for none. */
+export function contentLanguageValue(choice: string, other: string): string | null {
+  if (choice === OTHER_LANGUAGE) return other.trim() === '' ? null : normaliseLanguage(other.trim());
+  return choice === '' ? null : choice;
+}
+
+export function contentLanguageError(choice: string, other: string): string | null {
+  if (choice !== OTHER_LANGUAGE) return null;
+  const v = other.trim();
+  if (!v) return 'Enter a language code, such as pt-BR.';
+  if (!LANGUAGE_CODE.test(v)) return 'Use 2 to 8 letters, digits or hyphens, such as km or pt-BR.';
+  return null;
+}
+
 export function countriesError(ids: readonly string[]): string | null {
   return ids.length === 0 ? 'Choose at least one country.' : null;
 }
@@ -69,6 +105,7 @@ const FIELD_MESSAGES: Record<FieldKey, string> = {
   organisationshortname: 'Use 3 letters or fewer, starting with a letter.',
   organisationcode: 'Use 2 to 16 lowercase letters and digits.',
   countryids: 'Choose countries that exist, each only once.',
+  contentlanguage: 'Use 2 to 8 letters, digits or hyphens, such as km or pt-BR.',
 };
 
 export interface ServerFieldErrors {
@@ -117,7 +154,10 @@ export function serverFieldErrors(error: HttpErrorResponse): ServerFieldErrors {
   }
   if (error.status === 400 && body.fields?.length) {
     for (const f of body.fields) {
-      if (f.field in FIELD_MESSAGES) {
+      if (f.field === 'contentlanguage') {
+        // The API's own sentence says why ("This organisation has translations in that language. ..."); it is written for users.
+        out.fields.contentlanguage = typeof f.message === 'string' && f.message.trim() ? f.message : FIELD_MESSAGES.contentlanguage;
+      } else if (f.field in FIELD_MESSAGES) {
         out.fields[f.field as FieldKey] = FIELD_MESSAGES[f.field as FieldKey];
       } else {
         out.form = "Some of the information isn't valid. Check the form and try again.";

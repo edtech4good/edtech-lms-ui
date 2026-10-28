@@ -23,6 +23,8 @@ export interface Organisation {
   organisationstatus: boolean;
   uitheme: string;
   brandingconfig: OrganisationBranding | null;
+  /** The language the organisation's content text is written in; its translations are other languages. null: none set yet. */
+  contentlanguage?: string | null;
   countries: OrganisationCountry[];
 }
 
@@ -47,6 +49,8 @@ export interface OrganisationWrite {
   organisationshortname: string;
   brandingconfig?: OrganisationBranding | null;
   organisationstatus?: boolean;
+  /** Sent on edit only; null clears it. */
+  contentlanguage?: string | null;
   countryids: string[];
 }
 
