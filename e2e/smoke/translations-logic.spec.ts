@@ -1,3 +1,6 @@
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 import {
   TranslationView,
@@ -12,7 +15,16 @@ import {
   textsOf,
   translationErrorMessage,
   untranslatedKeys,
+  ANSWER_BEARING_FIELDS,
+  FEEDBACK_KEYS,
+  LANGUAGE_CODE,
+  SUBKEY_MAX_LENGTH,
+  TRANSLATABLE_FIELDS,
+  TRANSLATION_TEXT_MAX_BYTES,
+  isAnswerBearing,
+  normaliseLanguage,
 } from '../../src/app/shared/translations/translations.model';
+import * as central from '../../src/app/shared/translations/content-translations.central';
 import {
   OTHER_LANGUAGE,
   contentLanguageChoice,
@@ -264,5 +276,43 @@ test.describe('the organisation\'s content language field', () => {
     expect(contentLanguageError(OTHER_LANGUAGE, '')).toMatch(/Enter a language code/);
     expect(contentLanguageError(OTHER_LANGUAGE, 'x')).toMatch(/2 to 8/);
     expect(contentLanguageError(OTHER_LANGUAGE, 'pt-BR')).toBeNull();
+  });
+});
+
+/**
+ * The admin's copy of the contract (translations.model.ts) against central's own constants file.
+ * `content-translations.central.ts` is central's `src/constants/content-translations.ts` at edtech-lms-api origin/main
+ * 8d3b6ee, byte for byte, pinned by hash below. It compiles under the e2e config (its only import is node:crypto) and is
+ * reached only from here: the Angular build never includes it. To follow a change of the contract, copy central's file
+ * over it, update the hash, and make this spec pass by editing translations.model.ts.
+ */
+const CENTRAL_COPY = join(__dirname, '../../src/app/shared/translations/content-translations.central.ts');
+const CENTRAL_COPY_SHA256 = '695bd1530add6cc14d9a2378bebbb718282158dc3000d1fb1d2dc9ad9c173fdf';
+
+test.describe('the admin\'s copy of the contract matches central\'s', () => {
+  test('the checked-in copy of central\'s constants file is the one that was pinned', () => {
+    const sha = createHash('sha256').update(readFileSync(CENTRAL_COPY)).digest('hex');
+    expect(sha, 'the copy changed: update the pin only with a byte-for-byte copy of central\'s file').toBe(CENTRAL_COPY_SHA256);
+  });
+  test('the translatable fields, the feedback keys and the answer-bearing fields are the same', () => {
+    expect(TRANSLATABLE_FIELDS).toEqual(central.TRANSLATABLE_FIELDS);
+    expect(FEEDBACK_KEYS).toEqual(central.FEEDBACK_KEYS);
+    expect(ANSWER_BEARING_FIELDS).toEqual(central.ANSWER_BEARING_FIELDS);
+  });
+  test('the limits and the language code pattern are the same', () => {
+    expect(SUBKEY_MAX_LENGTH).toBe(central.SUBKEY_MAX_LENGTH);
+    expect(TRANSLATION_TEXT_MAX_BYTES).toBe(central.TRANSLATION_TEXT_MAX_BYTES);
+    expect(LANGUAGE_CODE.source).toBe(central.LANGUAGE_CODE.source);
+    expect(LANGUAGE_CODE.flags).toBe(central.LANGUAGE_CODE.flags);
+  });
+  test('normaliseLanguage and isAnswerBearing answer as central\'s do', () => {
+    for (const code of ['km', 'KM', 'pt-BR', 'PT-BR', 'Zh-Hant-TW', 'en']) {
+      expect(normaliseLanguage(code), code).toBe(central.normaliseLanguage(code));
+    }
+    for (const template of [8, 21, 23, 1, '21', ' 8', '', null, 'abc']) {
+      for (const field of ['questiontext', 'questionoptiontext', 'headingtext']) {
+        expect(isAnswerBearing(template, field), `${JSON.stringify(template)} ${field}`).toBe(central.isAnswerBearing(template, field));
+      }
+    }
   });
 });
