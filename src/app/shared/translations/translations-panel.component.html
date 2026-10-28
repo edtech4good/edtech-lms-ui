@@ -100,51 +100,56 @@
                 }
               </div>
 
-              @if (active(); as language) {
-                <section class="texts" [attr.aria-label]="label(language) + ' translations'" [attr.data-testid]="'texts-' + language">
-                  @for (item of items(); track item.key) {
-                    <div class="text" [attr.data-testid]="'text-' + item.key">
-                      <div class="text-head">
-                        <span class="label">{{ item.label }}</span>
-                        @if (item.answerBearing) {
-                          <span class="tag fixed" data-testid="not-translatable">Not translatable</span>
-                        } @else if (isStale(item)) {
-                          <span class="tag stale" data-testid="stale">Base text changed</span>
-                        } @else if (activeSaved().has(item.key)) {
-                          <span class="tag done">Translated</span>
-                        } @else {
-                          <span class="tag open">Not translated</span>
-                        }
-                      </div>
-                      <p class="base" [attr.lang]="contentLanguage()" data-testid="base-text">{{ item.base }}</p>
+              <section
+                class="texts"
+                [attr.aria-label]="active() ? label(active()!) + ' translations' : 'Texts to translate'"
+                [attr.data-testid]="'texts-' + (active() ?? 'none')"
+              >
+                @for (item of items(); track item.key) {
+                  <div class="text" [attr.data-testid]="'text-' + item.key">
+                    <div class="text-head">
+                      <span class="label">{{ item.label }}</span>
                       @if (item.answerBearing) {
-                        <p class="help">An answer is graded by this text, so it is not translated. Learners see it in {{ baseLabel() }}.</p>
+                        <span class="tag fixed" data-testid="not-translatable">Not translatable</span>
+                      } @else if (active() === null) {
+                        <!-- no language yet: the texts are listed, nothing to say about them -->
+                      } @else if (isStale(item)) {
+                        <span class="tag stale" data-testid="stale">Base text changed</span>
+                      } @else if (activeSaved().has(item.key)) {
+                        <span class="tag done">Translated</span>
                       } @else {
-                        <textarea
-                          class="input area"
-                          rows="2"
-                          [class.invalid]="problemOf(item.key)"
-                          [attr.lang]="language"
-                          [attr.aria-label]="item.label + ' in ' + label(language)"
-                          [attr.aria-invalid]="problemOf(item.key) ? 'true' : null"
-                          [attr.data-testid]="'input-' + item.key"
-                          [ngModel]="draftOf(language, item.key)"
-                          (ngModelChange)="setDraft(language, item.key, $event)"
-                        ></textarea>
-                        @if (problemOf(item.key); as message) {
-                          <p class="field-error" role="alert">{{ message }}</p>
-                        }
-                        @if (isStale(item)) {
-                          <p class="help">
-                            The {{ baseLabel() }} text changed after this was translated. Update it, or
-                            <button type="button" class="link" (click)="confirmStill(item.key)">it is still correct</button>.
-                          </p>
-                        }
+                        <span class="tag open">Not translated</span>
                       }
                     </div>
-                  }
-                </section>
-              } @else {
+                    <p class="base" [attr.lang]="contentLanguage()" data-testid="base-text">{{ item.base }}</p>
+                    @if (item.answerBearing) {
+                      <p class="help">An answer is graded by this text, so it is not translated. Learners see it in {{ baseLabel() }}.</p>
+                    } @else if (active(); as language) {
+                      <textarea
+                        class="input area"
+                        rows="2"
+                        [class.invalid]="problemOf(item.key)"
+                        [attr.lang]="language"
+                        [attr.aria-label]="item.label + ' in ' + label(language)"
+                        [attr.aria-invalid]="problemOf(item.key) ? 'true' : null"
+                        [attr.data-testid]="'input-' + item.key"
+                        [ngModel]="draftOf(language, item.key)"
+                        (ngModelChange)="setDraft(language, item.key, $event)"
+                      ></textarea>
+                      @if (problemOf(item.key); as message) {
+                        <p class="field-error" role="alert">{{ message }}</p>
+                      }
+                      @if (isStale(item)) {
+                        <p class="help">
+                          The {{ baseLabel() }} text changed after this was translated. Update it, or
+                          <button type="button" class="link" (click)="confirmStill(item.key)">it is still correct</button>.
+                        </p>
+                      }
+                    }
+                  </div>
+                }
+              </section>
+              @if (active() === null) {
                 <p class="help" data-testid="no-languages">No translations yet. Add a language to start.</p>
               }
             }
@@ -167,7 +172,7 @@
           </button>
         }
         <span class="spacer"></span>
-        <button nz-button type="button" class="foot-button" (click)="requestClose()">Close</button>
+        <button nz-button type="button" class="foot-button" data-testid="close-translations" (click)="requestClose()">Close</button>
         <button
           nz-button
           nzType="primary"
