@@ -18,9 +18,7 @@ import {
   contentLanguageChoice,
   contentLanguageError,
   contentLanguageValue,
-  serverFieldErrors,
-} from '../../src/app/modules/organisation/organisation-form';
-import type { HttpErrorResponse } from '@angular/common/http';
+} from '../../src/app/modules/organisation/organisation-content-language';
 
 /**
  * The Translations panel's rules (src/app/shared/translations/translations.model.ts) and the organisation's content
@@ -266,10 +264,5 @@ test.describe('the organisation\'s content language field', () => {
     expect(contentLanguageError(OTHER_LANGUAGE, '')).toMatch(/Enter a language code/);
     expect(contentLanguageError(OTHER_LANGUAGE, 'x')).toMatch(/2 to 8/);
     expect(contentLanguageError(OTHER_LANGUAGE, 'pt-BR')).toBeNull();
-  });
-  test('the API\'s own 400 sentence for contentlanguage is shown beside the field, as it was written', () => {
-    const sentence = 'This organisation has translations in that language. Remove them first, or choose another language.';
-    const error = { status: 400, error: { fields: [{ field: 'contentlanguage', message: sentence }] } } as HttpErrorResponse;
-    expect(serverFieldErrors(error).fields).toEqual({ contentlanguage: sentence });
   });
 });

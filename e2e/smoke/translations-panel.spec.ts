@@ -41,7 +41,7 @@ const toasts = (p: Page) => p.locator('.ant-notification-notice');
 const panel = (p: Page) => p.getByRole('dialog', { name: 'Translations' });
 
 async function created(res: Awaited<ReturnType<APIRequestContext['post']>>, what: string): Promise<any> {
-  const body = await res.json().catch(() => ({}));
+  const body: any = await res.json().catch(() => ({}));
   expect(res.ok(), `could not create ${what}: HTTP ${res.status()} ${JSON.stringify(body)}`).toBeTruthy();
   return body.data;
 }
