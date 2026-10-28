@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { LANGUAGE_CODE, normaliseLanguage } from 'src/app/shared/translations/translations.model';
+import { LANGUAGE_CODE, normaliseLanguage } from '../../shared/translations/translations.model';
 import { ApiErrorBody, OrganisationBranding } from './organisation.model';
 
 /** The five tile colours (design o2). White text is at least 4.5:1 on each. */
