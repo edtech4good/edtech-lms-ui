@@ -62,6 +62,8 @@ export class MapIndexComponent implements OnInit {
         }
       } catch (e) {
         const error = e as HttpErrorResponse;
+        // A curriculum that is gone (the tree can still list one) has no counts: carry on with the others.
+        if (error.status === 404) continue;
         this.notification.create('error', 'Error', translationErrorMessage(error.status, error.error), {
           nzKey: TRANSLATIONS_TOAST_KEY,
         });
