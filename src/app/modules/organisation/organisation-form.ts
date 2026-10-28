@@ -1,5 +1,12 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ApiErrorBody, OrganisationBranding } from './organisation.model';
+export {
+  CONTENT_LANGUAGES,
+  OTHER_LANGUAGE,
+  contentLanguageChoice,
+  contentLanguageError,
+  contentLanguageValue,
+} from './organisation-content-language';
 
 /** The five tile colours (design o2). White text is at least 4.5:1 on each. */
 export const SWATCHES = [
@@ -12,7 +19,7 @@ export const SWATCHES = [
 
 export const DEFAULT_TILE_COLOUR: string = SWATCHES[0].colour;
 
-export type FieldKey = 'organisationname' | 'organisationshortname' | 'organisationcode' | 'countryids';
+export type FieldKey = 'organisationname' | 'organisationshortname' | 'organisationcode' | 'countryids' | 'contentlanguage';
 
 export const NAME_MAX = 250;
 export const CODE_MIN = 2;
@@ -69,6 +76,7 @@ const FIELD_MESSAGES: Record<FieldKey, string> = {
   organisationshortname: 'Use 3 letters or fewer, starting with a letter.',
   organisationcode: 'Use 2 to 16 lowercase letters and digits.',
   countryids: 'Choose countries that exist, each only once.',
+  contentlanguage: 'Use 2 to 8 letters, digits or hyphens, such as km or pt-BR.',
 };
 
 export interface ServerFieldErrors {
@@ -117,7 +125,10 @@ export function serverFieldErrors(error: HttpErrorResponse): ServerFieldErrors {
   }
   if (error.status === 400 && body.fields?.length) {
     for (const f of body.fields) {
-      if (f.field in FIELD_MESSAGES) {
+      if (f.field === 'contentlanguage') {
+        // The API's own sentence says why ("This organisation has translations in that language. ..."); it is written for users.
+        out.fields.contentlanguage = typeof f.message === 'string' && f.message.trim() ? f.message : FIELD_MESSAGES.contentlanguage;
+      } else if (f.field in FIELD_MESSAGES) {
         out.fields[f.field as FieldKey] = FIELD_MESSAGES[f.field as FieldKey];
       } else {
         out.form = "Some of the information isn't valid. Check the form and try again.";

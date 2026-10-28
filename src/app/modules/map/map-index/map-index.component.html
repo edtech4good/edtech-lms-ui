@@ -1,6 +1,9 @@
 <div nz-row>
   <div nz-col nzSpan="12" style="overflow: auto">
-    <nz-card [nzBordered]="true" nzTitle="Curriculum Map" [nzLoading]="dataloading">
+    <nz-card [nzBordered]="true" nzTitle="Curriculum Map" [nzExtra]="countsTpl" [nzLoading]="dataloading">
+      @if (showCounts && countsState === 'ready' && !hasTranslations) {
+        <p class="counts-note" data-testid="no-translations">No curriculum in this organisation has a translation yet.</p>
+      }
       <nz-tree
         [nzMultiple]="false"
         [nzData]="nodes"
@@ -12,6 +15,17 @@
     </nz-card>
   </div>
 </div>
+<ng-template #countsTpl>
+  <label class="counts-switch">
+    <nz-switch
+      [ngModel]="showCounts"
+      (ngModelChange)="setCounts($event)"
+      [nzLoading]="countsState === 'loading'"
+      data-testid="translation-counts-switch"
+    ></nz-switch>
+    <span>Translation counts</span>
+  </label>
+</ng-template>
 <ng-template #nzTreeTemplate let-node let-origin="origin">
   <span class="custom-node">
     <span *ngIf="!node.isLeaf" (click)="openFolder(node)">
@@ -20,6 +34,12 @@
         class="folder-name"
         >{{ node.title }}</span
       >
+
+      @if (showCounts) {
+        @for (chip of (origin.data.type === 'LESSON' ? lessonChipsById.get(origin.data.lessonid) : origin.data.type === 'CURRICULUM' ? curriculumChipsById.get(origin.data.curriculumid) : null) ?? []; track chip.language) {
+          <ng-container [ngTemplateOutlet]="chipTpl" [ngTemplateOutletContext]="{ $implicit: chip }"></ng-container>
+        }
+      }
     </span>
     <span *ngIf="node.isLeaf" (click)="openFolder(node)">
       <span
@@ -27,6 +47,23 @@
         class="folder-name"
         >{{ node.title }}</span
       >
+
+      @if (showCounts) {
+        @for (chip of (origin.data.type === 'LESSON' ? lessonChipsById.get(origin.data.lessonid) : origin.data.type === 'CURRICULUM' ? curriculumChipsById.get(origin.data.curriculumid) : null) ?? []; track chip.language) {
+          <ng-container [ngTemplateOutlet]="chipTpl" [ngTemplateOutletContext]="{ $implicit: chip }"></ng-container>
+        }
+      }
     </span>
   </span>
+</ng-template>
+
+<ng-template #chipTpl let-chip>
+  <span class="chip" [class.done]="chip.tone === 'done'" [class.stale]="chip.tone === 'stale'" [class.open]="chip.tone === 'open'" [attr.data-testid]="'chip-' + chip.language">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+      @switch (chip.tone) {
+        @case ('done') { <path d="M20 6 9 17l-5-5" /> }
+        @case ('stale') { <path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5" /> }
+        @default { <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z" stroke-dasharray="3 3" /> }
+      }
+    </svg>{{ chip.text }}</span>
 </ng-template>

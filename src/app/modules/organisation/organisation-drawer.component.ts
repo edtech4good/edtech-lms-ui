@@ -22,7 +22,12 @@ import {
   DEFAULT_TILE_COLOUR,
   FieldKey,
   SWATCHES,
+  CONTENT_LANGUAGES,
+  OTHER_LANGUAGE,
   codeError,
+  contentLanguageChoice,
+  contentLanguageError,
+  contentLanguageValue,
   countriesError,
   knownBranding,
   nameError,
@@ -53,7 +58,7 @@ const PRESETS: Array<{ value: OrganisationPreset; title: string; help: string; t
   },
 ];
 
-const FIELD_ORDER: FieldKey[] = ['organisationname', 'organisationshortname', 'organisationcode', 'countryids'];
+const FIELD_ORDER: FieldKey[] = ['organisationname', 'organisationshortname', 'organisationcode', 'countryids', 'contentlanguage'];
 
 /**
  * The New / Edit organisation drawer (design o2). One component for both: with an
@@ -93,6 +98,15 @@ export class OrganisationDrawerComponent {
   readonly preset = signal<OrganisationPreset>('company');
   readonly colour = signal<string>(DEFAULT_TILE_COLOUR);
   readonly countryIds = signal<string[]>([]);
+  /** The content language: a code from the list, '' for none, or OTHER_LANGUAGE with the code typed in `otherLanguage`. */
+  readonly languageChoice = signal('');
+  readonly otherLanguage = signal('');
+  readonly languageOptions = [
+    { label: 'None yet', value: '' },
+    ...CONTENT_LANGUAGES.map((l) => ({ label: `${l.name} (${l.code})`, value: l.code })),
+    { label: 'Another language…', value: OTHER_LANGUAGE },
+  ];
+  readonly isOtherLanguage = computed(() => this.languageChoice() === OTHER_LANGUAGE);
 
   /** Branding keys the form does not edit (a logo, a display name): kept as they are. */
   private otherBranding: OrganisationBranding = {};
@@ -117,6 +131,7 @@ export class OrganisationDrawerComponent {
     organisationshortname: shortNameError(this.shortName()),
     organisationcode: this.isEdit() ? null : codeError(this.code()),
     countryids: countriesError(this.countryIds()),
+    contentlanguage: contentLanguageError(this.languageChoice(), this.otherLanguage()),
   }));
 
   /** The message to show for a field: ours once it has been touched or submitted, the API's always. */
@@ -130,6 +145,7 @@ export class OrganisationDrawerComponent {
       organisationshortname: show('organisationshortname'),
       organisationcode: show('organisationcode'),
       countryids: show('countryids'),
+      contentlanguage: show('contentlanguage'),
     };
   });
 
@@ -187,6 +203,7 @@ export class OrganisationDrawerComponent {
       this.preset(),
       this.colour().toLowerCase(),
       [...this.countryIds()].sort(),
+      contentLanguageValue(this.languageChoice(), this.otherLanguage()),
     ]);
   }
 
@@ -207,6 +224,9 @@ export class OrganisationDrawerComponent {
     this.colour.set(tilecolour ?? DEFAULT_TILE_COLOUR);
     this.otherBranding = rest;
     this.countryIds.set(org?.countries.map((c) => c.countryid) ?? []);
+    const language = contentLanguageChoice(org?.contentlanguage);
+    this.languageChoice.set(language.choice);
+    this.otherLanguage.set(language.other);
     this.initial = this.snapshot();
     if (this.countriesState() !== 'ready') {
       this.loadCountries();
@@ -257,6 +277,16 @@ export class OrganisationDrawerComponent {
     this.clearServer('countryids');
   }
 
+  setLanguageChoice(value: string): void {
+    this.languageChoice.set(value ?? '');
+    this.touch('contentlanguage');
+    this.clearServer('contentlanguage');
+  }
+  setOtherLanguage(value: string): void {
+    this.otherLanguage.set(value);
+    this.clearServer('contentlanguage');
+  }
+
   // ---- Closing -------------------------------------------------------------
   /** The close button, Cancel, Escape and a click on the dimmed page all come here. */
   requestClose(): void {
@@ -298,7 +328,10 @@ export class OrganisationDrawerComponent {
     this.submitting.set(true);
     const org = this.organisation();
     const request = org
-      ? this.service.update(org.organisationid, write)
+      ? this.service.update(org.organisationid, {
+          ...write,
+          contentlanguage: contentLanguageValue(this.languageChoice(), this.otherLanguage()),
+        })
       : this.service.create({
           ...write,
           organisationcode: this.code(),
@@ -349,9 +382,13 @@ export class OrganisationDrawerComponent {
       organisationshortname: this.shortNameInput(),
       organisationcode: this.codeInput(),
       countryids: undefined,
+      contentlanguage: undefined,
     }[key];
     if (target) {
       target.nativeElement.focus();
+    } else if (key === 'contentlanguage') {
+      if (this.isOtherLanguage()) document.getElementById('org-language-other')?.focus();
+      else document.getElementById('org-language')?.querySelector<HTMLElement>('input')?.focus();
     } else {
       document.getElementById('org-countries')?.querySelector<HTMLElement>('input')?.focus();
     }

@@ -194,6 +194,7 @@
   <input hidden formControlName="questionid" />
 </form>
 <ng-template #extraTemplate>
+  <app-translations-panel tablename="questions" [rowid]="question?.questionid" [row]="question" what="Question"></app-translations-panel>
   <app-uploader></app-uploader>
 </ng-template>
 <ng-template #titleTpl>Question <app-owned-by [id]="question?.organisationid"></app-owned-by></ng-template>

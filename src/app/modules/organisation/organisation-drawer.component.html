@@ -204,6 +204,52 @@
           }
           <p class="help" id="org-countries-help">Pick from the countries on the platform list.</p>
         </div>
+
+        <!-- Content language (edit only: the create call does not take it) -->
+        <div class="field">
+          <label class="label" for="org-language-input">Content language</label>
+          @if (isEdit()) {
+            <nz-select
+              id="org-language"
+              nzId="org-language-input"
+              class="countries"
+              [class.invalid]="errors().contentlanguage"
+              [nzOptions]="languageOptions"
+              [ngModel]="languageChoice()"
+              (ngModelChange)="setLanguageChoice($event)"
+              [ngModelOptions]="{ standalone: true }"
+              [attr.aria-describedby]="'org-language-help' + (errors().contentlanguage ? ' org-language-error' : '')"
+            />
+            @if (isOtherLanguage()) {
+              <input
+                id="org-language-other"
+                class="input mono"
+                [class.invalid]="errors().contentlanguage"
+                type="text"
+                autocomplete="off"
+                autocapitalize="none"
+                spellcheck="false"
+                placeholder="Language code, such as pt-BR"
+                aria-label="Language code"
+                [attr.aria-invalid]="errors().contentlanguage ? 'true' : null"
+                [attr.aria-describedby]="'org-language-help' + (errors().contentlanguage ? ' org-language-error' : '')"
+                [ngModel]="otherLanguage()"
+                (ngModelChange)="setOtherLanguage($event)"
+                (blur)="touch('contentlanguage')"
+                name="contentlanguageother"
+              />
+            }
+            @if (errors().contentlanguage; as message) {
+              <p class="field-error" id="org-language-error" role="alert" data-testid="org-language-error">{{ message }}</p>
+            }
+            <p class="help" id="org-language-help">
+              The language this organisation's lessons and questions are written in. Their translations are other languages.
+              It can't be set to a language the organisation already has translations in.
+            </p>
+          } @else {
+            <p class="help" id="org-language-help">Set after the organisation is created, from Edit.</p>
+          }
+        </div>
       </form>
 
       <footer class="foot">
