@@ -10,6 +10,7 @@ import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NgxPermissionsService } from 'ngx-permissions';
 import { EMPTY, Subject, catchError, debounceTime, lastValueFrom, switchMap, tap } from 'rxjs';
+import { gatewayText } from 'src/app/interceptors/error.interceptor';
 import { confirmDialog } from './confirm-dialog';
 import { OrganisationDrawerComponent } from './organisation-drawer.component';
 import { DEFAULT_TILE_COLOUR, NO_ACCESS_HEADING, NO_ACCESS_LINE, knownBranding, tileTextColour } from './organisation-form';
@@ -281,6 +282,7 @@ export class OrganisationListComponent {
    * An action on a row did not work. A 429, a 500 or no connection has already been
    * toasted by the error interceptor, and so was a 400 until the update request was
    * marked to show its field errors inline (a row action has no fields to show them on).
+   * A 502 or 503 on suspend or reactivate shows the API's own words (the interceptor stays quiet for those).
    * Everything else would otherwise be silent. A 409 carries the API's own words for
    * what is in the way ("This organisation still has staff users." / "Move or remove
    * them first, then try again."), written for people, so they are shown as they are.
@@ -295,6 +297,11 @@ export class OrganisationListComponent {
       this.reload();
     } else if (error.status === 403) {
       this.notification.error(NO_ACCESS_HEADING, NO_ACCESS_LINE);
+    } else if ((error.status === 502 || error.status === 503) && action !== 'delete') {
+      // Suspend and reactivate go through the update request, which is marked GATEWAY_HANDLED: the interceptor stays
+      // quiet, so this is the one message, and it says what the API said (sentence, hint, reference). Delete's request
+      // is not marked: the interceptor has already said it (a separate ticket makes that one message too).
+      this.notification.error(title, gatewayText(error));
     } else if (error.status === 409) {
       const body = (error.error ?? {}) as ApiErrorBody;
       const said = [body.errormessage, body.hint].filter((t) => typeof t === 'string' && t.trim()).join(' ');

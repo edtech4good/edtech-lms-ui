@@ -466,6 +466,24 @@ test.describe('organisations, signed in as the platform superadmin', () => {
     );
   }
   const submitButton = () => drawer().getByRole('button', { name: /Create organisation|Save changes/ });
+  /**
+   * Narrow the list to one organisation by its name. The list shows twenty a page, sorted by name, and a run
+   * leaves about twenty rows live by its end, so a new row can be on the second page; the search does not depend on that.
+   */
+  async function searchFor(name: string): Promise<void> {
+    // The list asks again after a short pause; wait for that answer, or the table is replaced under the next click.
+    const answered = page.waitForResponse(
+      (r) => r.request().method() === 'GET' && r.url().includes('/organisation?') && new URL(r.url()).searchParams.get('organisationname') === name,
+    );
+    await page.getByRole('searchbox', { name: 'Search organisations by name' }).fill(name);
+    await answered;
+    await expect(rowOf(name)).toBeVisible();
+  }
+  /** Delete an organisation a test made, now rather than in teardown (a delete answered 404 was already gone). */
+  async function removeViaApi(id: string): Promise<void> {
+    const res = await api.delete(`/organisation/${id}`);
+    expect(res.ok() || res.status() === 404, `could not remove ${id}: HTTP ${res.status()}`).toBeTruthy();
+  }
 
   // (Not 401: a 401 means the session has ended, and the error interceptor signs the person out; see session-ended.spec.ts.)
   for (const status of [502, 503]) {
@@ -481,6 +499,29 @@ test.describe('organisations, signed in as the platform superadmin', () => {
       await expect(submitButton()).toBeFocused();
       await expect(submitButton()).toBeEnabled();
       await page.unroute('**/organisation');
+    });
+  }
+
+  for (const status of [502, 503]) {
+    test(`an update answered with HTTP ${status} says it could not be saved, once, in the form`, async () => {
+      const o = await makeViaApi();
+      await page.reload();
+      await searchFor(o.name);
+      await rowOf(o.name).getByRole('button', { name: `Edit ${o.name}` }).click();
+      await expect(drawer()).toBeVisible();
+      await page.route(`**/organisation/${o.id}`, (route) =>
+        route.request().method() === 'PUT' ? route.fulfill(json(status)) : route.fallback(),
+      );
+      await submit();
+      await expect(drawer().getByRole('alert')).toHaveText(SAVE_FAILED);
+      await page.waitForTimeout(750);
+      await expectNoToast();
+      await expect(drawer().getByRole('alert')).toHaveCount(1);
+      await expect(drawer()).toBeVisible();
+      await expect(submitButton()).toBeFocused();
+      await page.unroute(`**/organisation/${o.id}`);
+      // Not left live: the list shows twenty a page, and a row the next test looks for must stay on the first.
+      await removeViaApi(o.id);
     });
   }
 
@@ -709,7 +750,7 @@ test.describe('organisations, signed in as the platform superadmin', () => {
   async function rowAction(
     action: 'delete' | 'suspend' | 'reactivate',
     answer: (route: Route) => Promise<void> | void,
-  ): Promise<void> {
+  ): Promise<{ id: string }> {
     const o = await makeViaApi();
     if (action === 'reactivate') {
       const off = await api.put(`/organisation/${o.id}`, {
@@ -720,6 +761,7 @@ test.describe('organisations, signed in as the platform superadmin', () => {
     await page.reload();
     const method = action === 'delete' ? 'DELETE' : 'PUT';
     await page.route(`**/organisation/${o.id}`, (route) => (route.request().method() === method ? answer(route) : route.fallback()));
+    await searchFor(o.name);
     await rowOf(o.name).getByRole('button', { name: `More actions for ${o.name}` }).click();
     if (action === 'delete') {
       await page.getByRole('menuitem', { name: /Delete/ }).click();
@@ -730,6 +772,7 @@ test.describe('organisations, signed in as the platform superadmin', () => {
     } else {
       await page.getByRole('menuitem', { name: 'Reactivate' }).click();
     }
+    return o;
   }
 
   const ROW_ANSWERS: Array<[string, (route: Route) => Promise<void> | void]> = [
@@ -749,6 +792,28 @@ test.describe('organisations, signed in as the platform superadmin', () => {
         await page.unroute(/\/organisation\/[0-9a-f-]+$/);
       });
     }
+  }
+
+  // A suspend or reactivate refused with a 502/503 is one toast, carrying the API's own sentence, hint and reference.
+  const GATEWAY_BODY = {
+    code: 'SERVICE_UNAVAILABLE',
+    errormessage: 'The student server is not answering.',
+    hint: 'Try again in a few minutes.',
+    reference: 'ref-r135-abc',
+  };
+  const GATEWAY_LINE = `${GATEWAY_BODY.errormessage} ${GATEWAY_BODY.hint} Reference: ${GATEWAY_BODY.reference}.`;
+  for (const [action, status] of [['suspend', 503], ['reactivate', 502]] as const) {
+    test(`a ${action} answered with HTTP ${status} is one toast with the API's own words`, async () => {
+      const o = await rowAction(action, (route) => route.fulfill(json(status, GATEWAY_BODY)));
+      await expect(toasts()).toHaveCount(1);
+      await page.waitForTimeout(750);
+      expect(await toasts().count(), 'one message, not two').toBe(1);
+      await expect(toasts()).toContainText(`Couldn't ${action}`);
+      await expect(toasts()).toContainText(GATEWAY_LINE);
+      await expect(toasts()).not.toContainText('Try again in a moment.');
+      await page.unroute(/\/organisation\/[0-9a-f-]+$/);
+      await removeViaApi(o.id); // not left live: see the update specs
+    });
   }
 
   // ---- A 403 says organisations are for platform staff, once --------------------------------

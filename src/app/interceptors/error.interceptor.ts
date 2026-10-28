@@ -28,6 +28,20 @@ const SESSION_FREE_URL = /\/auth\/(login|logout|refreshtoken)(\?|$)/;
 /** What a 502 or 503 says when the API gave no words of its own (a proxy's page, an empty body). */
 export const GATEWAY_MESSAGE = 'The service is temporarily unavailable. Try again in a few minutes.';
 
+/**
+ * What to tell the person about a 502 or 503: the API's own sentence, its hint and its reference when it sent them,
+ * the generic line when it did not (a proxy's page, an empty body). The error interceptor's gateway notice and any
+ * caller that says a refused action itself (the organisation list's row actions) use this one text.
+ */
+export function gatewayText(error: HttpErrorResponse): string {
+  const body = error?.error;
+  const word = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
+  const said = word(body?.errormessage);
+  const hint = said ? word(body?.hint) : '';
+  const reference = word(body?.reference);
+  return said ? `${said}${hint ? ` ${hint}` : ''}${reference ? ` Reference: ${reference}.` : ''}` : GATEWAY_MESSAGE;
+}
+
 /** The ng-zorro key of the 502/503 notice: a repeat replaces the one showing. */
 export const GATEWAY_TOAST_KEY = 'http-gateway';
 
@@ -137,18 +151,7 @@ export class ErrorInterceptor implements HttpInterceptor {
           // The API answers 502 when the student server refused it (edtech-lms-api#150) and 503 when something it
           // needs is down. It says what happened and what to try, with a reference; shown as it is, so the person
           // is not left with a button that did nothing. Keyed, so calls that fail together show one notice.
-          const body = error?.error;
-          const word = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
-          const said = word(body?.errormessage);
-          const hint = said ? word(body?.hint) : '';
-          const reference = word(body?.reference);
-          toast(
-            'error',
-            said
-              ? `${said}${hint ? ` ${hint}` : ''}${reference ? ` Reference: ${reference}.` : ''}`
-              : GATEWAY_MESSAGE,
-            GATEWAY_TOAST_KEY
-          );
+          toast('error', gatewayText(error), GATEWAY_TOAST_KEY);
         }
         if (error.status === 530) {
           this.router.navigate(['/auth/blocked']);

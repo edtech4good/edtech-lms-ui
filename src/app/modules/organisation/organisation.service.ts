@@ -54,7 +54,8 @@ export class OrganisationService {
   update(organisationid: string, body: OrganisationWrite): Observable<Organisation> {
     return this.http
       .put<{ data: Organisation }>(this.url(`/${organisationid}`), body, {
-        // A 502/503 is said by the drawer ("couldn't be saved"), in the form, so no gateway toast as well.
+        // A 502/503 is said by the caller, once: the drawer ("couldn't be saved", in the form), or the list's suspend and
+        // reactivate (a toast with the API's words). So no gateway toast from the interceptor as well.
         context: new HttpContext().set(FIELD_ERRORS_INLINE, true).set(GATEWAY_HANDLED, true),
       })
       .pipe(map((r) => r.data));
