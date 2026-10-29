@@ -35,6 +35,10 @@
         >{{ node.title }}</span
       >
 
+      @if (origin.data.type === 'CURRICULUM' && pillsById.get(origin.data.curriculumid); as pill) {
+        <app-publication-pill class="node-pill" [pill]="pill"></app-publication-pill>
+      }
+
       @if (showCounts) {
         @for (chip of (origin.data.type === 'LESSON' ? lessonChipsById.get(origin.data.lessonid) : origin.data.type === 'CURRICULUM' ? curriculumChipsById.get(origin.data.curriculumid) : null) ?? []; track chip.language) {
           <ng-container [ngTemplateOutlet]="chipTpl" [ngTemplateOutletContext]="{ $implicit: chip }"></ng-container>
@@ -47,6 +51,10 @@
         class="folder-name"
         >{{ node.title }}</span
       >
+
+      @if (origin.data.type === 'CURRICULUM' && pillsById.get(origin.data.curriculumid); as pill) {
+        <app-publication-pill class="node-pill" [pill]="pill"></app-publication-pill>
+      }
 
       @if (showCounts) {
         @for (chip of (origin.data.type === 'LESSON' ? lessonChipsById.get(origin.data.lessonid) : origin.data.type === 'CURRICULUM' ? curriculumChipsById.get(origin.data.curriculumid) : null) ?? []; track chip.language) {

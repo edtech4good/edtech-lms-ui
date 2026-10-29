@@ -741,6 +741,94 @@ test.describe('deleting a curriculum, signed in as the organisation\'s admin', (
   });
 });
 
+// ---- the curriculum map ------------------------------------------------------------------------------------
+test.describe('the curriculum map, signed in as the organisation\'s admin', () => {
+  let page: Page;
+  /** The map keeps its tree in the session under this key (services/list-cache.ts). */
+  const TREE_KEY = 'JqGJMqfgE9HEU6hC';
+
+  test.beforeAll(async ({ browser }) => {
+    page = await browser.newPage();
+    await loginViaUi(page, ADMIN, PASSWORD);
+    oa = await apiContext(await tokenOf(page));
+  });
+  test.afterAll(async () => {
+    await page?.close();
+  });
+
+  const nodePill = (c: Content) =>
+    page
+      .locator('.ant-tree-treenode')
+      .filter({ has: page.locator('.folder-name', { hasText: `${c.curriculumName} (Curriculum)` }) })
+      .first()
+      .getByTestId('publication-pill');
+  const treeKey = () => page.evaluate((key) => sessionStorage.getItem(key), TREE_KEY);
+  const seedTreeKey = () => page.evaluate((key) => sessionStorage.setItem(key, '[]'), TREE_KEY);
+
+  test('a curriculum node shows Never published, Published and Retired (no "changed": the tree does not carry it)', async () => {
+    const c = await makeContent(oa);
+    await page.goto('/map/index');
+    await expect(nodePill(c)).toHaveText('Never published');
+    await publishViaApi(oa, c);
+    await renameLessonViaApi(oa, c); // changed since publish, which the map does not say
+    await page.goto('/map/index');
+    await expect(nodePill(c)).toHaveText(`Published ${TODAY}`);
+    await expect(nodePill(c)).toHaveAttribute('data-state', 'published');
+    await created(await oa.put(`/curriculum/retire/${c.curriculum}`, { data: {} }), 'a retire');
+    await page.goto('/map/index');
+    await expect(nodePill(c)).toHaveText('Retired');
+  });
+
+  test('a publish from the list empties the map\'s cached tree', async () => {
+    const c = await makeContent(oa);
+    await openList(page, c);
+    await seedTreeKey();
+    expect(await treeKey(), 'the cache is there before').toBe('[]');
+    await row(page, c).getByTestId('publish-row').click();
+    await page.getByRole('dialog', { name: `Publish ${c.curriculumName}` }).getByTestId('confirm-publish').click();
+    await expect(pill(page, c)).toHaveText(`Published ${TODAY}`);
+    expect(await treeKey(), 'the key is gone').toBeNull();
+  });
+
+  test('a retire from the list empties the map\'s cached tree', async () => {
+    const c = await makeContent(oa);
+    await publishViaApi(oa, c);
+    await openList(page, c);
+    await seedTreeKey();
+    await row(page, c).getByTestId('retire-row').click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Retire', exact: true }).click();
+    await expect(pill(page, c)).toHaveText('Retired');
+    expect(await treeKey(), 'the key is gone').toBeNull();
+  });
+
+  test('a delete from the list empties the map\'s cached tree', async () => {
+    const c = await makeContent(oa);
+    await openList(page, c);
+    await seedTreeKey();
+    await row(page, c).getByTestId('delete-row').click();
+    await page.locator('.ant-popover').getByRole('button', { name: 'OK' }).click();
+    await expect(row(page, c)).toHaveCount(0);
+    c.deleted = true;
+    expect(await treeKey(), 'the key is gone').toBeNull();
+  });
+
+  test('a map opened from a node, then a publish, then the map again shows the new state, not the kept tree', async () => {
+    const c = await makeContent(oa);
+    await page.goto('/map/index');
+    await expect(nodePill(c)).toHaveText('Never published');
+    // opening a node keeps the tree in the session and goes to that record's editor
+    await page.locator('.folder-name', { hasText: `${c.curriculumName} (Curriculum)` }).first().click();
+    await expect(page).toHaveURL(/\/curriculum\/update\//);
+    expect(await treeKey(), 'the tree was kept').not.toBeNull();
+    await openList(page, c);
+    await row(page, c).getByTestId('publish-row').click();
+    await page.getByRole('dialog', { name: `Publish ${c.curriculumName}` }).getByTestId('confirm-publish').click();
+    await expect(pill(page, c)).toHaveText(`Published ${TODAY}`);
+    await page.goto('/map/index');
+    await expect(nodePill(c)).toHaveText(`Published ${TODAY}`);
+  });
+});
+
 // ---- an account without publish_curriculum -------------------------------------------------------------
 test.describe('an account without publish_curriculum', () => {
   test('sees the state, and is offered neither Publish nor Retire', async ({ browser }) => {
