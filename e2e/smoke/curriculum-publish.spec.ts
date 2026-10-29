@@ -453,6 +453,185 @@ test.describe('the publish drawer, signed in as the organisation\'s admin', () =
   });
 });
 
+// ---- a publish that is refused or fails, said by the drawer -----------------------------------------------
+test.describe('a publish that is refused or fails (the API\'s answer mocked)', () => {
+  let page: Page;
+
+  test.beforeAll(async ({ browser }) => {
+    page = await browser.newPage();
+    await loginViaUi(page, ADMIN, PASSWORD);
+    oa = await apiContext(await tokenOf(page));
+  });
+  test.afterAll(async () => {
+    await page?.close();
+  });
+  test.afterEach(async () => {
+    await page.unrouteAll({ behavior: 'wait' });
+  });
+
+  const drawer = (c: Content) => page.getByRole('dialog', { name: `Publish ${c.curriculumName}` });
+  const PUBLISH = '**/curriculum/publish/*';
+  const answer = (status: number, body: unknown) => async (route: import('@playwright/test').Route) =>
+    route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+
+  /** A published curriculum with a change to publish, its drawer open and read. */
+  async function openChanged(): Promise<Content> {
+    const c = await makeContent(oa);
+    await publishViaApi(oa, c);
+    await renameLessonViaApi(oa, c);
+    await openList(page, c);
+    await row(page, c).getByTestId('publish-row').click();
+    await expect(drawer(c).getByTestId('publish-total')).toBeVisible();
+    return c;
+  }
+
+  /** The error toasts showing, read once (a retrying count passes when a toast fades). */
+  const toastCount = async () => toasts(page).count();
+
+  test('400: the API\'s sentence, its hint and one line per table named, in the drawer and in no toast', async () => {
+    const c = await openChanged();
+    await page.route(
+      PUBLISH,
+      answer(400, {
+        error: true,
+        errormessage: "This curriculum can't be published yet. lessons: 1 row has no name. questions: 2 rows have no heading.",
+        hint: 'Fix or remove the rows in the tables named, then publish again. Nothing was published.',
+        fields: [
+          { field: 'lessons', message: 'lessons: 1 row has no name.' },
+          { field: 'questions', message: 'questions: 2 rows have no heading.' },
+        ],
+      }),
+    );
+    await drawer(c).getByTestId('confirm-publish').click();
+    const refusal = drawer(c).getByTestId('publish-refusal');
+    await expect(refusal).toContainText("This curriculum can't be published yet. lessons: 1 row has no name.");
+    await expect(refusal).toContainText('Fix or remove the rows in the tables named, then publish again. Nothing was published.');
+    await expect(drawer(c).getByTestId('field-lessons')).toHaveText('lessons: 1 row has no name.');
+    await expect(drawer(c).getByTestId('field-questions')).toHaveText('questions: 2 rows have no heading.');
+    await expect(drawer(c).getByTestId('confirm-publish')).toHaveText('Publish');
+    await expect(drawer(c).getByTestId('confirm-publish')).toBeEnabled();
+    await page.waitForTimeout(500);
+    expect(await toastCount(), 'the drawer said it; the interceptor said nothing').toBe(0);
+  });
+
+  test('409: someone else published; the drawer says so and Reload reads the overview again', async () => {
+    const c = await openChanged();
+    await page.route(
+      PUBLISH,
+      answer(409, { error: true, errormessage: 'This curriculum was published a moment ago by someone else. Reload and publish again.', hint: 'Reload the curriculum, check what changed, then publish again. Nothing was published.' }),
+    );
+    let reads = 0;
+    const count = (r: import('@playwright/test').Request) => {
+      if (r.method() === 'GET' && /\/curriculum\/publication\//.test(r.url())) reads += 1;
+    };
+    await drawer(c).getByTestId('confirm-publish').click();
+    await expect(drawer(c).getByTestId('publish-refusal')).toHaveText(/Someone published this curriculum a moment ago\. Reload to see their changes\./);
+    await page.waitForTimeout(500);
+    expect(await toastCount(), 'no toast: the drawer said it').toBe(0);
+    page.on('request', count);
+    await drawer(c).getByTestId('publish-reload').click();
+    await expect(drawer(c).getByTestId('publish-refusal')).toHaveCount(0);
+    await expect(drawer(c).getByTestId('publish-total')).toBeVisible();
+    page.off('request', count);
+    expect(reads, 'Reload read the overview once').toBe(1);
+  });
+
+  test('502: the drawer\'s error state has the API\'s words and Try again; Try again reads the overview and the drawer is usable again', async () => {
+    const c = await openChanged();
+    await page.route(PUBLISH, answer(502, { error: true, errormessage: 'The learner server refused the request.', hint: 'Try again in a few minutes.', reference: 'E-TEST1' }));
+    await drawer(c).getByTestId('confirm-publish').click();
+    await expect(drawer(c).getByTestId('publish-error')).toContainText('The learner server refused the request. Try again in a few minutes. Reference: E-TEST1.');
+    await expect(drawer(c).getByTestId('confirm-publish')).toBeDisabled();
+    await page.waitForTimeout(500);
+    expect(await toastCount(), 'the gateway notice is the drawer\'s, not the interceptor\'s').toBe(0);
+    await drawer(c).getByTestId('publish-try-again').click();
+    await expect(drawer(c).getByTestId('publish-error')).toHaveCount(0);
+    await expect(drawer(c).getByTestId('publish-total')).toHaveText('1 lesson changed, 2 other changes');
+    await expect(drawer(c).getByTestId('confirm-publish')).toBeEnabled();
+  });
+
+  test('an unreachable service (no answer): the drawer says so, with Try again', async () => {
+    const c = await openChanged();
+    await page.route(PUBLISH, (route) => route.abort('connectionrefused'));
+    await drawer(c).getByTestId('confirm-publish').click();
+    await expect(drawer(c).getByTestId('publish-error')).toContainText("The service couldn't be reached. Check the connection and try again.");
+    await expect(drawer(c).getByTestId('publish-try-again')).toBeVisible();
+    await page.waitForTimeout(500);
+    expect(await toastCount(), 'no "Something went wrong" toast on top').toBe(0);
+  });
+
+  test('403: the no-permission line in the drawer, and no toast', async () => {
+    const c = await openChanged();
+    await page.route(PUBLISH, answer(403, { error: true, errormessage: 'Forbidden' }));
+    await drawer(c).getByTestId('confirm-publish').click();
+    await expect(drawer(c).getByTestId('publish-refusal')).toHaveText("You don't have permission to do that.");
+    await page.waitForTimeout(500);
+    expect(await toastCount()).toBe(0);
+  });
+
+  test('404: the curriculum is gone; the drawer closes, one toast says so, and the list is read again', async () => {
+    const c = await openChanged();
+    await page.route(PUBLISH, answer(404, { error: true, errormessage: "That curriculum doesn't exist." }));
+    let lists = 0;
+    const count = (r: import('@playwright/test').Request) => {
+      if (r.method() === 'POST' && /\/curriculum$/.test(r.url())) lists += 1;
+    };
+    page.on('request', count);
+    await drawer(c).getByTestId('confirm-publish').click();
+    await expect(drawer(c)).toBeHidden();
+    await expect(toasts(page).filter({ hasText: `Couldn't publish “${c.curriculumName}”` })).toContainText('It no longer exists.');
+    await expect.poll(() => lists, 'the list was read again').toBe(1);
+    page.off('request', count);
+    expect(await toastCount(), 'one toast').toBe(1);
+  });
+
+  test('a publish that stands but whose push failed: the drawer closes and an error toast stays, with the API\'s sentence', async () => {
+    const c = await openChanged();
+    const message = 'Published. The push to the learner server failed; a platform admin can re-push from Sync Content. The learner server could not be reached.';
+    await page.route(
+      PUBLISH,
+      answer(200, { error: false, data: { publicationid: 'mock', publishedat: new Date().toISOString(), summary: { counts: {}, changes: {}, affected: { lessons: {}, questions: {} }, shared: [] }, push: { status: 'failed', message } } }),
+    );
+    await drawer(c).getByTestId('confirm-publish').click();
+    await expect(drawer(c)).toBeHidden();
+    const toast = toasts(page).filter({ hasText: message });
+    await expect(toast).toBeVisible();
+    await expect(toast).toContainText('but the push failed');
+    // it stays: still there after a success toast would have gone (six seconds), and after the page has moved on
+    await page.waitForTimeout(7500);
+    await expect(toast).toBeVisible();
+  });
+
+  test('a publish whose push was skipped makes a success toast that goes after six seconds', async () => {
+    const c = await openChanged();
+    const message = 'Published. No learner server is set up here, so nothing was pushed.';
+    await page.route(
+      PUBLISH,
+      answer(200, { error: false, data: { publicationid: 'mock', publishedat: new Date().toISOString(), summary: { counts: {}, changes: {}, affected: { lessons: {}, questions: {} }, shared: [] }, push: { status: 'skipped', reason: 'nocloud', message } } }),
+    );
+    await drawer(c).getByTestId('confirm-publish').click();
+    const toast = toasts(page).filter({ hasText: message });
+    await expect(toast).toBeVisible();
+    await expect(toast).toBeHidden({ timeout: 9000 });
+  });
+
+  test('the drawer\'s own read failing is said by the drawer, with Try again, and adds no toast to the list\'s', async () => {
+    const c = await makeContent(oa);
+    await publishViaApi(oa, c);
+    await page.route('**/curriculum/publication/*', answer(500, { error: true, errormessage: 'The state is not available.' }));
+    await openList(page, c);
+    await expect(toasts(page).filter({ hasText: 'The state is not available.' }).first()).toBeVisible();
+    // the list is read twice on the way (the search), each read fails once: let both have said it, then count
+    await page.waitForTimeout(700);
+    const before = await toastCount();
+    await row(page, c).getByTestId('publish-row').click();
+    await expect(drawer(c).getByTestId('publish-error')).toContainText('The state is not available.');
+    await expect(drawer(c).getByTestId('publish-try-again')).toBeVisible();
+    await expect(drawer(c).getByTestId('confirm-publish')).toBeDisabled();
+    expect(await toastCount(), 'the drawer said it: no toast of its own').toBe(before);
+  });
+});
+
 // ---- an account without publish_curriculum -------------------------------------------------------------
 test.describe('an account without publish_curriculum', () => {
   test('sees the state, and is offered neither Publish nor Retire', async ({ browser }) => {
