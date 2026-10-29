@@ -119,16 +119,25 @@
     </nz-card>
     <ng-template #extraTemplate>
       <app-create-action link="/curriculum/create" *ngxPermissionsOnly="['create_curriculum']"></app-create-action>
-      <a
-        *ngxPermissionsOnly="['zr5ER4QD', 'Mapyr2Pw', 'superadmin', 'sync_content']"
-        nz-button
-        nzType="primary"
-        style="margin-right: 20px"
-        nz-popconfirm
-        nzPopconfirmTitle="Sure to sync?"
-        (nzOnConfirm)="cloudsync()"
-        >Sync Content</a
+      <!-- Only platform staff (superadmin, or sync_content) re-push the published set; the tooltip is on a wrapper because
+           the popconfirm already owns the button's overlay. -->
+      <span
+        *ngxPermissionsOnly="['superadmin', 'sync_content']"
+        nz-tooltip
+        nzTooltipTitle="Re-push the published set to the learner server"
+        data-testid="sync-content-wrap"
       >
+        <a
+          nz-button
+          nzType="primary"
+          style="margin-right: 20px"
+          data-testid="sync-content"
+          nz-popconfirm
+          nzPopconfirmTitle="Sure to sync?"
+          (nzOnConfirm)="cloudsync()"
+          >Sync Content</a
+        >
+      </span>
     </ng-template>
     <nz-dropdown-menu #menu="nzDropdownMenu">
       <div class="ant-table-filter-dropdown">

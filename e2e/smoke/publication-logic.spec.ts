@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 import {
   CONFLICT_MESSAGE,
@@ -328,5 +330,34 @@ test.describe('what the publish drawer says', () => {
   test('the API\'s problem sentence is passed on, trimmed; none when empty', () => {
     expect(viewOf(overviewOf(null, { problem: '  lessons: 1 row hangs from nowhere.  ' })).problem).toBe('lessons: 1 row hangs from nowhere.');
     expect(viewOf(overviewOf(null, { problem: '' })).problem).toBeNull();
+  });
+});
+
+// ---- Sync Content on the curriculum list ---------------------------------------------------------------------
+
+/**
+ * The list's template is read as text: the permission check is a directive on an element, and the two role ids it used to
+ * name (`zr5ER4QD`, `Mapyr2Pw`) matched nothing, because the admin's permissions are the token's permission names. A test in
+ * a browser cannot tell a dead entry from an absent one, so the array itself is pinned.
+ */
+const LIST_TEMPLATE = join(__dirname, '../../src/app/modules/curriculum/curriculum-index/curriculum-index.component.html');
+
+test.describe('Sync Content on the curriculum list', () => {
+  const wrapper = (): string => {
+    const html = readFileSync(LIST_TEMPLATE, 'utf8');
+    const found = html.match(/<span\b[^>]*data-testid="sync-content-wrap"[^>]*>/);
+    expect(found, 'the Sync Content wrapper is in the template').not.toBeNull();
+    return (found as RegExpMatchArray)[0];
+  };
+
+  test('is offered to superadmin and sync_content only: no role ids in the permission array', () => {
+    const array = wrapper().match(/\*ngxPermissionsOnly="\[([^\]]*)\]"/);
+    expect(array, 'the wrapper carries the permission check').not.toBeNull();
+    const names = (array as RegExpMatchArray)[1].split(',').map((n) => n.trim().replace(/^'|'$/g, ''));
+    expect(names).toEqual(['superadmin', 'sync_content']);
+  });
+
+  test('says what it does: it re-pushes the published set to the learner server', () => {
+    expect(wrapper()).toContain('nzTooltipTitle="Re-push the published set to the learner server"');
   });
 });

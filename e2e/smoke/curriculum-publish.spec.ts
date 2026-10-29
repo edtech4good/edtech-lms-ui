@@ -1,7 +1,7 @@
 import { APIRequestContext, Page, expect, test } from '@playwright/test';
 import { format } from 'date-fns';
 import { ROLE } from '../fixtures/accounts';
-import { apiContext, loginViaUi } from '../fixtures/auth';
+import { apiContext, apiLogin, jwtClaims, loginViaUi } from '../fixtures/auth';
 import { skipUnlessLocalApi } from '../fixtures/local-only';
 import { fixtureOrganisationId } from '../fixtures/organisation';
 
@@ -829,6 +829,34 @@ test.describe('the curriculum map, signed in as the organisation\'s admin', () =
   });
 });
 
+// ---- Sync Content -------------------------------------------------------------------------------------------
+test.describe('Sync Content on the curriculum list', () => {
+  test('the platform superadmin is offered it, with the tooltip; an account whose token has neither superadmin nor sync_content is not', async ({ browser }) => {
+    // the platform superadmin (the beforeAll's own session)
+    await saPage.goto('/curriculum/index');
+    const wrap = saPage.getByTestId('sync-content-wrap');
+    await expect(wrap).toBeVisible();
+    await expect(saPage.getByTestId('sync-content')).toHaveText('Sync Content');
+    await wrap.hover();
+    await expect(saPage.locator('.ant-tooltip').filter({ hasText: 'Re-push the published set to the learner server' })).toBeVisible();
+    // an organisation admin: offered it only if its token carries one of the two permissions
+    const ctx = await browser.newContext();
+    const p = await ctx.newPage();
+    try {
+      await loginViaUi(p, ADMIN, PASSWORD);
+      const permissions = (jwtClaims(await tokenOf(p)).permissions ?? []) as string[];
+      const allowed = permissions.includes('superadmin') || permissions.includes('sync_content');
+      await p.goto('/curriculum/index');
+      await expect(p.getByRole('columnheader', { name: 'Tools' })).toBeVisible();
+      await expect(p.getByRole('button', { name: 'Create' }).or(p.getByRole('link', { name: 'Create' })).first()).toBeVisible(); // the toolbar has rendered
+      await expect(p.getByTestId('sync-content')).toHaveCount(allowed ? 1 : 0);
+      expect(allowed, 'an organisation admin does not hold sync_content (the platform re-pushes)').toBe(false);
+    } finally {
+      await ctx.close();
+    }
+  });
+});
+
 // ---- an account without publish_curriculum -------------------------------------------------------------
 test.describe('an account without publish_curriculum', () => {
   test('sees the state, and is offered neither Publish nor Retire', async ({ browser }) => {
@@ -839,8 +867,11 @@ test.describe('an account without publish_curriculum', () => {
       'the limited account',
     );
     ids.limitedId = made1.lmsuserid;
-    const c = await makeContent(oa);
-    await publishViaApi(oa, c);
+    // The content is made with a token of its own (no other test's session is needed, so this runs alone too).
+    const maker = await apiContext(await apiLogin(ADMIN, PASSWORD));
+    const c = await makeContent(maker);
+    await publishViaApi(maker, c);
+    await maker.dispose();
     const lp = await (await browser.newContext()).newPage();
     try {
       await loginViaUi(lp, LIMITED, PASSWORD);
