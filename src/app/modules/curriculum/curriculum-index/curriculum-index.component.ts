@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject } from '@angular/core';
+import { Component, ViewChild, inject } from '@angular/core';
 import { NzModalService } from 'ng-zorro-antd/modal';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
@@ -10,6 +10,7 @@ import { confirmDialog } from 'src/app/modules/organisation/confirm-dialog';
 import { CurriculumService } from 'src/app/services/curriculum.service';
 import { organisationOf, withOrganisationFilter } from 'src/app/shared/owner/owner-view';
 import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
+import { PublishDrawerComponent } from 'src/app/shared/publication/publish-drawer.component';
 import { refusalText } from 'src/app/shared/publication/publication-errors';
 import { Pill, PublicationOverview, pillOf, pushMessage, pushToast, refusalOf } from 'src/app/shared/publication/publication.model';
 
@@ -93,6 +94,28 @@ export class CurriculumIndexComponent {
   private statesRun = 0;
   /** Fires when a newer load starts: the read in flight is cancelled, so it neither toasts nor takes the server's time. */
   private readonly readsAbandoned = new Subject<void>();
+
+  @ViewChild(PublishDrawerComponent) private drawer?: PublishDrawerComponent;
+
+  /** Opens the publish drawer for a row. */
+  openPublish(row: any): void {
+    this.drawer?.show({ curriculumid: row.curriculumid, curriculumname: row.curriculumname });
+  }
+
+  /** The drawer published the curriculum: its row reads its state again. */
+  async onPublished(curriculumid: string): Promise<void> {
+    this.busy.add(curriculumid);
+    try {
+      await this.refreshState(curriculumid);
+    } finally {
+      this.busy.delete(curriculumid);
+    }
+  }
+
+  /** The drawer found the curriculum gone: the list is read again. */
+  onMissing(): void {
+    this.loadDataFromServer({ filter: [...this.filter], pageindex: this.pageIndex, pagesize: this.pageSize });
+  }
 
   stateOf(curriculumid: string): RowState {
     return this.states.get(curriculumid) ?? { kind: 'loading' };

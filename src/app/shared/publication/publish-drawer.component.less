@@ -1,0 +1,224 @@
+// The publish drawer. It follows the Translations panel (translations-panel.component.less), itself a copy of the organisation
+// drawer's frame (modules/organisation/organisation-drawer.component.less; handoff-v2, artboard o2): the same header, field,
+// hint and footer rhythm, the same tokens. w2 (handoff-v2 README, "publish confirm") is the content reference.
+
+:host {
+  display: contents;
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: #fff;
+  color: var(--color-ink);
+  font-family: var(--font-body);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 22px 24px 10px;
+}
+
+.titles {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.close {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--color-ink);
+  box-shadow: 0 3px 0 var(--color-secondary-edge), inset 0 0 0 1.5px var(--color-field-edge);
+  cursor: pointer;
+
+  &:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 var(--color-secondary-edge), inset 0 0 0 1.5px var(--color-field-edge);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 3px 0 var(--color-secondary-edge), inset 0 0 0 1.5px var(--color-field-edge),
+      var(--shadow-focus-visible);
+  }
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 10px 24px 16px;
+}
+
+.total {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 600;
+}
+
+.label {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--color-text-2-dark);
+}
+
+.help {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-text-2);
+}
+
+.field-error {
+  margin: 0;
+  font-size: 13px;
+  line-height: 19px;
+  font-weight: 500;
+  color: var(--color-danger);
+}
+
+.link {
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--color-action);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus-visible);
+  }
+}
+
+// A refusal of the publish, and the rows that cannot be published as they are: the danger tint.
+.alert {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--color-danger-tint);
+  color: var(--color-ink);
+  font-size: 14px;
+  line-height: 20px;
+
+  strong {
+    color: var(--color-danger);
+  }
+}
+
+// Content that moved to another curriculum: the "changed" tint, as the pill.
+.moved {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--color-plan-tint);
+  color: var(--color-plan-ink);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.names {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 14px;
+  border-top: 1.5px solid #f1f3fa;
+}
+
+ul {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.fields {
+  margin-top: 2px;
+}
+
+.more {
+  list-style: none;
+  margin-left: -20px;
+  color: var(--color-text-2);
+  font-weight: 500;
+}
+
+.also {
+  display: block;
+  font-size: 13px;
+  color: var(--color-text-2);
+}
+
+// ---- Footer ------------------------------------------------------------------------------
+.foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1.5px solid #f1f3fa;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.foot-button {
+  height: 48px;
+  padding: 0 22px;
+  font-size: 15px;
+}
+
+@media (max-width: 480px) {
+  .head {
+    padding: 18px 16px 8px;
+  }
+
+  .body {
+    padding: 8px 16px 16px;
+  }
+
+  .foot {
+    flex-wrap: wrap;
+    padding: 12px 16px;
+  }
+}

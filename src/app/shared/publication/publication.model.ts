@@ -1,4 +1,5 @@
 import { format } from 'date-fns';
+import { curriculumChips } from 'src/app/shared/translations/translations.model';
 import type { TranslationCoverage } from 'src/app/shared/translations/translations.model';
 
 /**
@@ -203,4 +204,157 @@ export function refusalOf(status: number, body: unknown): Refusal {
   if (status === 0 || status === 502 || status === 503) return { kind: 'gateway' };
   if (status === 429) return { kind: 'other', message: 'Too many attempts. Wait a minute and try again.' };
   return { kind: 'other', message: word(b.errormessage) || FALLBACK_MESSAGE };
+}
+
+// ---- What the publish drawer says -------------------------------------------------------------------------
+
+/** The most names the drawer lists under one heading; the rest are "and N more" (the API's own cap is 200, counts are exact). */
+export const NAME_CAP = 10;
+
+/** One heading of named rows: "Lessons added" with up to NAME_CAP names, and how many more there are. */
+export interface NameSection {
+  id: string;
+  title: string;
+  names: string[];
+  more: number;
+}
+
+/** A question or document a publish carries that other curricula of the organisation also use. */
+export interface SharedView {
+  name: string;
+  kind: 'question' | 'document';
+  /** The other curricula's names. */
+  alsoIn: string[];
+}
+
+/** The rows a publish removes that now live under another curriculum, with the API's sentence about them. */
+export interface MovedView {
+  message: string;
+  rows: string[];
+  more: number;
+}
+
+export interface PublishView {
+  /** `whole`: never published or retired, so all of it reaches learners (no diff); `nochange`; `changes`. */
+  mode: 'whole' | 'nochange' | 'changes';
+  /** The one-line total: "3 lessons added, 1 changed, 2 questions removed". */
+  headline: string;
+  sections: NameSection[];
+  shared: SharedView[];
+  moved: MovedView | null;
+  /** "Translations: km: 2 untranslated; fr: translated", or null while the organisation has no translations. */
+  coverage: string | null;
+  /** "Re-publish" when nothing has changed (the API still records a publication and pushes), else "Publish". */
+  publishLabel: 'Publish' | 'Re-publish';
+  /** The API's sentence when the rows cannot be published as they are; null otherwise. */
+  problem: string | null;
+}
+
+const KINDS = ['added', 'changed', 'removed'] as const;
+type Kind = (typeof KINDS)[number];
+
+const count = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
+
+const changeOf = (summary: SlimSummary, table: string): TableChange => {
+  const c = summary.changes?.[table];
+  return { added: c?.added ?? 0, changed: c?.changed ?? 0, removed: c?.removed ?? 0 };
+};
+
+/** "3 lessons added, 1 changed": the noun is said once, with the first count of its table. */
+function phrase(noun: [string, string], c: TableChange): string[] {
+  const parts: string[] = [];
+  for (const kind of KINDS) {
+    const n = c[kind];
+    if (n <= 0) continue;
+    parts.push(parts.length === 0 ? `${count(n, noun[0], noun[1])} ${kind}` : `${n} ${kind}`);
+  }
+  return parts;
+}
+
+function sectionsFor(summary: SlimSummary, table: 'lessons' | 'questions', title: string, cap: number): NameSection[] {
+  const exact = changeOf(summary, table);
+  const named = summary.affected?.[table] ?? { added: [], changed: [], removed: [] };
+  const out: NameSection[] = [];
+  for (const kind of KINDS as readonly Kind[]) {
+    const names = (named[kind] ?? []).map((r) => r.name);
+    const total = Math.max(exact[kind], names.length);
+    if (total <= 0) continue;
+    const shown = names.slice(0, cap);
+    out.push({ id: `${table}-${kind}`, title: `${title} ${kind}`, names: shown, more: Math.max(0, total - shown.length) });
+  }
+  return out;
+}
+
+const SINGULAR: Record<string, string> = { grades: 'Grade', levels: 'Level', lessons: 'Lesson' };
+
+/** What a publish would do, as the drawer says it. Pure: the same overview always reads the same. */
+export function viewOf(overview: PublicationOverview, cap: number = NAME_CAP): PublishView {
+  const coverageChips = curriculumChips(overview.translationcoverage);
+  const coverage = coverageChips.length > 0 ? `Translations: ${coverageChips.map((c) => c.text).join('; ')}` : null;
+  const problem = typeof overview.problem === 'string' && overview.problem.trim() !== '' ? overview.problem.trim() : null;
+  const summary = overview.pending;
+  if (summary === null || summary === undefined) {
+    const retired = overview.publicationstatus === 'withdrawn';
+    return {
+      mode: 'whole',
+      headline: retired
+        ? 'This curriculum is retired. All of it reaches learners again on this publish.'
+        : 'This curriculum has not been published. All of it reaches learners on this publish.',
+      sections: [],
+      shared: [],
+      moved: null,
+      coverage,
+      publishLabel: 'Publish',
+      problem,
+    };
+  }
+
+  const lessons = changeOf(summary, 'lessons');
+  const questions = changeOf(summary, 'questions');
+  let other = 0;
+  for (const [table, c] of Object.entries(summary.changes ?? {})) {
+    if (table === 'lessons' || table === 'questions') continue;
+    other += (c?.added ?? 0) + (c?.changed ?? 0) + (c?.removed ?? 0);
+  }
+  const parts = [...phrase(['lesson', 'lessons'], lessons), ...phrase(['question', 'questions'], questions)];
+  if (other > 0) parts.push(count(other, 'other change', 'other changes'));
+
+  const movedRows = summary.movedaway ?? [];
+  const moved: MovedView | null =
+    movedRows.length > 0 || (summary.movedawaymessage ?? '').trim() !== ''
+      ? {
+          message: (summary.movedawaymessage ?? '').trim(),
+          rows: movedRows.slice(0, cap).map((m) => `${SINGULAR[m.table] ?? m.table} “${m.name}” now lives under “${m.tocurriculum?.name ?? ''}”.`),
+          more: Math.max(0, movedRows.length - cap),
+        }
+      : null;
+
+  const shared: SharedView[] = (summary.shared ?? []).map((r) => ({
+    name: r.name,
+    kind: r.table === 'documents' ? 'document' : 'question',
+    alsoIn: (r.curricula ?? []).map((c) => c.name),
+  }));
+
+  if (parts.length === 0 && moved === null) {
+    return {
+      mode: 'nochange',
+      headline: 'Nothing has changed since the last publish.',
+      sections: [],
+      shared,
+      moved: null,
+      coverage,
+      publishLabel: 'Re-publish',
+      problem,
+    };
+  }
+  return {
+    mode: 'changes',
+    headline: parts.join(', ') || 'Rows moved to other curricula.',
+    sections: [...sectionsFor(summary, 'lessons', 'Lessons', cap), ...sectionsFor(summary, 'questions', 'Questions', cap)],
+    shared,
+    moved,
+    coverage,
+    publishLabel: 'Publish',
+    problem,
+  };
 }

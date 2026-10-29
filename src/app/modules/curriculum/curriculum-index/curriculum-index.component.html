@@ -64,6 +64,21 @@
             <td>
               <button
                 nz-button
+                nzType="primary"
+                nzSize="small"
+                type="button"
+                style="margin-right: 12px"
+                data-testid="publish-row"
+                [attr.aria-label]="'Publish ' + data.curriculumname"
+                [disabled]="isBusy(data.curriculumid)"
+                (click)="openPublish(data)"
+                *ngxPermissionsOnly="['publish_curriculum']"
+              >
+                Publish
+              </button>
+
+              <button
+                nz-button
                 nzSize="small"
                 type="button"
                 style="margin-right: 12px"
@@ -138,4 +153,5 @@
     </nz-dropdown-menu>
   </div>
 </div>
+<app-publish-drawer (published)="onPublished($event)" (missing)="onMissing()"></app-publish-drawer>
 <ng-template #totalTemplate> Total : {{ total }} </ng-template>

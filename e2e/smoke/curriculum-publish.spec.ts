@@ -45,6 +45,8 @@ interface Content {
   lesson: string;
 }
 const made: Content[] = [];
+/** Bank questions the tests made; the lessons' deletes do not take them with them. */
+const created_questions: string[] = [];
 
 const toasts = (p: Page) => p.locator('.ant-notification-notice');
 
@@ -112,6 +114,63 @@ async function renameLessonViaApi(api: APIRequestContext, c: Content): Promise<v
   expect(res.ok(), `rename: HTTP ${res.status()}`).toBeTruthy();
 }
 
+/** A second lesson in the content's level, with a quiz of two multiple-choice questions, added through the API. */
+async function addLessonWithQuestions(api: APIRequestContext, c: Content): Promise<{ lessonName: string; questionIdentifiers: string[] }> {
+  const lessonName = `Second lesson ${RUN}-${c.n}`;
+  const lessonid = (
+    await created(
+      await api.post('/lesson/create', {
+        data: { lessonname: lessonName, lessondescription: `Second description ${RUN}-${c.n}`, levelid: c.level, lessonorder: 2, total_points: 100, passing_points: 0 },
+      }),
+      'the second lesson',
+    )
+  ).lessonid;
+  await created(
+    await api.post(`/lesson/quiz/${lessonid}`, { data: { lessonquizname: `Quiz ${RUN}-${c.n}`, lessonquizdescription: `Quiz ${RUN}-${c.n}`, lessonquizorder: 1, points: 10 } }),
+    'the quiz',
+  );
+  const quizzes = (await (await api.get(`/lesson/quiz/${lessonid}`)).json()).data;
+  const quizid: string | undefined = quizzes?.[0]?.lessonquizid;
+  expect(quizid, 'the quiz is listed').toBeTruthy();
+  const option = (id: string, text: string, correct: boolean, sequence: number) => ({
+    questionoptionid: id,
+    questionoptiontext: text,
+    questionoptionvalue: text,
+    questionoptionistext: true,
+    questionoptionsequence: sequence,
+    questionoptioniscorrect: correct,
+    questionassociate: null,
+    questionoptionfile: null,
+  });
+  const questionIdentifiers: string[] = [];
+  for (const k of [1, 2]) {
+    const identifier = `question ${k} ${RUN}-${c.n}`;
+    questionIdentifiers.push(identifier);
+    await created(
+      await api.post('/question/create', {
+        data: {
+          questionheading: { headingtext: `Heading ${k} ${RUN}-${c.n}`, headingfile: null },
+          questioncorrectvalue: 0,
+          questiontags: [],
+          questionidentifier: identifier,
+          templatetypeid: 1,
+          questiontext: `Which is larger ${k} ${RUN}-${c.n}`,
+          questionoptions: [option(`${RUN}-${c.n}-${k}-1`, 'Seven', false, 1), option(`${RUN}-${c.n}-${k}-2`, 'Twelve', true, 2)],
+          questionfeedback: { correctmessage: 'Well done', incorrectmessage: null },
+        },
+      }),
+      'a question',
+    );
+    const found = (await (await api.post('/question', { data: { pageindex: 1, pagesize: 10, filter: [{ key: 'questionidentifier', value: identifier }] } })).json()).data.data.find(
+      (q: any) => q.questionidentifier === identifier,
+    );
+    expect(found, `the question "${identifier}" was created`).toBeTruthy();
+    created_questions.push(found.questionid);
+    await created(await api.post(`/lesson/quiz/question/${quizid}/${found.questionid}/${k}`, { data: {} }), 'a quiz question link');
+  }
+  return { lessonName, questionIdentifiers };
+}
+
 /** The list, narrowed to the curriculum with the name filter. */
 async function openList(p: Page, c: Content): Promise<void> {
   await p.goto('/curriculum/index');
@@ -158,6 +217,7 @@ test.afterAll(async () => {
       problems.push(`${what}: ${(e as Error).message}`);
     }
   };
+  for (const id of created_questions) await step('delete question', () => sa.delete(`/question/${id}`));
   // In reverse of how they were made. A curriculum the test already deleted answers 404: that is the state wanted.
   for (const c of [...made].reverse()) {
     if (c.lesson) await step('delete lesson', () => sa.delete(`/lesson/${c.lesson}`));
@@ -276,6 +336,120 @@ test.describe('the curriculum list, signed in as the organisation\'s admin', () 
     } finally {
       await page.unrouteAll({ behavior: 'wait' });
     }
+  });
+});
+
+// ---- the publish drawer -----------------------------------------------------------------------------
+test.describe('the publish drawer, signed in as the organisation\'s admin', () => {
+  let page: Page;
+
+  test.beforeAll(async ({ browser }) => {
+    page = await browser.newPage();
+    await loginViaUi(page, ADMIN, PASSWORD);
+    oa = await apiContext(await tokenOf(page));
+  });
+  test.afterAll(async () => {
+    await page?.close();
+  });
+
+  const drawer = (c: Content) => page.getByRole('dialog', { name: `Publish ${c.curriculumName}` });
+
+  async function openDrawer(c: Content): Promise<void> {
+    await openList(page, c);
+    await row(page, c).getByTestId('publish-row').click();
+    await expect(drawer(c)).toBeVisible();
+    await expect(drawer(c).getByTestId('publish-total')).toBeVisible();
+  }
+
+  test('a curriculum never published: the drawer says all of it reaches learners and lists no changes; Publish closes it, the toast carries the push sentence, the row says Published today', async () => {
+    const c = await makeContent(oa);
+    await openDrawer(c);
+    await expect(drawer(c).getByTestId('publish-title')).toHaveText(c.curriculumName);
+    await expect(drawer(c).getByTestId('publication-pill')).toHaveText('Never published');
+    await expect(drawer(c).getByTestId('publish-total')).toHaveText('This curriculum has not been published. All of it reaches learners on this publish.');
+    await expect(drawer(c).locator('[data-testid^="names-"]')).toHaveCount(0);
+    await expect(drawer(c).getByTestId('confirm-publish')).toHaveText('Publish');
+    await drawer(c).getByTestId('confirm-publish').click();
+    await expect(drawer(c)).toBeHidden();
+    await expect(toasts(page).filter({ hasText: 'Published. No learner server is set up here, so nothing was pushed.' })).toBeVisible();
+    await expect(pill(page, c)).toHaveText(`Published ${TODAY}`);
+    expect((await overview(oa, c)).publicationstatus).toBe('published');
+  });
+
+  test('after a first publish, a new lesson and its questions are listed as added', async () => {
+    const c = await makeContent(oa);
+    await publishViaApi(oa, c);
+    const added = await addLessonWithQuestions(oa, c);
+    await openDrawer(c);
+    await expect(drawer(c).getByTestId('publication-pill')).toHaveText('Changed since publish');
+    const total = await drawer(c).getByTestId('publish-total').innerText();
+    expect(total).toMatch(/^1 lesson added, 2 questions added/);
+    await expect(drawer(c).getByTestId('names-lessons-added')).toContainText(added.lessonName);
+    for (const identifier of added.questionIdentifiers) await expect(drawer(c).getByTestId('names-questions-added')).toContainText(identifier);
+    await expect(drawer(c).getByTestId('confirm-publish')).toHaveText('Publish');
+    await drawer(c).getByTestId('confirm-publish').click();
+    await expect(drawer(c)).toBeHidden();
+    await expect(pill(page, c)).toHaveText(`Published ${TODAY}`);
+    expect((await overview(oa, c)).changedsincepublish).toBe(false);
+  });
+
+  test('a renamed lesson is listed as one changed lesson, and Cancel publishes nothing', async () => {
+    const c = await makeContent(oa);
+    await publishViaApi(oa, c);
+    const before = (await overview(oa, c)).publicationid;
+    await renameLessonViaApi(oa, c);
+    await openDrawer(c);
+    // a lesson's rename also moves the grade and the level that hold it (central counts them: "2 other changes")
+    await expect(drawer(c).getByTestId('publish-total')).toHaveText('1 lesson changed, 2 other changes');
+    await expect(drawer(c).getByTestId('names-lessons-changed').locator('li')).toHaveText([`${c.lessonName} renamed`]);
+    await drawer(c).getByTestId('cancel-publish').click();
+    await expect(drawer(c)).toBeHidden();
+    expect((await overview(oa, c)).publicationid, 'nothing was published').toBe(before);
+    await expect(pill(page, c)).toHaveText('Changed since publish');
+  });
+
+  test('nothing changed: the drawer says so, the button reads Re-publish, and it still records a publication', async () => {
+    const c = await makeContent(oa);
+    await publishViaApi(oa, c);
+    const before = (await overview(oa, c)).publicationid;
+    await openDrawer(c);
+    await expect(drawer(c).getByTestId('publish-total')).toHaveText('Nothing has changed since the last publish.');
+    await expect(drawer(c).getByTestId('confirm-publish')).toHaveText('Re-publish');
+    await drawer(c).getByTestId('confirm-publish').click();
+    await expect(drawer(c)).toBeHidden();
+    await expect(toasts(page).filter({ hasText: 'No learner server is set up here' })).toBeVisible();
+    expect((await overview(oa, c)).publicationid, 'a new publication was recorded').not.toBe(before);
+  });
+
+  test('a retired curriculum: the drawer says all of it returns and lists no changes', async () => {
+    const c = await makeContent(oa);
+    await publishViaApi(oa, c);
+    await created(await oa.put(`/curriculum/retire/${c.curriculum}`, { data: {} }), 'a retire');
+    await openDrawer(c);
+    await expect(drawer(c).getByTestId('publication-pill')).toHaveText('Retired');
+    await expect(drawer(c).getByTestId('publish-total')).toHaveText('This curriculum is retired. All of it reaches learners again on this publish.');
+    await expect(drawer(c).locator('[data-testid^="names-"]')).toHaveCount(0);
+    await drawer(c).getByTestId('cancel-publish').click();
+    await expect(drawer(c)).toBeHidden();
+  });
+
+  test('while it publishes the button says Publishing… and Publish and Cancel are disabled', async () => {
+    const c = await makeContent(oa);
+    await openDrawer(c);
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    await page.route('**/curriculum/publish/*', async (route) => {
+      await held;
+      await route.continue();
+    });
+    await drawer(c).getByTestId('confirm-publish').click();
+    await expect(drawer(c).getByTestId('confirm-publish')).toHaveText('Publishing…');
+    await expect(drawer(c).getByTestId('confirm-publish')).toBeDisabled();
+    await expect(drawer(c).getByTestId('cancel-publish')).toBeDisabled();
+    release();
+    await expect(drawer(c)).toBeHidden();
+    await page.unrouteAll({ behavior: 'wait' });
+    await expect(pill(page, c)).toHaveText(`Published ${TODAY}`);
   });
 });
 

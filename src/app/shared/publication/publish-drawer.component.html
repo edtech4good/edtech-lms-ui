@@ -1,0 +1,146 @@
+<nz-drawer
+  [nzVisible]="open()"
+  nzPlacement="right"
+  nzWidth="560px"
+  [nzClosable]="false"
+  [nzMaskClosable]="!publishing()"
+  nzWrapClassName="org-drawer"
+  [nzMaskStyle]="{ background: 'rgba(30, 41, 59, 0.35)' }"
+  (nzOnClose)="requestClose()"
+>
+  <ng-container *nzDrawerContent>
+    <div
+      class="dialog"
+      role="dialog"
+      aria-modal="true"
+      [attr.aria-label]="'Publish ' + (target()?.curriculumname ?? '')"
+      data-testid="publish-drawer"
+    >
+      <header class="head">
+        <div class="titles">
+          <h2 id="publish-title" class="title" data-testid="publish-title">{{ target()?.curriculumname }}</h2>
+          @if (pill(); as pill) {
+            <app-publication-pill [pill]="pill"></app-publication-pill>
+          }
+        </div>
+        <button type="button" class="close" aria-label="Close" [disabled]="publishing()" (click)="requestClose()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" focusable="false">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </header>
+
+      <div class="body">
+        @switch (state()) {
+          @case ('loading') {
+            <p class="help" role="status" data-testid="publish-loading">Reading what has changed…</p>
+          }
+          @case ('error') {
+            <p class="field-error" role="alert" data-testid="publish-error">
+              {{ errorText() }}
+              <button type="button" class="link" data-testid="publish-try-again" (click)="load()">Try again</button>
+            </p>
+          }
+          @case ('ready') {
+            @if (refusal(); as refusal) {
+              <div class="alert" role="alert" data-testid="publish-refusal" [attr.data-kind]="refusal.kind">
+                @if (invalid(); as invalid) {
+                  <strong>{{ invalid.message }}</strong>
+                  @if (invalid.hint) {
+                    <span>{{ invalid.hint }}</span>
+                  }
+                  @if (invalid.fields.length > 0) {
+                    <ul class="fields" data-testid="refusal-fields">
+                      @for (f of invalid.fields; track $index) {
+                        <li [attr.data-testid]="'field-' + f.field">{{ f.message }}</li>
+                      }
+                    </ul>
+                  }
+                } @else {
+                  <span>{{ $any(refusal).message }}</span>
+                  @if (refusal.kind === 'conflict') {
+                    <button type="button" class="link" data-testid="publish-reload" (click)="load()">Reload</button>
+                  }
+                }
+              </div>
+            }
+            @if (view(); as view) {
+              @if (view.problem) {
+                <div class="alert" role="status" data-testid="publish-problem">
+                  <strong>This curriculum can't be published as it is.</strong>
+                  <span>{{ view.problem }}</span>
+                </div>
+              }
+              <p class="total" data-testid="publish-total">{{ view.headline }}</p>
+
+              @if (view.moved; as moved) {
+                <div class="moved" data-testid="moved-away">
+                  <strong>Content that moved to another curriculum</strong>
+                  @if (moved.message) {
+                    <span>{{ moved.message }}</span>
+                  }
+                  <ul>
+                    @for (row of moved.rows; track $index) {
+                      <li>{{ row }}</li>
+                    }
+                    @if (moved.more > 0) {
+                      <li class="more">and {{ moved.more }} more</li>
+                    }
+                  </ul>
+                </div>
+              }
+
+              @for (section of view.sections; track section.id) {
+                <section class="names" [attr.data-testid]="'names-' + section.id">
+                  <h3 class="label">{{ section.title }}</h3>
+                  <ul>
+                    @for (name of section.names; track $index) {
+                      <li>{{ name }}</li>
+                    }
+                    @if (section.more > 0) {
+                      <li class="more">and {{ section.more }} more</li>
+                    }
+                  </ul>
+                </section>
+              }
+
+              @if (view.shared.length > 0) {
+                <section class="names" data-testid="shared-rows">
+                  <h3 class="label">Also reaches other curricula</h3>
+                  <ul>
+                    @for (row of view.shared; track $index) {
+                      <li>
+                        {{ row.name }}
+                        <span class="also">is also in {{ row.alsoIn.join(', ') }}</span>
+                      </li>
+                    }
+                  </ul>
+                </section>
+              }
+
+              @if (view.coverage; as coverage) {
+                <p class="help" data-testid="publish-coverage">{{ coverage }}</p>
+              }
+            }
+          }
+        }
+      </div>
+
+      <footer class="foot">
+        <span class="spacer"></span>
+        <button nz-button type="button" class="foot-button" data-testid="cancel-publish" [disabled]="publishing()" (click)="requestClose()">Cancel</button>
+        <button
+          nz-button
+          nzType="primary"
+          type="button"
+          class="foot-button"
+          data-testid="confirm-publish"
+          [disabled]="publishing() || state() !== 'ready'"
+          (click)="publish()"
+        >
+          {{ publishing() ? 'Publishing…' : (view()?.publishLabel ?? 'Publish') }}
+        </button>
+      </footer>
+    </div>
+  </ng-container>
+</nz-drawer>
