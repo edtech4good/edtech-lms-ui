@@ -1,9 +1,9 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, computed, inject, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, computed, inject, output, signal } from '@angular/core';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzDrawerModule } from 'ng-zorro-antd/drawer';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
-import { lastValueFrom } from 'rxjs';
+import { Subscription, lastValueFrom } from 'rxjs';
 import { CurriculumService } from 'src/app/services/curriculum.service';
 import { clearListCaches } from 'src/app/services/list-cache';
 import { PublicationPillComponent } from './publication-pill.component';
@@ -38,7 +38,7 @@ export interface PublishTarget {
   styleUrl: './publish-drawer.component.less',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PublishDrawerComponent {
+export class PublishDrawerComponent implements OnDestroy {
   private readonly service = inject(CurriculumService);
   private readonly notification = inject(NzNotificationService);
 
@@ -70,7 +70,11 @@ export class PublishDrawerComponent {
     return r?.kind === 'invalid' ? r : null;
   });
 
+  /** The overview read in flight, if any: a read for an earlier curriculum must never answer for the one now shown. */
+  private read: Subscription | null = null;
+
   show(target: PublishTarget): void {
+    this.cancelRead();
     this.target.set(target);
     this.overview.set(null);
     this.refusal.set(null);
@@ -82,14 +86,18 @@ export class PublishDrawerComponent {
   load(): void {
     const target = this.target();
     if (target === null) return;
+    this.cancelRead();
     this.state.set('loading');
     this.refusal.set(null);
-    this.service.publication(target.curriculumid, true).subscribe({
+    this.read = this.service.publication(target.curriculumid, true).subscribe({
       next: (overview) => {
+        // Second guard, beside the cancel: an answer for any other curriculum than the one shown is dropped.
+        if (overview.curriculumid !== this.target()?.curriculumid) return;
         this.overview.set(overview);
         this.state.set('ready');
       },
       error: (e: HttpErrorResponse) => {
+        if (target.curriculumid !== this.target()?.curriculumid) return;
         const refusal = refusalOf(e.status, e.error);
         if (refusal.kind === 'missing') return this.gone(target);
         this.errorText.set(this.wordsFor(refusal, e));
@@ -100,7 +108,17 @@ export class PublishDrawerComponent {
 
   requestClose(): void {
     if (this.publishing()) return;
+    this.cancelRead();
     this.open.set(false);
+  }
+
+  ngOnDestroy(): void {
+    this.cancelRead();
+  }
+
+  private cancelRead(): void {
+    this.read?.unsubscribe();
+    this.read = null;
   }
 
   async publish(): Promise<void> {

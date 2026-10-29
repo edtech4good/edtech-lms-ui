@@ -176,6 +176,11 @@ async function addLessonWithQuestions(api: APIRequestContext, c: Content): Promi
 /** The list, narrowed to the curriculum with the name filter. */
 async function openList(p: Page, c: Content): Promise<void> {
   await p.goto('/curriculum/index');
+  await searchList(p, c);
+}
+
+/** Narrows the list that is open to the curriculum, in the same page (no reload: an open drawer stays). */
+async function searchList(p: Page, c: Content): Promise<void> {
   await p.locator('th', { hasText: 'Curriculum Name' }).locator('nz-filter-trigger').click();
   await p.getByPlaceholder('Search curriculum').fill(c.curriculumName);
   await p.getByRole('button', { name: 'Search', exact: true }).click();
@@ -432,6 +437,41 @@ test.describe('the publish drawer, signed in as the organisation\'s admin', () =
     await expect(drawer(c).locator('[data-testid^="names-"]')).toHaveCount(0);
     await drawer(c).getByTestId('cancel-publish').click();
     await expect(drawer(c)).toBeHidden();
+  });
+
+  test('a late answer for the curriculum that was closed never shows under the one opened next', async () => {
+    const a = await makeContent(oa);
+    await publishViaApi(oa, a); // published, nothing changed: its overview says "Nothing has changed" and the pill Published
+    const b = await makeContent(oa); // never published
+    await openList(page, a);
+    // A's overview answers are held until B's drawer has been read and 2.5 s have gone by since the first was asked.
+    let bRead: () => void = () => undefined;
+    const bIsRead = new Promise<void>((resolve) => (bRead = resolve));
+    let firstHeld = 0;
+    await page.route(`**/curriculum/publication/${a.curriculum}`, async (route) => {
+      firstHeld ||= Date.now();
+      await bIsRead;
+      await new Promise((resolve) => setTimeout(resolve, Math.max(0, firstHeld + 2500 - Date.now())));
+      await route.continue().catch(() => undefined); // an answer whose read was cancelled has nowhere to go
+    });
+    try {
+      await row(page, a).getByTestId('publish-row').click();
+      await expect(drawer(a)).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(drawer(a)).toBeHidden();
+      await searchList(page, b);
+      await row(page, b).getByTestId('publish-row').click();
+      await expect(drawer(b).getByTestId('publish-total')).toBeVisible();
+      bRead();
+      // A's answer lands now (2.5 s after it was asked); give it time to arrive and be, wrongly, shown
+      await page.waitForTimeout(3000);
+      await expect(drawer(b).getByTestId('publish-total')).toHaveText('This curriculum has not been published. All of it reaches learners on this publish.');
+      await expect(drawer(b).getByTestId('confirm-publish')).toHaveText('Publish');
+      await expect(drawer(b).getByTestId('publication-pill')).toHaveText('Never published');
+    } finally {
+      bRead();
+      await page.unrouteAll({ behavior: 'wait' });
+    }
   });
 
   test('while it publishes the button says Publishing… and Publish and Cancel are disabled', async () => {
