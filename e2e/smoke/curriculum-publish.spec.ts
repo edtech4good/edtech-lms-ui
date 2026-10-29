@@ -43,6 +43,8 @@ interface Content {
   grade: string;
   level: string;
   lesson: string;
+  /** The test deleted the curriculum itself (through the screen). */
+  deleted?: boolean;
 }
 const made: Content[] = [];
 /** Bank questions the tests made; the lessons' deletes do not take them with them. */
@@ -223,8 +225,7 @@ test.afterAll(async () => {
     if (c.lesson) await step('delete lesson', () => sa.delete(`/lesson/${c.lesson}`));
     if (c.level) await step('delete level', () => sa.delete(`/level/${c.level}`));
     if (c.grade) await step('delete grade', () => sa.delete(`/grade/${c.grade}`));
-    const res = await sa.delete(`/curriculum/${c.curriculum}`);
-    if (!res.ok() && res.status() !== 404) problems.push(`delete curriculum: HTTP ${res.status()}`);
+    if (!c.deleted) await step('delete curriculum', () => sa.delete(`/curriculum/${c.curriculum}`));
     await step('delete subject', () => sa.delete(`/subject/${c.subject}`));
     // Checked: the rows no longer answer.
     await expectGone(sa, `/curriculum/${c.curriculum}`, 'the curriculum', problems);
@@ -629,6 +630,114 @@ test.describe('a publish that is refused or fails (the API\'s answer mocked)', (
     await expect(drawer(c).getByTestId('publish-try-again')).toBeVisible();
     await expect(drawer(c).getByTestId('confirm-publish')).toBeDisabled();
     expect(await toastCount(), 'the drawer said it: no toast of its own').toBe(before);
+  });
+});
+
+// ---- deleting a curriculum, and the whole life of one --------------------------------------------------------
+test.describe('deleting a curriculum, signed in as the organisation\'s admin', () => {
+  let page: Page;
+
+  test.beforeAll(async ({ browser }) => {
+    page = await browser.newPage();
+    await loginViaUi(page, ADMIN, PASSWORD);
+    oa = await apiContext(await tokenOf(page));
+  });
+  test.afterAll(async () => {
+    await page?.close();
+  });
+  test.afterEach(async () => {
+    await page.unrouteAll({ behavior: 'wait' });
+  });
+
+  const drawer = (c: Content) => page.getByRole('dialog', { name: `Publish ${c.curriculumName}` });
+
+  async function deleteViaList(c: Content): Promise<void> {
+    await row(page, c).getByTestId('delete-row').click();
+    await page.locator('.ant-popover').getByRole('button', { name: 'OK' }).click();
+  }
+
+  async function expectDeleted(c: Content): Promise<void> {
+    c.deleted = true; // the teardown does not delete it again
+    const res = await oa.get(`/curriculum/${c.curriculum}`);
+    const body: any = await res.json().catch(() => ({}));
+    expect(res.status() === 404 || body?.data?.isdeleted === true || !body?.data, `the curriculum is gone: HTTP ${res.status()}`).toBeTruthy();
+  }
+
+  test('the toast carries the API\'s push sentence after "Curriculum deleted." and the row is gone', async () => {
+    const c = await makeContent(oa);
+    await publishViaApi(oa, c);
+    await openList(page, c);
+    await deleteViaList(c);
+    const toast = toasts(page).filter({ hasText: 'Curriculum deleted.' });
+    await expect(toast).toBeVisible();
+    expect(await toast.innerText()).toContain('Curriculum deleted. Deleted. No learner server is set up here, so nothing was pushed.');
+    await expect(row(page, c)).toHaveCount(0);
+    await expectDeleted(c);
+  });
+
+  test('a curriculum that was never published says there was nothing to push', async () => {
+    const c = await makeContent(oa);
+    await openList(page, c);
+    await deleteViaList(c);
+    const toast = toasts(page).filter({ hasText: 'Curriculum deleted.' });
+    await expect(toast).toBeVisible();
+    expect(await toast.innerText()).toContain('Curriculum deleted. Deleted. That curriculum was not published, so there was nothing to push.');
+    await expectDeleted(c);
+  });
+
+  test('a delete whose push failed is an error toast that stays, and the curriculum is still deleted', async () => {
+    const c = await makeContent(oa);
+    await publishViaApi(oa, c);
+    const message = 'Deleted. The push to the learner server failed; a platform admin can re-push from Sync Content. The learner server could not be reached.';
+    await page.route('**/curriculum/*', async (route) => {
+      if (route.request().method() !== 'DELETE') return route.fallback();
+      const real = await route.fetch();
+      const json = await real.json();
+      return route.fulfill({ response: real, json: { ...json, push: { status: 'failed', message } } });
+    });
+    await openList(page, c);
+    await deleteViaList(c);
+    const toast = toasts(page).filter({ hasText: message });
+    await expect(toast).toBeVisible();
+    await expect(toast).toContainText('Curriculum deleted, but the push failed');
+    await expect(row(page, c)).toHaveCount(0);
+    await page.waitForTimeout(7500);
+    await expect(toast, 'it stays').toBeVisible();
+    await expectDeleted(c);
+  });
+
+  test('the whole life: never published, published, changed, published again, retired, deleted', async () => {
+    const c = await makeContent(oa);
+    await openList(page, c);
+    await expect(pill(page, c)).toHaveText('Never published');
+    // first publish, from the drawer
+    await row(page, c).getByTestId('publish-row').click();
+    await expect(drawer(c).getByTestId('publish-total')).toContainText('All of it reaches learners on this publish.');
+    await drawer(c).getByTestId('confirm-publish').click();
+    await expect(drawer(c)).toBeHidden();
+    await expect(pill(page, c)).toHaveText(`Published ${TODAY}`);
+    // the lesson is renamed through the API; the list, read again, says Changed since publish
+    await renameLessonViaApi(oa, c);
+    await openList(page, c);
+    await expect(pill(page, c)).toHaveText('Changed since publish');
+    // the drawer lists the one changed lesson, and publishing it puts the pill back
+    await row(page, c).getByTestId('publish-row').click();
+    await expect(drawer(c).getByTestId('names-lessons-changed').locator('li')).toHaveText([`${c.lessonName} renamed`]);
+    await drawer(c).getByTestId('confirm-publish').click();
+    await expect(drawer(c)).toBeHidden();
+    await expect(pill(page, c)).toHaveText(`Published ${TODAY}`);
+    // retire
+    await row(page, c).getByTestId('retire-row').click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Retire', exact: true }).click();
+    await expect(pill(page, c)).toHaveText('Retired');
+    // delete: the toast says what the push did, and the row is gone
+    await deleteViaList(c);
+    const toast = toasts(page).filter({ hasText: 'Curriculum deleted.' });
+    await expect(toast).toBeVisible();
+    // a retired curriculum is no longer published: the API has nothing to push
+    expect(await toast.innerText()).toContain('Curriculum deleted. Deleted. That curriculum was not published, so there was nothing to push.');
+    await expect(row(page, c)).toHaveCount(0);
+    await expectDeleted(c);
   });
 });
 

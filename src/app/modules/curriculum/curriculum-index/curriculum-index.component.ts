@@ -12,7 +12,7 @@ import { organisationOf, withOrganisationFilter } from 'src/app/shared/owner/own
 import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
 import { PublishDrawerComponent } from 'src/app/shared/publication/publish-drawer.component';
 import { refusalText } from 'src/app/shared/publication/publication-errors';
-import { Pill, PublicationOverview, pillOf, pushMessage, pushToast, refusalOf } from 'src/app/shared/publication/publication.model';
+import { Pill, PublicationOverview, PushOutcome, pillOf, pushMessage, pushToast, refusalOf } from 'src/app/shared/publication/publication.model';
 
 /** What a row knows of its publication state: being read, read, or not readable (shown as a dash). */
 export type RowState = { kind: 'loading' } | { kind: 'ready'; overview: PublicationOverview; pill: Pill } | { kind: 'failed' };
@@ -208,16 +208,21 @@ export class CurriculumIndexComponent {
   }
 
   deletetag = async (curriculumid: string) => {
-    await this.curriculumService.delete(curriculumid).pipe(first()).toPromise();
+    // The answer says how pushing the published set to the learner server went (`push`): a delete withdraws the
+    // publication, so the learner server is told. A failed push does not undo the delete.
+    const answer: any = await this.curriculumService.delete(curriculumid).pipe(first()).toPromise();
     this.loadDataFromServer({
       filter: [...this.filter],
       pageindex: this.pageIndex,
       pagesize: this.pageSize,
     });
+    const push: PushOutcome | undefined = answer?.push;
+    const toast = pushToast(push);
     this.notification.create(
-      'success',
-      'Success',
-      'Curriculum deleted sucessfully'
+      toast.type,
+      toast.type === 'error' ? 'Curriculum deleted, but the push failed' : 'Success',
+      ['Curriculum deleted.', pushMessage(push)].filter((t) => t !== '').join(' '),
+      { nzDuration: toast.duration }
     );
   };
 
