@@ -235,8 +235,9 @@ export class CurriculumIndexComponent implements OnDestroy {
     const toast = pushToast(push);
     this.notification.create(
       toast.type,
-      toast.type === 'error' ? 'Curriculum deleted, but the push failed' : 'Success',
-      ['Curriculum deleted.', pushMessage(push)].filter((t) => t !== '').join(' '),
+      toast.type === 'error' ? 'Curriculum deleted, but the push failed' : 'Curriculum deleted',
+      // The API's sentence starts with the act ("Deleted. ..."), as publish and retire show it: the body, alone.
+      pushMessage(push) || 'Curriculum deleted.',
       { nzDuration: toast.duration }
     );
   };

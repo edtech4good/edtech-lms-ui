@@ -729,14 +729,19 @@ test.describe('deleting a curriculum, signed in as the organisation\'s admin', (
     expect(res.status() === 404 || body?.data?.isdeleted === true || !body?.data, `the curriculum is gone: HTTP ${res.status()}`).toBeTruthy();
   }
 
-  test('the toast carries the API\'s push sentence after "Curriculum deleted." and the row is gone', async () => {
+  /** The toast a delete makes: the title "Curriculum deleted" and the API's sentence alone as its body (it starts with the act). */
+  const deletedToast = () => toasts(page).filter({ has: page.locator('.ant-notification-notice-message', { hasText: /^Curriculum deleted$/ }) });
+
+  test('the toast is titled "Curriculum deleted" and its body is the API\'s push sentence alone, and the row is gone', async () => {
     const c = await makeContent(oa);
     await publishViaApi(oa, c);
     await openList(page, c);
     await deleteViaList(c);
-    const toast = toasts(page).filter({ hasText: 'Curriculum deleted.' });
+    const toast = deletedToast();
     await expect(toast).toBeVisible();
-    expect(await toast.innerText()).toContain('Curriculum deleted. Deleted. No learner server is set up here, so nothing was pushed.');
+    const body = toast.locator('.ant-notification-notice-description');
+    await expect(body).toHaveText('Deleted. No learner server is set up here, so nothing was pushed.');
+    expect(await body.innerText(), 'the verb is said once').not.toContain('Curriculum deleted.');
     await expect(row(page, c)).toHaveCount(0);
     await expectDeleted(c);
   });
@@ -745,9 +750,9 @@ test.describe('deleting a curriculum, signed in as the organisation\'s admin', (
     const c = await makeContent(oa);
     await openList(page, c);
     await deleteViaList(c);
-    const toast = toasts(page).filter({ hasText: 'Curriculum deleted.' });
+    const toast = deletedToast();
     await expect(toast).toBeVisible();
-    expect(await toast.innerText()).toContain('Curriculum deleted. Deleted. That curriculum was not published, so there was nothing to push.');
+    await expect(toast.locator('.ant-notification-notice-description')).toHaveText('Deleted. That curriculum was not published, so there was nothing to push.');
     await expectDeleted(c);
   });
 
@@ -766,6 +771,7 @@ test.describe('deleting a curriculum, signed in as the organisation\'s admin', (
     const toast = toasts(page).filter({ hasText: message });
     await expect(toast).toBeVisible();
     await expect(toast).toContainText('Curriculum deleted, but the push failed');
+    await expect(toast.locator('.ant-notification-notice-description')).toHaveText(message);
     await expect(row(page, c)).toHaveCount(0);
     await page.waitForTimeout(7500);
     await expect(toast, 'it stays').toBeVisible();
@@ -798,10 +804,10 @@ test.describe('deleting a curriculum, signed in as the organisation\'s admin', (
     await expect(pill(page, c)).toHaveText('Retired');
     // delete: the toast says what the push did, and the row is gone
     await deleteViaList(c);
-    const toast = toasts(page).filter({ hasText: 'Curriculum deleted.' });
+    const toast = deletedToast();
     await expect(toast).toBeVisible();
     // a retired curriculum is no longer published: the API has nothing to push
-    expect(await toast.innerText()).toContain('Curriculum deleted. Deleted. That curriculum was not published, so there was nothing to push.');
+    await expect(toast.locator('.ant-notification-notice-description')).toHaveText('Deleted. That curriculum was not published, so there was nothing to push.');
     await expect(row(page, c)).toHaveCount(0);
     await expectDeleted(c);
   });
