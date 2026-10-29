@@ -43,14 +43,19 @@ interface Content {
   grade: string;
   level: string;
   lesson: string;
-  /** The test deleted the curriculum itself (through the screen). */
-  deleted?: boolean;
 }
 const made: Content[] = [];
 /** Bank questions the tests made; the lessons' deletes do not take them with them. */
 const created_questions: string[] = [];
 
 const toasts = (p: Page) => p.locator('.ant-notification-notice');
+
+/**
+ * The sentence the API says for an act whose push was skipped (no learner server here) or pushed (one is set up): central's
+ * `publish-push.ts`. The suite runs against either stack, so the specs accept both.
+ */
+const pushSentence = (verb: 'Published' | 'Retired' | 'Deleted') =>
+  new RegExp(`${verb}\\. (No learner server is set up here, so nothing was pushed|The learner server has the organisation's published curricula)\\.`);
 
 async function created(res: Awaited<ReturnType<APIRequestContext['post']>>, what: string): Promise<any> {
   const body: any = await res.json().catch(() => ({}));
@@ -216,21 +221,22 @@ test.beforeAll(async ({ browser }) => {
 
 test.afterAll(async () => {
   const problems: string[] = [];
-  const step = async (what: string, run: () => Promise<{ ok(): boolean; status(): number }>) => {
+  const step = async (what: string, run: () => Promise<{ ok(): boolean; status(): number }>, alsoFine: number[] = []) => {
     try {
       const res = await run();
-      if (!res.ok()) problems.push(`${what}: HTTP ${res.status()}`);
+      if (!res.ok() && !alsoFine.includes(res.status())) problems.push(`${what}: HTTP ${res.status()}`);
     } catch (e) {
       problems.push(`${what}: ${(e as Error).message}`);
     }
   };
   for (const id of created_questions) await step('delete question', () => sa.delete(`/question/${id}`));
-  // In reverse of how they were made. A curriculum the test already deleted answers 404: that is the state wanted.
+  // In reverse of how they were made. A curriculum a test already deleted (or one whose delete test failed half way) answers
+  // 400 ("doesn't exist") or 404: that is the state wanted, and the check below confirms it.
   for (const c of [...made].reverse()) {
     if (c.lesson) await step('delete lesson', () => sa.delete(`/lesson/${c.lesson}`));
     if (c.level) await step('delete level', () => sa.delete(`/level/${c.level}`));
     if (c.grade) await step('delete grade', () => sa.delete(`/grade/${c.grade}`));
-    if (!c.deleted) await step('delete curriculum', () => sa.delete(`/curriculum/${c.curriculum}`));
+    await step('delete curriculum', () => sa.delete(`/curriculum/${c.curriculum}`), [400, 404]);
     await step('delete subject', () => sa.delete(`/subject/${c.subject}`));
     // Checked: the rows no longer answer.
     await expectGone(sa, `/curriculum/${c.curriculum}`, 'the curriculum', problems);
@@ -333,10 +339,10 @@ test.describe('the curriculum list, signed in as the organisation\'s admin', () 
     await page.getByRole('alertdialog').getByRole('button', { name: 'Retire', exact: true }).click();
     await expect(row(page, c).getByTestId('retire-row')).toBeDisabled();
     release();
-    const notice = toasts(page).filter({ hasText: 'No learner server is set up here' });
+    const notice = toasts(page).filter({ hasText: pushSentence('Retired') });
     await expect(notice.first()).toBeVisible();
     await page.unrouteAll({ behavior: 'wait' });
-    expect(await notice.first().innerText(), 'the toast carries the API\'s sentence').toContain('Retired. No learner server is set up here, so nothing was pushed.');
+    expect(await notice.first().innerText(), 'the toast carries the API\'s sentence').toMatch(pushSentence('Retired'));
     await expect(pill(page, c)).toHaveText('Retired');
     await expect(pill(page, c)).toHaveAttribute('data-state', 'retired');
     expect((await overview(oa, c)).publicationstatus).toBe('withdrawn');
@@ -459,7 +465,7 @@ test.describe('the publish drawer, signed in as the organisation\'s admin', () =
     await expect(drawer(c).getByTestId('confirm-publish')).toHaveText('Publish');
     await drawer(c).getByTestId('confirm-publish').click();
     await expect(drawer(c)).toBeHidden();
-    await expect(toasts(page).filter({ hasText: 'Published. No learner server is set up here, so nothing was pushed.' })).toBeVisible();
+    await expect(toasts(page).filter({ hasText: pushSentence('Published') })).toBeVisible();
     await expect(pill(page, c)).toHaveText(`Published ${TODAY}`);
     expect((await overview(oa, c)).publicationstatus).toBe('published');
   });
@@ -505,7 +511,7 @@ test.describe('the publish drawer, signed in as the organisation\'s admin', () =
     await expect(drawer(c).getByTestId('confirm-publish')).toHaveText('Re-publish');
     await drawer(c).getByTestId('confirm-publish').click();
     await expect(drawer(c)).toBeHidden();
-    await expect(toasts(page).filter({ hasText: 'No learner server is set up here' })).toBeVisible();
+    await expect(toasts(page).filter({ hasText: pushSentence('Published') })).toBeVisible();
     expect((await overview(oa, c)).publicationid, 'a new publication was recorded').not.toBe(before);
   });
 
@@ -779,7 +785,6 @@ test.describe('deleting a curriculum, signed in as the organisation\'s admin', (
   }
 
   async function expectDeleted(c: Content): Promise<void> {
-    c.deleted = true; // the teardown does not delete it again
     const res = await oa.get(`/curriculum/${c.curriculum}`);
     const body: any = await res.json().catch(() => ({}));
     expect(res.status() === 404 || body?.data?.isdeleted === true || !body?.data, `the curriculum is gone: HTTP ${res.status()}`).toBeTruthy();
@@ -796,7 +801,7 @@ test.describe('deleting a curriculum, signed in as the organisation\'s admin', (
     const toast = deletedToast();
     await expect(toast).toBeVisible();
     const body = toast.locator('.ant-notification-notice-description');
-    await expect(body).toHaveText('Deleted. No learner server is set up here, so nothing was pushed.');
+    await expect(body).toHaveText(pushSentence('Deleted'));
     expect(await body.innerText(), 'the verb is said once').not.toContain('Curriculum deleted.');
     await expect(row(page, c)).toHaveCount(0);
     await expectDeleted(c);
@@ -948,7 +953,6 @@ test.describe('the curriculum map, signed in as the organisation\'s admin', () =
     await row(page, c).getByTestId('delete-row').click();
     await page.locator('.ant-popover').getByRole('button', { name: 'OK' }).click();
     await expect(row(page, c)).toHaveCount(0);
-    c.deleted = true;
     expect(await treeKey(), 'the key is gone').toBeNull();
     expect(await otherKey(), 'the question list\'s remembered search is still there').toBe('kept-search');
   });
