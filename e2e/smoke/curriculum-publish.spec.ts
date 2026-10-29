@@ -1,4 +1,4 @@
-import { APIRequestContext, Page, expect, test } from '@playwright/test';
+import { APIRequestContext, Locator, Page, expect, test } from '@playwright/test';
 import { format } from 'date-fns';
 import { ROLE } from '../fixtures/accounts';
 import { apiContext, apiLogin, jwtClaims, loginViaUi } from '../fixtures/auth';
@@ -56,6 +56,17 @@ const toasts = (p: Page) => p.locator('.ant-notification-notice');
  */
 const pushSentence = (verb: 'Published' | 'Retired' | 'Deleted') =>
   new RegExp(`${verb}\\. (No learner server is set up here, so nothing was pushed|The learner server has the organisation's published curricula)\\.`);
+
+/**
+ * Enabled, and still enabled a moment later. `toBeEnabled` alone passes in the frame before a binding disables the button
+ * (the row's pill is up a few milliseconds before the button's state is), which made a "must stay enabled" check pass on a
+ * build that disables it: the mutation proof caught that.
+ */
+async function expectStaysEnabled(button: Locator): Promise<void> {
+  await expect(button).toBeEnabled();
+  await button.page().waitForTimeout(500);
+  await expect(button).toBeEnabled();
+}
 
 async function created(res: Awaited<ReturnType<APIRequestContext['post']>>, what: string): Promise<any> {
   const body: any = await res.json().catch(() => ({}));
@@ -317,11 +328,11 @@ test.describe('the curriculum list, signed in as the organisation\'s admin', () 
     await expect(row(page, never).getByTestId('publish-row')).toBeEnabled();
     await openList(page, published);
     await expect(pill(page, published)).toHaveAttribute('data-state', 'published');
-    await expect(row(page, published).getByTestId('retire-row')).toBeEnabled();
+    await expectStaysEnabled(row(page, published).getByTestId('retire-row'));
     // retiring a retired curriculum pushes again: it is how a retire whose push failed is repeated
     await openList(page, retired);
     await expect(pill(page, retired)).toHaveText('Retired');
-    await expect(row(page, retired).getByTestId('retire-row')).toBeEnabled();
+    await expectStaysEnabled(row(page, retired).getByTestId('retire-row'));
   });
 
   test('Retire is disabled while it runs; the toast carries the API\'s push sentence and the row says Retired', async () => {
