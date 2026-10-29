@@ -5,7 +5,7 @@ import { NzDrawerModule } from 'ng-zorro-antd/drawer';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { Subscription, lastValueFrom } from 'rxjs';
 import { CurriculumService } from 'src/app/services/curriculum.service';
-import { clearListCaches } from 'src/app/services/list-cache';
+import { clearMapTreeCache } from 'src/app/services/list-cache';
 import { PublicationPillComponent } from './publication-pill.component';
 import { gatewayWords } from './publication-errors';
 import { PublicationOverview, Refusal, pillOf, pushMessage, pushToast, refusalOf, viewOf } from './publication.model';
@@ -129,7 +129,7 @@ export class PublishDrawerComponent implements OnDestroy {
     try {
       const answer = await lastValueFrom(this.service.publish(target.curriculumid));
       // The map keeps the tree, with each curriculum's state, in the session: what it holds is now old.
-      clearListCaches();
+      clearMapTreeCache();
       this.open.set(false);
       const toast = pushToast(answer.push);
       this.notification.create(

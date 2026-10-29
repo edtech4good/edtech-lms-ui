@@ -8,7 +8,7 @@ import { first, takeUntil } from 'rxjs/operators';
 import { IFilter, IPaging } from 'src/app/models/IPaging';
 import { confirmDialog } from 'src/app/modules/organisation/confirm-dialog';
 import { CurriculumService } from 'src/app/services/curriculum.service';
-import { clearListCaches } from 'src/app/services/list-cache';
+import { clearMapTreeCache } from 'src/app/services/list-cache';
 import { organisationOf, withOrganisationFilter } from 'src/app/shared/owner/owner-view';
 import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
 import { PublishDrawerComponent } from 'src/app/shared/publication/publish-drawer.component';
@@ -191,7 +191,7 @@ export class CurriculumIndexComponent implements OnDestroy {
     try {
       const answer = await lastValueFrom(this.curriculumService.retire(id));
       // The map keeps the tree, with each curriculum's state, in the session: what it holds is now old.
-      clearListCaches();
+      clearMapTreeCache();
       const toast = pushToast(answer.push);
       this.notification.create(
         toast.type,
@@ -225,7 +225,7 @@ export class CurriculumIndexComponent implements OnDestroy {
     // publication, so the learner server is told. A failed push does not undo the delete.
     const answer: any = await this.curriculumService.delete(curriculumid).pipe(first()).toPromise();
     // The map keeps the tree in the session: a deleted curriculum must not stay on it.
-    clearListCaches();
+    clearMapTreeCache();
     this.loadDataFromServer({
       filter: [...this.filter],
       pageindex: this.pageIndex,

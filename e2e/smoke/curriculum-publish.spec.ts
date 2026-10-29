@@ -835,7 +835,17 @@ test.describe('the curriculum map, signed in as the organisation\'s admin', () =
       .first()
       .getByTestId('publication-pill');
   const treeKey = () => page.evaluate((key) => sessionStorage.getItem(key), TREE_KEY);
-  const seedTreeKey = () => page.evaluate((key) => sessionStorage.setItem(key, '[]'), TREE_KEY);
+  /** Another list's remembered search (the question list's): a publish, retire or delete must leave it where it is. */
+  const OTHER_KEY = 'storeTagValue';
+  const seedTreeKey = () =>
+    page.evaluate(
+      ([key, other]) => {
+        sessionStorage.setItem(key, '[]');
+        sessionStorage.setItem(other, 'kept-search');
+      },
+      [TREE_KEY, OTHER_KEY],
+    );
+  const otherKey = () => page.evaluate((key) => sessionStorage.getItem(key), OTHER_KEY);
 
   test('a curriculum node shows Never published, Published and Retired (no "changed": the tree does not carry it)', async () => {
     const c = await makeContent(oa);
@@ -860,6 +870,7 @@ test.describe('the curriculum map, signed in as the organisation\'s admin', () =
     await page.getByRole('dialog', { name: `Publish ${c.curriculumName}` }).getByTestId('confirm-publish').click();
     await expect(pill(page, c)).toHaveText(`Published ${TODAY}`);
     expect(await treeKey(), 'the key is gone').toBeNull();
+    expect(await otherKey(), 'the question list\'s remembered search is still there').toBe('kept-search');
   });
 
   test('a retire from the list empties the map\'s cached tree', async () => {
@@ -871,6 +882,7 @@ test.describe('the curriculum map, signed in as the organisation\'s admin', () =
     await page.getByRole('alertdialog').getByRole('button', { name: 'Retire', exact: true }).click();
     await expect(pill(page, c)).toHaveText('Retired');
     expect(await treeKey(), 'the key is gone').toBeNull();
+    expect(await otherKey(), 'the question list\'s remembered search is still there').toBe('kept-search');
   });
 
   test('a delete from the list empties the map\'s cached tree', async () => {
@@ -882,6 +894,7 @@ test.describe('the curriculum map, signed in as the organisation\'s admin', () =
     await expect(row(page, c)).toHaveCount(0);
     c.deleted = true;
     expect(await treeKey(), 'the key is gone').toBeNull();
+    expect(await otherKey(), 'the question list\'s remembered search is still there').toBe('kept-search');
   });
 
   test('a map opened from a node, then a publish, then the map again shows the new state, not the kept tree', async () => {

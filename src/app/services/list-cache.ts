@@ -3,11 +3,14 @@
  * organisation), and the question list's remembered search. A copy read in one organisation must never be shown in
  * another, so these are dropped whenever the acting organisation changes, on sign-in and on sign-out.
  */
+/** The session key the curriculum map keeps its tree under (map-index.component.ts). */
+export const MAP_TREE_CACHE_KEY = 'JqGJMqfgE9HEU6hC';
+
 export const LIST_CACHE_KEYS = [
   'lessonData',
   'tempData',
   'filter',
-  'JqGJMqfgE9HEU6hC',
+  MAP_TREE_CACHE_KEY,
   'Question',
   'storeTagValue',
   'storeIdentifierValue',
@@ -24,6 +27,19 @@ export function clearListCaches(storage: Pick<Storage, 'removeItem'> | null = sa
     } catch {
       /* storage blocked: nothing was kept */
     }
+  }
+}
+
+/**
+ * Drops only the map's remembered tree (it holds each curriculum's publication state, so a publish, retire or delete
+ * makes it old). The question list's search, the lesson list and the page index are the person's, and stay.
+ */
+export function clearMapTreeCache(storage: Pick<Storage, 'removeItem'> | null = safeStorage()): void {
+  if (!storage) return;
+  try {
+    storage.removeItem(MAP_TREE_CACHE_KEY);
+  } catch {
+    /* storage blocked: nothing was kept */
   }
 }
 
