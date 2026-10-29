@@ -13,7 +13,16 @@ import { organisationOf, withOrganisationFilter } from 'src/app/shared/owner/own
 import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
 import { PublishDrawerComponent } from 'src/app/shared/publication/publish-drawer.component';
 import { refusalText } from 'src/app/shared/publication/publication-errors';
-import { Pill, PublicationOverview, PushOutcome, pillOf, pushMessage, pushToast, refusalOf } from 'src/app/shared/publication/publication.model';
+import { Pill, PublicationOverview, pillOf, pushMessage, pushToast, refusalOf } from 'src/app/shared/publication/publication.model';
+
+/** One row of the curriculum list endpoint: the fields this screen reads. */
+export interface CurriculumRow {
+  curriculumid: string;
+  curriculumname: string;
+  organisationid?: string | null;
+  countryid: string[];
+  subjectid: string;
+}
 
 /** What a row knows of its publication state: being read, read, or not readable (shown as a dash). */
 export type RowState = { kind: 'loading' } | { kind: 'ready'; overview: PublicationOverview; pill: Pill } | { kind: 'failed' };
@@ -41,7 +50,7 @@ export class CurriculumIndexComponent implements OnDestroy {
   dataloading = false;
   searchValue = '';
   total = 1;
-  data: Array<any> = [];
+  data: Array<CurriculumRow> = [];
   pageSize = 10;
   pageIndex = 1;
   filter: Array<IFilter> = [];
@@ -108,7 +117,7 @@ export class CurriculumIndexComponent implements OnDestroy {
   private destroyed = false;
 
   /** Opens the publish drawer for a row. */
-  openPublish(row: any): void {
+  openPublish(row: CurriculumRow): void {
     this.drawer?.show({ curriculumid: row.curriculumid, curriculumname: row.curriculumname });
   }
 
@@ -150,7 +159,7 @@ export class CurriculumIndexComponent implements OnDestroy {
    * interceptor has already said why, once. After a failure other than a missing row the reads stop and the rest show a
    * dash too: a service that failed once would fail for the others, and the person would be toasted once per row.
    */
-  private async readStates(rows: any[]): Promise<void> {
+  private async readStates(rows: CurriculumRow[]): Promise<void> {
     if (this.destroyed) return;
     const run = ++this.statesRun;
     this.readsAbandoned.next();
@@ -184,7 +193,7 @@ export class CurriculumIndexComponent implements OnDestroy {
     }
   }
 
-  confirmRetire(row: any): void {
+  confirmRetire(row: CurriculumRow): void {
     confirmDialog(this.modal, {
       nzTitle: `Retire “${row.curriculumname}”?`,
       nzContent: 'Learners lose this curriculum at their next sync. Their progress is kept.',
@@ -195,7 +204,7 @@ export class CurriculumIndexComponent implements OnDestroy {
     });
   }
 
-  private async retire(row: any): Promise<void> {
+  private async retire(row: CurriculumRow): Promise<void> {
     const id: string = row.curriculumid;
     this.busy.add(id);
     try {
@@ -221,7 +230,7 @@ export class CurriculumIndexComponent implements OnDestroy {
    * The retire call is made with FAILURES_SHOWN_BY_CALLER, so the interceptor said nothing: every status is worded here,
    * in one toast. A curriculum that is gone is dropped from the list.
    */
-  private retireFailed(row: any, error: HttpErrorResponse): void {
+  private retireFailed(row: CurriculumRow, error: HttpErrorResponse): void {
     const title = `Couldn't retire “${row.curriculumname}”`;
     const refusal = refusalOf(error.status, error.error);
     this.notification.error(title, refusalText(refusal, error));
@@ -233,7 +242,7 @@ export class CurriculumIndexComponent implements OnDestroy {
   deletetag = async (curriculumid: string) => {
     // The answer says how pushing the published set to the learner server went (`push`): a delete withdraws the
     // publication, so the learner server is told. A failed push does not undo the delete.
-    const answer: any = await this.curriculumService.delete(curriculumid).pipe(first()).toPromise();
+    const answer = await lastValueFrom(this.curriculumService.delete(curriculumid));
     // The map keeps the tree in the session: a deleted curriculum must not stay on it.
     clearMapTreeCache();
     this.loadDataFromServer({
@@ -241,7 +250,7 @@ export class CurriculumIndexComponent implements OnDestroy {
       pageindex: this.pageIndex,
       pagesize: this.pageSize,
     });
-    const push: PushOutcome | undefined = answer?.push;
+    const push = answer.push;
     const toast = pushToast(push);
     this.notification.create(
       toast.type,

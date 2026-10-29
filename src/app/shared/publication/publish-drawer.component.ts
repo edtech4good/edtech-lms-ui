@@ -69,6 +69,11 @@ export class PublishDrawerComponent implements OnDestroy {
     const r = this.refusal();
     return r?.kind === 'invalid' ? r : null;
   });
+  /** A refusal that is a sentence and nothing more (a 409, a 403, anything else): the drawer shows its message. */
+  readonly plain = computed(() => {
+    const r = this.refusal();
+    return r?.kind === 'conflict' || r?.kind === 'forbidden' || r?.kind === 'other' ? r : null;
+  });
 
   /** The overview read in flight, if any: a read for an earlier curriculum must never answer for the one now shown. */
   private read: Subscription | null = null;

@@ -49,9 +49,10 @@
             </td>
             <td>{{ data.subjectid }}</td>
             <td [attr.data-testid]="'state-' + data.curriculumid">
-              @switch (stateOf(data.curriculumid).kind) {
+              @let state = stateOf(data.curriculumid);
+              @switch (state.kind) {
                 @case ('ready') {
-                  <app-publication-pill [pill]="$any(stateOf(data.curriculumid)).pill"></app-publication-pill>
+                  <app-publication-pill [pill]="state.pill"></app-publication-pill>
                 }
                 @case ('failed') {
                   <span class="state-unknown" title="The state could not be read" data-testid="state-unknown">—</span>

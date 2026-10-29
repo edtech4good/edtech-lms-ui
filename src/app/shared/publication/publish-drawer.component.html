@@ -56,9 +56,9 @@
                       }
                     </ul>
                   }
-                } @else {
-                  <span>{{ $any(refusal).message }}</span>
-                  @if (refusal.kind === 'conflict') {
+                } @else if (plain(); as plain) {
+                  <span>{{ plain.message }}</span>
+                  @if (plain.kind === 'conflict') {
                     <button type="button" class="link" data-testid="publish-reload" (click)="load()">Reload</button>
                   }
                 }

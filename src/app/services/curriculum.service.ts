@@ -4,7 +4,13 @@ import { Observable, map } from 'rxjs';
 import { FAILURES_SHOWN_BY_CALLER } from 'src/app/interceptors/error-context';
 import { IPaging } from 'src/app/models/IPaging';
 import { CoreService } from 'src/app/services/core.service';
-import { PublicationOverview, PublishAnswer, RetireAnswer } from 'src/app/shared/publication/publication.model';
+import { PublicationOverview, PublishAnswer, PushOutcome, RetireAnswer } from 'src/app/shared/publication/publication.model';
+
+/** What the curriculum delete answers (central: `DELETE curriculum/:id`). */
+export interface DeleteAnswer {
+  data: boolean;
+  push: PushOutcome;
+}
 
 @Injectable({
   providedIn: 'root',
@@ -22,8 +28,9 @@ export class CurriculumService {
     );
   }
 
+  /** Deletes the curriculum. The answer says how pushing the published set to the learner server went (`push`). */
   delete(curriculumid: string) {
-    return this.http.delete(
+    return this.http.delete<DeleteAnswer>(
       `${this.coreService.CORE_API()}curriculum/${curriculumid}`,
       this.coreService.jsonhttpOptions
     );
