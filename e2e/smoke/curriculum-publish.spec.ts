@@ -344,6 +344,41 @@ test.describe('the curriculum list, signed in as the organisation\'s admin', () 
     }
   });
 
+  test('the curriculum editor\'s header shows the pill: Published on a published curriculum, Never published on one that was not', async () => {
+    const published = await makeContent(oa);
+    await publishViaApi(oa, published);
+    const never = await makeContent(oa);
+    const editorPill = () => page.getByTestId('editor-publication').getByTestId('publication-pill');
+    await openList(page, published);
+    await row(page, published).getByRole('link', { name: 'Edit' }).click();
+    await expect(page).toHaveURL(new RegExp(`/curriculum/update/${published.curriculum}$`));
+    await expect(editorPill()).toHaveText(`Published ${TODAY}`);
+    await expect(editorPill()).toHaveAttribute('data-state', 'published');
+    await openList(page, never);
+    await row(page, never).getByRole('link', { name: 'Edit' }).click();
+    await expect(page).toHaveURL(new RegExp(`/curriculum/update/${never.curriculum}$`));
+    await expect(editorPill()).toHaveText('Never published');
+    await expect(editorPill()).toHaveAttribute('data-state', 'never');
+    // the header offers no action
+    await expect(page.getByTestId('editor-publication').getByRole('button')).toHaveCount(0);
+  });
+
+  test('the editor\'s header says a dash, and no toast, when the state cannot be read', async () => {
+    const c = await makeContent(oa);
+    await page.route('**/curriculum/publication/*', async (route) => {
+      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ error: true, errormessage: 'The state is not available.' }) });
+    });
+    try {
+      await page.goto(`/curriculum/update/${c.curriculum}`);
+      await expect(page.getByTestId('editor-state-unknown')).toHaveText('—');
+      await expect(page.getByTestId('editor-publication').getByTestId('publication-pill')).toHaveCount(0);
+      await page.waitForTimeout(500);
+      expect(await toasts(page).filter({ hasText: 'The state is not available.' }).count(), 'quietly: no toast').toBe(0);
+    } finally {
+      await page.unrouteAll({ behavior: 'wait' });
+    }
+  });
+
   test('leaving the list stops the state reads: none goes out after the person is on another screen', async () => {
     // three rows or more, answered slowly one after the other, so reads are still to come when the person leaves
     for (let i = 0; i < 3; i += 1) await makeContent(oa);

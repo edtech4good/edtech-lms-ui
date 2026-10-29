@@ -2,17 +2,19 @@ import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
+  OnDestroy,
   OnInit,
 } from '@angular/core';
 import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
-import { Observable } from 'rxjs';
+import { Observable, Subscription } from 'rxjs';
 import { catchError, first, map } from 'rxjs/operators';
 import { CountryService } from 'src/app/services/country.service';
 import { CurriculumService } from 'src/app/services/curriculum.service';
 import { SubjectService } from 'src/app/services/subject.service';
 import { UtilService } from 'src/app/services/util.service';
+import { Pill, pillOf } from 'src/app/shared/publication/publication.model';
 
 @Component({
     selector: 'app-curriculum-update',
@@ -20,13 +22,18 @@ import { UtilService } from 'src/app/services/util.service';
     styleUrls: ['./curriculum-update.component.less'],
     standalone: false
 })
-export class CurriculumUpdateComponent implements OnInit {
+export class CurriculumUpdateComponent implements OnInit, OnDestroy {
   dataloading = false;
   country$?: Observable<any>;
   subject$?: Observable<any>;
   valid = false;
   editForm!: UntypedFormGroup;
   curriculum: any;
+  /** The curriculum's publication state, shown in the header: read once on load (nothing acts on it here). */
+  publicationPill: Pill | null = null;
+  /** The state could not be read: the header says a dash, quietly. */
+  publicationUnknown = false;
+  private publicationRead?: Subscription;
   async submiteditForm() {
     this.restrictSpecialCharecter();
     this.utilservice.checkFormDirty(this.editForm);
@@ -91,6 +98,15 @@ export class CurriculumUpdateComponent implements OnInit {
       this.router.navigate(['curriculum/index']);
       return;
     }
+    // The header's pill. Every failure is the header's own (a dash): the interceptor says nothing.
+    this.publicationRead = this.dts.publication(curriculumid, true).subscribe({
+      next: (overview) => {
+        this.publicationPill = pillOf(overview);
+      },
+      error: () => {
+        this.publicationUnknown = true;
+      },
+    });
     // load all country
     this.country$ = this.countryService.getall({ pagesize: 200 }).pipe(
       catchError((x: any) => []),
@@ -141,6 +157,9 @@ export class CurriculumUpdateComponent implements OnInit {
           this.dataloading = false;
         }, 400);
       });
+  }
+  ngOnDestroy(): void {
+    this.publicationRead?.unsubscribe();
   }
   restrictSpecialCharecter() {
     const scholname = this.editForm.get('curriculumname')?.value;
