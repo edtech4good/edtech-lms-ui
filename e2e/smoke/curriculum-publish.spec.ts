@@ -343,6 +343,32 @@ test.describe('the curriculum list, signed in as the organisation\'s admin', () 
       await page.unrouteAll({ behavior: 'wait' });
     }
   });
+
+  test('leaving the list stops the state reads: none goes out after the person is on another screen', async () => {
+    // three rows or more, answered slowly one after the other, so reads are still to come when the person leaves
+    for (let i = 0; i < 3; i += 1) await makeContent(oa);
+    await page.route('**/curriculum/publication/*', async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await route.continue().catch(() => undefined);
+    });
+    try {
+      await page.goto('/curriculum/index');
+      await expect(page.getByTestId('publication-pill').first()).toBeVisible();
+      const late: string[] = [];
+      const record = (r: import('@playwright/test').Request) => {
+        if (r.method() === 'GET' && /\/curriculum\/publication\//.test(r.url())) late.push(r.url());
+      };
+      // leave through the menu (a router navigation, not a reload), then watch for two seconds
+      await page.locator('nav[aria-label="Main"]').getByRole('link', { name: 'Home', exact: true }).click();
+      await expect(page).toHaveURL(/\/dashboard\/index$/);
+      page.on('request', record);
+      await page.waitForTimeout(2000);
+      page.off('request', record);
+      expect(late, 'no state read after the list was left').toEqual([]);
+    } finally {
+      await page.unrouteAll({ behavior: 'wait' });
+    }
+  });
 });
 
 // ---- the publish drawer -----------------------------------------------------------------------------

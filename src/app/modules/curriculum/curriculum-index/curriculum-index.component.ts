@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, ViewChild, inject } from '@angular/core';
+import { Component, OnDestroy, ViewChild, inject } from '@angular/core';
 import { NzModalService } from 'ng-zorro-antd/modal';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
@@ -24,7 +24,7 @@ export type RowState = { kind: 'loading' } | { kind: 'ready'; overview: Publicat
     styleUrls: ['./curriculum-index.component.less'],
     standalone: false
 })
-export class CurriculumIndexComponent {
+export class CurriculumIndexComponent implements OnDestroy {
   readonly owner = inject(OwnerViewService);
   /** The organisation the platform view is narrowed to (null: all). */
   get organisationFilter(): string | null {
@@ -98,6 +98,15 @@ export class CurriculumIndexComponent {
 
   @ViewChild(PublishDrawerComponent) private drawer?: PublishDrawerComponent;
 
+  /** The person left the list: the reads that are left are dropped, so none goes out (or toasts) on another screen. */
+  ngOnDestroy(): void {
+    this.destroyed = true;
+    this.statesRun++;
+    this.readsAbandoned.next();
+  }
+  /** The list is gone: a list answer that lands late starts no reads. */
+  private destroyed = false;
+
   /** Opens the publish drawer for a row. */
   openPublish(row: any): void {
     this.drawer?.show({ curriculumid: row.curriculumid, curriculumname: row.curriculumname });
@@ -132,6 +141,7 @@ export class CurriculumIndexComponent {
    * dash too: a service that failed once would fail for the others, and the person would be toasted once per row.
    */
   private async readStates(rows: any[]): Promise<void> {
+    if (this.destroyed) return;
     const run = ++this.statesRun;
     this.readsAbandoned.next();
     this.states = new Map(rows.map((r) => [r.curriculumid, { kind: 'loading' } as RowState]));
