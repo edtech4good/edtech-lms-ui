@@ -1,11 +1,20 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject } from '@angular/core';
+import { NzModalService } from 'ng-zorro-antd/modal';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
-import { first } from 'rxjs/operators';
+import { EmptyError, Subject, lastValueFrom } from 'rxjs';
+import { first, takeUntil } from 'rxjs/operators';
 import { IFilter, IPaging } from 'src/app/models/IPaging';
+import { confirmDialog } from 'src/app/modules/organisation/confirm-dialog';
 import { CurriculumService } from 'src/app/services/curriculum.service';
 import { organisationOf, withOrganisationFilter } from 'src/app/shared/owner/owner-view';
 import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
+import { refusalText } from 'src/app/shared/publication/publication-errors';
+import { Pill, PublicationOverview, pillOf, pushMessage, pushToast, refusalOf } from 'src/app/shared/publication/publication.model';
+
+/** What a row knows of its publication state: being read, read, or not readable (shown as a dash). */
+export type RowState = { kind: 'loading' } | { kind: 'ready'; overview: PublicationOverview; pill: Pill } | { kind: 'failed' };
 
 @Component({
     selector: 'app-curriculum-index',
@@ -48,6 +57,7 @@ export class CurriculumIndexComponent {
         (tempdata: any) => {
           this.total = tempdata.data.total;
           this.data = tempdata.data.data;
+          void this.readStates(this.data);
         },
         (error) => {
           if(error) {
@@ -74,6 +84,106 @@ export class CurriculumIndexComponent {
     });
   }
 
+  // ---- Publication state ---------------------------------------------------------------------
+  /** Each row's state, by curriculum id. The list endpoint carries none, so it is read once per row after the rows load. */
+  states = new Map<string, RowState>();
+  /** Curricula with a publish or retire running: their actions are disabled until it answers. */
+  private readonly busy = new Set<string>();
+  /** Which load the state reads belong to: a newer load abandons the older one's reads. */
+  private statesRun = 0;
+  /** Fires when a newer load starts: the read in flight is cancelled, so it neither toasts nor takes the server's time. */
+  private readonly readsAbandoned = new Subject<void>();
+
+  stateOf(curriculumid: string): RowState {
+    return this.states.get(curriculumid) ?? { kind: 'loading' };
+  }
+
+  isBusy(curriculumid: string): boolean {
+    return this.busy.has(curriculumid);
+  }
+
+  /**
+   * Reads the overview of each row, one after the other. A row whose overview cannot be read shows a dash; the error
+   * interceptor has already said why, once. After a failure other than a missing row the reads stop and the rest show a
+   * dash too: a service that failed once would fail for the others, and the person would be toasted once per row.
+   */
+  private async readStates(rows: any[]): Promise<void> {
+    const run = ++this.statesRun;
+    this.readsAbandoned.next();
+    this.states = new Map(rows.map((r) => [r.curriculumid, { kind: 'loading' } as RowState]));
+    let stopped = false;
+    for (const row of rows) {
+      if (run !== this.statesRun) return;
+      if (stopped) {
+        this.states.set(row.curriculumid, { kind: 'failed' });
+        continue;
+      }
+      try {
+        const overview = await lastValueFrom(this.curriculumService.publication(row.curriculumid).pipe(takeUntil(this.readsAbandoned)));
+        if (run !== this.statesRun) return;
+        this.states.set(row.curriculumid, { kind: 'ready', overview, pill: pillOf(overview) });
+      } catch (e) {
+        if (e instanceof EmptyError || run !== this.statesRun) return;
+        this.states.set(row.curriculumid, { kind: 'failed' });
+        if ((e as HttpErrorResponse).status !== 404) stopped = true;
+      }
+    }
+  }
+
+  /** Reads one row's overview again (after a publish or a retire). */
+  async refreshState(curriculumid: string): Promise<void> {
+    try {
+      const overview = await lastValueFrom(this.curriculumService.publication(curriculumid));
+      this.states.set(curriculumid, { kind: 'ready', overview, pill: pillOf(overview) });
+    } catch {
+      this.states.set(curriculumid, { kind: 'failed' });
+    }
+  }
+
+  confirmRetire(row: any): void {
+    confirmDialog(this.modal, {
+      nzTitle: `Retire “${row.curriculumname}”?`,
+      nzContent: 'Learners lose this curriculum at their next sync. Their progress is kept.',
+      nzOkText: 'Retire',
+      nzOkDanger: true,
+      nzCancelText: 'Cancel',
+      nzOnOk: () => this.retire(row),
+    });
+  }
+
+  private async retire(row: any): Promise<void> {
+    const id: string = row.curriculumid;
+    this.busy.add(id);
+    try {
+      const answer = await lastValueFrom(this.curriculumService.retire(id));
+      const toast = pushToast(answer.push);
+      this.notification.create(
+        toast.type,
+        toast.type === 'error' ? `Retired “${row.curriculumname}”, but the push failed` : 'Retired',
+        pushMessage(answer.push) || `“${row.curriculumname}” was retired.`,
+        { nzDuration: toast.duration }
+      );
+      await this.refreshState(id);
+    } catch (e) {
+      this.retireFailed(row, e as HttpErrorResponse);
+    } finally {
+      this.busy.delete(id);
+    }
+  }
+
+  /**
+   * The retire call is made with FAILURES_SHOWN_BY_CALLER, so the interceptor said nothing: every status is worded here,
+   * in one toast. A curriculum that is gone is dropped from the list.
+   */
+  private retireFailed(row: any, error: HttpErrorResponse): void {
+    const title = `Couldn't retire “${row.curriculumname}”`;
+    const refusal = refusalOf(error.status, error.error);
+    this.notification.error(title, refusalText(refusal, error));
+    if (refusal.kind === 'missing') {
+      this.loadDataFromServer({ filter: [...this.filter], pageindex: this.pageIndex, pagesize: this.pageSize });
+    }
+  }
+
   deletetag = async (curriculumid: string) => {
     await this.curriculumService.delete(curriculumid).pipe(first()).toPromise();
     this.loadDataFromServer({
@@ -90,7 +200,8 @@ export class CurriculumIndexComponent {
 
   constructor(
     private curriculumService: CurriculumService,
-    private readonly notification: NzNotificationService
+    private readonly notification: NzNotificationService,
+    private readonly modal: NzModalService
   ) {}
 
   async search() {

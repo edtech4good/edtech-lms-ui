@@ -34,6 +34,7 @@
             <th *ngIf="owner.active()" nzColumnKey="">Organisation</th>
             <th nzColumnKey="">Country</th>
             <th nzColumnKey="">Subject</th>
+            <th nzColumnKey="">State</th>
             <th nzColumnKey="">Tools</th>
           </tr>
         </thead>
@@ -47,7 +48,34 @@
               </div>
             </td>
             <td>{{ data.subjectid }}</td>
+            <td [attr.data-testid]="'state-' + data.curriculumid">
+              @switch (stateOf(data.curriculumid).kind) {
+                @case ('ready') {
+                  <app-publication-pill [pill]="$any(stateOf(data.curriculumid)).pill"></app-publication-pill>
+                }
+                @case ('failed') {
+                  <span class="state-unknown" title="The state could not be read" data-testid="state-unknown">—</span>
+                }
+                @default {
+                  <span class="state-unknown" role="status" aria-label="Reading the state" data-testid="state-loading">…</span>
+                }
+              }
+            </td>
             <td>
+              <button
+                nz-button
+                nzSize="small"
+                type="button"
+                style="margin-right: 12px"
+                data-testid="retire-row"
+                [attr.aria-label]="'Retire ' + data.curriculumname"
+                [disabled]="isBusy(data.curriculumid)"
+                (click)="confirmRetire(data)"
+                *ngxPermissionsOnly="['publish_curriculum']"
+              >
+                Retire
+              </button>
+
               <a
                 nz-button
                 nzDanger
