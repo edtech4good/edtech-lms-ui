@@ -86,5 +86,14 @@
     </nz-card>
   </div>
 </div>
-<ng-template #titleTpl>Curriculum <app-owned-by [id]="curriculum?.organisationid"></app-owned-by></ng-template>
+<ng-template #titleTpl>Curriculum <app-owned-by [id]="curriculum?.organisationid"></app-owned-by>
+  <!-- Where the curriculum stands with learners, read once; no actions here (Publish and Retire are on the list). -->
+  <span class="header-state" data-testid="editor-publication">
+    @if (publicationPill) {
+      <app-publication-pill [pill]="publicationPill"></app-publication-pill>
+    } @else if (publicationUnknown) {
+      <span class="state-unknown" title="The state could not be read" data-testid="editor-state-unknown">—</span>
+    }
+  </span>
+</ng-template>
 <ng-template #translationsTpl><app-translations-panel tablename="curriculums" [rowid]="curriculum?.curriculumid" [row]="curriculum" what="Curriculum"></app-translations-panel></ng-template>

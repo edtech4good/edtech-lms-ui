@@ -1,11 +1,31 @@
-import { Component, inject } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Component, OnDestroy, ViewChild, inject } from '@angular/core';
+import { NzModalService } from 'ng-zorro-antd/modal';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
-import { first } from 'rxjs/operators';
+import { EmptyError, Subject, lastValueFrom } from 'rxjs';
+import { first, takeUntil } from 'rxjs/operators';
 import { IFilter, IPaging } from 'src/app/models/IPaging';
+import { confirmDialog } from 'src/app/modules/organisation/confirm-dialog';
 import { CurriculumService } from 'src/app/services/curriculum.service';
+import { clearMapTreeCache } from 'src/app/services/list-cache';
 import { organisationOf, withOrganisationFilter } from 'src/app/shared/owner/owner-view';
 import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
+import { PublishDrawerComponent } from 'src/app/shared/publication/publish-drawer.component';
+import { refusalText } from 'src/app/shared/publication/publication-errors';
+import { Pill, PublicationOverview, pillOf, pushMessage, pushToast, refusalOf } from 'src/app/shared/publication/publication.model';
+
+/** One row of the curriculum list endpoint: the fields this screen reads. */
+export interface CurriculumRow {
+  curriculumid: string;
+  curriculumname: string;
+  organisationid?: string | null;
+  countryid: string[];
+  subjectid: string;
+}
+
+/** What a row knows of its publication state: being read, read, or not readable (shown as a dash). */
+export type RowState = { kind: 'loading' } | { kind: 'ready'; overview: PublicationOverview; pill: Pill } | { kind: 'failed' };
 
 @Component({
     selector: 'app-curriculum-index',
@@ -13,7 +33,7 @@ import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
     styleUrls: ['./curriculum-index.component.less'],
     standalone: false
 })
-export class CurriculumIndexComponent {
+export class CurriculumIndexComponent implements OnDestroy {
   readonly owner = inject(OwnerViewService);
   /** The organisation the platform view is narrowed to (null: all). */
   get organisationFilter(): string | null {
@@ -30,7 +50,7 @@ export class CurriculumIndexComponent {
   dataloading = false;
   searchValue = '';
   total = 1;
-  data: Array<any> = [];
+  data: Array<CurriculumRow> = [];
   pageSize = 10;
   pageIndex = 1;
   filter: Array<IFilter> = [];
@@ -48,6 +68,7 @@ export class CurriculumIndexComponent {
         (tempdata: any) => {
           this.total = tempdata.data.total;
           this.data = tempdata.data.data;
+          void this.readStates(this.data);
         },
         (error) => {
           if(error) {
@@ -74,23 +95,176 @@ export class CurriculumIndexComponent {
     });
   }
 
+  // ---- Publication state ---------------------------------------------------------------------
+  /** Each row's state, by curriculum id. The list endpoint carries none, so it is read once per row after the rows load. */
+  states = new Map<string, RowState>();
+  /** Curricula with a publish or retire running: their actions are disabled until it answers. */
+  private readonly busy = new Set<string>();
+  /** Which load the state reads belong to: a newer load abandons the older one's reads. */
+  private statesRun = 0;
+  /** Fires when a newer load starts: the read in flight is cancelled, so it neither toasts nor takes the server's time. */
+  private readonly readsAbandoned = new Subject<void>();
+
+  @ViewChild(PublishDrawerComponent) private drawer?: PublishDrawerComponent;
+
+  /** The person left the list: the reads that are left are dropped, so none goes out (or toasts) on another screen. */
+  ngOnDestroy(): void {
+    this.destroyed = true;
+    this.statesRun++;
+    this.readsAbandoned.next();
+  }
+  /** The list is gone: a list answer that lands late starts no reads. */
+  private destroyed = false;
+
+  /** Opens the publish drawer for a row. */
+  openPublish(row: CurriculumRow): void {
+    this.drawer?.show({ curriculumid: row.curriculumid, curriculumname: row.curriculumname });
+  }
+
+  /** The drawer published the curriculum: its row reads its state again. */
+  async onPublished(curriculumid: string): Promise<void> {
+    this.busy.add(curriculumid);
+    try {
+      await this.refreshState(curriculumid);
+    } finally {
+      this.busy.delete(curriculumid);
+    }
+  }
+
+  /** The drawer found the curriculum gone: the list is read again. */
+  onMissing(): void {
+    this.loadDataFromServer({ filter: [...this.filter], pageindex: this.pageIndex, pagesize: this.pageSize });
+  }
+
+  stateOf(curriculumid: string): RowState {
+    return this.states.get(curriculumid) ?? { kind: 'loading' };
+  }
+
+  isBusy(curriculumid: string): boolean {
+    return this.busy.has(curriculumid);
+  }
+
+  /**
+   * Whether Retire is off for the row: while a call runs, and for a curriculum that was never published (learners never had
+   * it: nothing to take away). A retired curriculum keeps it, because retiring again pushes again (the way to repeat a retire
+   * whose push failed), and so does a row whose state could not be read.
+   */
+  retireDisabled(curriculumid: string): boolean {
+    const state = this.stateOf(curriculumid);
+    return this.isBusy(curriculumid) || (state.kind === 'ready' && state.overview.publicationstatus === 'never');
+  }
+
+  /**
+   * Reads the overview of each row, one after the other. A row whose overview cannot be read shows a dash; the error
+   * interceptor has already said why, once. After a failure other than a missing row the reads stop and the rest show a
+   * dash too: a service that failed once would fail for the others, and the person would be toasted once per row.
+   */
+  private async readStates(rows: CurriculumRow[]): Promise<void> {
+    if (this.destroyed) return;
+    const run = ++this.statesRun;
+    this.readsAbandoned.next();
+    this.states = new Map(rows.map((r) => [r.curriculumid, { kind: 'loading' } as RowState]));
+    let stopped = false;
+    for (const row of rows) {
+      if (run !== this.statesRun) return;
+      if (stopped) {
+        this.states.set(row.curriculumid, { kind: 'failed' });
+        continue;
+      }
+      try {
+        const overview = await lastValueFrom(this.curriculumService.publication(row.curriculumid).pipe(takeUntil(this.readsAbandoned)));
+        if (run !== this.statesRun) return;
+        this.states.set(row.curriculumid, { kind: 'ready', overview, pill: pillOf(overview) });
+      } catch (e) {
+        if (e instanceof EmptyError || run !== this.statesRun) return;
+        this.states.set(row.curriculumid, { kind: 'failed' });
+        if ((e as HttpErrorResponse).status !== 404) stopped = true;
+      }
+    }
+  }
+
+  /** Reads one row's overview again (after a publish or a retire). */
+  async refreshState(curriculumid: string): Promise<void> {
+    try {
+      const overview = await lastValueFrom(this.curriculumService.publication(curriculumid));
+      this.states.set(curriculumid, { kind: 'ready', overview, pill: pillOf(overview) });
+    } catch {
+      this.states.set(curriculumid, { kind: 'failed' });
+    }
+  }
+
+  confirmRetire(row: CurriculumRow): void {
+    confirmDialog(this.modal, {
+      nzTitle: `Retire “${row.curriculumname}”?`,
+      nzContent: 'Learners lose this curriculum at their next sync. Their progress is kept.',
+      nzOkText: 'Retire',
+      nzOkDanger: true,
+      nzCancelText: 'Cancel',
+      nzOnOk: () => this.retire(row),
+    });
+  }
+
+  private async retire(row: CurriculumRow): Promise<void> {
+    const id: string = row.curriculumid;
+    this.busy.add(id);
+    try {
+      const answer = await lastValueFrom(this.curriculumService.retire(id));
+      // The map keeps the tree, with each curriculum's state, in the session: what it holds is now old.
+      clearMapTreeCache();
+      const toast = pushToast(answer.push);
+      this.notification.create(
+        toast.type,
+        toast.type === 'error' ? `Retired “${row.curriculumname}”, but the push failed` : 'Retired',
+        pushMessage(answer.push) || `“${row.curriculumname}” was retired.`,
+        { nzDuration: toast.duration }
+      );
+      await this.refreshState(id);
+    } catch (e) {
+      this.retireFailed(row, e as HttpErrorResponse);
+    } finally {
+      this.busy.delete(id);
+    }
+  }
+
+  /**
+   * The retire call is made with FAILURES_SHOWN_BY_CALLER, so the interceptor said nothing: every status is worded here,
+   * in one toast. A curriculum that is gone is dropped from the list.
+   */
+  private retireFailed(row: CurriculumRow, error: HttpErrorResponse): void {
+    const title = `Couldn't retire “${row.curriculumname}”`;
+    const refusal = refusalOf(error.status, error.error);
+    this.notification.error(title, refusalText(refusal, error));
+    if (refusal.kind === 'missing') {
+      this.loadDataFromServer({ filter: [...this.filter], pageindex: this.pageIndex, pagesize: this.pageSize });
+    }
+  }
+
   deletetag = async (curriculumid: string) => {
-    await this.curriculumService.delete(curriculumid).pipe(first()).toPromise();
+    // The answer says how pushing the published set to the learner server went (`push`): a delete withdraws the
+    // publication, so the learner server is told. A failed push does not undo the delete.
+    const answer = await lastValueFrom(this.curriculumService.delete(curriculumid));
+    // The map keeps the tree in the session: a deleted curriculum must not stay on it.
+    clearMapTreeCache();
     this.loadDataFromServer({
       filter: [...this.filter],
       pageindex: this.pageIndex,
       pagesize: this.pageSize,
     });
+    const push = answer.push;
+    const toast = pushToast(push);
     this.notification.create(
-      'success',
-      'Success',
-      'Curriculum deleted sucessfully'
+      toast.type,
+      toast.type === 'error' ? 'Curriculum deleted, but the push failed' : 'Curriculum deleted',
+      // The API's sentence starts with the act ("Deleted. ..."), as publish and retire show it: the body, alone.
+      pushMessage(push) || 'Curriculum deleted.',
+      { nzDuration: toast.duration }
     );
   };
 
   constructor(
     private curriculumService: CurriculumService,
-    private readonly notification: NzNotificationService
+    private readonly notification: NzNotificationService,
+    private readonly modal: NzModalService
   ) {}
 
   async search() {

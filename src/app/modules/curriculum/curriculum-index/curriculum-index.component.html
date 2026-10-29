@@ -34,6 +34,7 @@
             <th *ngIf="owner.active()" nzColumnKey="">Organisation</th>
             <th nzColumnKey="">Country</th>
             <th nzColumnKey="">Subject</th>
+            <th nzColumnKey="">State</th>
             <th nzColumnKey="">Tools</th>
           </tr>
         </thead>
@@ -47,12 +48,57 @@
               </div>
             </td>
             <td>{{ data.subjectid }}</td>
+            <td [attr.data-testid]="'state-' + data.curriculumid">
+              @let state = stateOf(data.curriculumid);
+              @switch (state.kind) {
+                @case ('ready') {
+                  <app-publication-pill [pill]="state.pill"></app-publication-pill>
+                }
+                @case ('failed') {
+                  <span class="state-unknown" title="The state could not be read" data-testid="state-unknown">—</span>
+                }
+                @default {
+                  <span class="state-unknown" role="status" aria-label="Reading the state" data-testid="state-loading">…</span>
+                }
+              }
+            </td>
             <td>
+              <button
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                type="button"
+                style="margin-right: 12px"
+                data-testid="publish-row"
+                [attr.aria-label]="'Publish ' + data.curriculumname"
+                [disabled]="isBusy(data.curriculumid)"
+                (click)="openPublish(data)"
+                *ngxPermissionsOnly="['publish_curriculum']"
+              >
+                Publish
+              </button>
+
+              <button
+                nz-button
+                nzSize="small"
+                type="button"
+                style="margin-right: 12px"
+                data-testid="retire-row"
+                [attr.aria-label]="'Retire ' + data.curriculumname"
+                [attr.title]="retireDisabled(data.curriculumid) && !isBusy(data.curriculumid) ? 'Not published, so there is nothing to retire' : null"
+                [disabled]="retireDisabled(data.curriculumid)"
+                (click)="confirmRetire(data)"
+                *ngxPermissionsOnly="['publish_curriculum']"
+              >
+                Retire
+              </button>
+
               <a
                 nz-button
                 nzDanger
                 nzSize="small"
                 style="margin-right: 20px"
+                data-testid="delete-row"
                 nz-popconfirm
                 nzPopconfirmTitle="Sure to delete?"
                 (nzOnConfirm)="deletetag(data.curriculumid)"
@@ -75,16 +121,25 @@
     </nz-card>
     <ng-template #extraTemplate>
       <app-create-action link="/curriculum/create" *ngxPermissionsOnly="['create_curriculum']"></app-create-action>
-      <a
-        *ngxPermissionsOnly="['zr5ER4QD', 'Mapyr2Pw', 'superadmin', 'sync_content']"
-        nz-button
-        nzType="primary"
-        style="margin-right: 20px"
-        nz-popconfirm
-        nzPopconfirmTitle="Sure to sync?"
-        (nzOnConfirm)="cloudsync()"
-        >Sync Content</a
+      <!-- Only platform staff (superadmin, or sync_content) re-push the published set; the tooltip is on a wrapper because
+           the popconfirm already owns the button's overlay. -->
+      <span
+        *ngxPermissionsOnly="['superadmin', 'sync_content']"
+        nz-tooltip
+        nzTooltipTitle="Re-push the published set to the learner server"
+        data-testid="sync-content-wrap"
       >
+        <a
+          nz-button
+          nzType="primary"
+          style="margin-right: 20px"
+          data-testid="sync-content"
+          nz-popconfirm
+          nzPopconfirmTitle="Sure to sync?"
+          (nzOnConfirm)="cloudsync()"
+          >Sync Content</a
+        >
+      </span>
     </ng-template>
     <nz-dropdown-menu #menu="nzDropdownMenu">
       <div class="ant-table-filter-dropdown">
@@ -110,4 +165,5 @@
     </nz-dropdown-menu>
   </div>
 </div>
+<app-publish-drawer (published)="onPublished($event)" (missing)="onMissing()"></app-publish-drawer>
 <ng-template #totalTemplate> Total : {{ total }} </ng-template>

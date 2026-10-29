@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzFormatEmitEvent, NzTreeNode } from 'ng-zorro-antd/tree';
 import { CurriculumService } from 'src/app/services/curriculum.service';
+import { Pill, pillOf } from 'src/app/shared/publication/publication.model';
 import { UtilService } from 'src/app/services/util.service';
 import {
   CoverageChip,
@@ -31,6 +32,8 @@ export class MapIndexComponent implements OnInit {
   countsState: 'idle' | 'loading' | 'ready' = 'idle';
   /** True once an overview came back and the organisation has translations in at least one language. */
   hasTranslations = false;
+  /** The publication pill of each curriculum node, from the tree's own `publicationstatus` (the tree carries no changed flag). */
+  pillsById = new Map<string, Pill>();
   curriculumChipsById = new Map<string, CoverageChip[]>();
   lessonChipsById = new Map<string, CoverageChip[]>();
 
@@ -147,10 +150,23 @@ export class MapIndexComponent implements OnInit {
     const storagedata = sessionStorage.getItem('JqGJMqfgE9HEU6hC');
     if (storagedata) {
       this.nodes = JSON.parse(storagedata);
+      this.readPills();
       return;
     }
     const data: any = await this.cts.tree().toPromise();
     this.nodes = this._utilService.converttotree(data.data);
+    this.readPills();
+  }
+
+  /** A tree kept before the state was on it has no `publicationstatus`: such a node shows no pill. */
+  private readPills(): void {
+    this.pillsById = new Map();
+    for (const node of this.nodes) {
+      const data = node?.data;
+      if (data?.type === 'CURRICULUM' && data.curriculumid && data.publicationstatus) {
+        this.pillsById.set(data.curriculumid, pillOf({ publicationstatus: data.publicationstatus, publishedat: data.publishedat }));
+      }
+    }
   }
   nzEvent(event: NzFormatEmitEvent): void {}
   openFolder(data: NzTreeNode | NzFormatEmitEvent): void {

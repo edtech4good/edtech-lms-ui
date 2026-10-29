@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 
 import { MapRoutingModule } from './map-routing.module';
 import { MapIndexComponent } from './map-index/map-index.component';
+import { PublicationPillComponent } from 'src/app/shared/publication/publication-pill.component';
 import { SharedModule } from 'src/app/shared/shared.module';
 
 
@@ -11,7 +12,7 @@ import { SharedModule } from 'src/app/shared/shared.module';
     MapIndexComponent
   ],
   imports: [
-    CommonModule, SharedModule,
+    CommonModule, SharedModule, PublicationPillComponent,
     MapRoutingModule
   ]
 })
