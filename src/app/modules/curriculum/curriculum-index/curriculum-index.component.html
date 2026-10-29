@@ -84,7 +84,8 @@
                 style="margin-right: 12px"
                 data-testid="retire-row"
                 [attr.aria-label]="'Retire ' + data.curriculumname"
-                [disabled]="isBusy(data.curriculumid)"
+                [attr.title]="retireDisabled(data.curriculumid) && !isBusy(data.curriculumid) ? 'Not published, so there is nothing to retire' : null"
+                [disabled]="retireDisabled(data.curriculumid)"
                 (click)="confirmRetire(data)"
                 *ngxPermissionsOnly="['publish_curriculum']"
               >

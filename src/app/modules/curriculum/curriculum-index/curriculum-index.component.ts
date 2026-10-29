@@ -136,6 +136,16 @@ export class CurriculumIndexComponent implements OnDestroy {
   }
 
   /**
+   * Whether Retire is off for the row: while a call runs, and for a curriculum that was never published (learners never had
+   * it: nothing to take away). A retired curriculum keeps it, because retiring again pushes again (the way to repeat a retire
+   * whose push failed), and so does a row whose state could not be read.
+   */
+  retireDisabled(curriculumid: string): boolean {
+    const state = this.stateOf(curriculumid);
+    return this.isBusy(curriculumid) || (state.kind === 'ready' && state.overview.publicationstatus === 'never');
+  }
+
+  /**
    * Reads the overview of each row, one after the other. A row whose overview cannot be read shows a dash; the error
    * interceptor has already said why, once. After a failure other than a missing row the reads stop and the rest show a
    * dash too: a service that failed once would fail for the others, and the person would be toasted once per row.

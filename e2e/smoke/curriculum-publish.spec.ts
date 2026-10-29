@@ -297,6 +297,27 @@ test.describe('the curriculum list, signed in as the organisation\'s admin', () 
     await expect(pill(page, c)).toHaveAttribute('data-state', 'published');
   });
 
+  test('Retire is disabled (not hidden) on a row that was never published, and enabled on a published row and on a retired one', async () => {
+    const never = await makeContent(oa);
+    const published = await makeContent(oa);
+    await publishViaApi(oa, published);
+    const retired = await makeContent(oa);
+    await publishViaApi(oa, retired);
+    await created(await oa.put(`/curriculum/retire/${retired.curriculum}`, { data: {} }), 'a retire');
+    await openList(page, never);
+    await expect(pill(page, never)).toHaveText('Never published');
+    await expect(row(page, never).getByTestId('retire-row')).toBeVisible();
+    await expect(row(page, never).getByTestId('retire-row')).toBeDisabled();
+    await expect(row(page, never).getByTestId('publish-row')).toBeEnabled();
+    await openList(page, published);
+    await expect(pill(page, published)).toHaveAttribute('data-state', 'published');
+    await expect(row(page, published).getByTestId('retire-row')).toBeEnabled();
+    // retiring a retired curriculum pushes again: it is how a retire whose push failed is repeated
+    await openList(page, retired);
+    await expect(pill(page, retired)).toHaveText('Retired');
+    await expect(row(page, retired).getByTestId('retire-row')).toBeEnabled();
+  });
+
   test('Retire is disabled while it runs; the toast carries the API\'s push sentence and the row says Retired', async () => {
     const c = await makeContent(oa);
     await publishViaApi(oa, c);
