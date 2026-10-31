@@ -987,7 +987,7 @@ test.describe('the curriculum map, signed in as the organisation\'s admin', () =
 
 // ---- Sync Content -------------------------------------------------------------------------------------------
 test.describe('Sync Content on the curriculum list', () => {
-  test('the platform superadmin is offered it, with the tooltip; an account whose token has neither superadmin nor sync_content is not', async ({ browser }) => {
+  test('the platform superadmin is offered it, with the tooltip; so is an organisation admin, whose token carries sync_content', async ({ browser }) => {
     // the platform superadmin (the beforeAll's own session)
     await saPage.goto('/curriculum/index');
     const wrap = saPage.getByTestId('sync-content-wrap');
@@ -995,18 +995,18 @@ test.describe('Sync Content on the curriculum list', () => {
     await expect(saPage.getByTestId('sync-content')).toHaveText('Sync Content');
     await wrap.hover();
     await expect(saPage.locator('.ant-tooltip').filter({ hasText: 'Re-push the published set to the learner server' })).toBeVisible();
-    // an organisation admin: offered it only if its token carries one of the two permissions
+    // an organisation admin: offered it because its token carries sync_content (granted by migration 20261031120100; the
+    // account that is without it is covered, with the other roles, in sync-buttons.spec.ts)
     const ctx = await browser.newContext();
     const p = await ctx.newPage();
     try {
       await loginViaUi(p, ADMIN, PASSWORD);
       const permissions = (jwtClaims(await tokenOf(p)).permissions ?? []) as string[];
-      const allowed = permissions.includes('superadmin') || permissions.includes('sync_content');
+      expect(permissions, 'an organisation admin holds sync_content').toContain('sync_content');
       await p.goto('/curriculum/index');
       await expect(p.getByRole('columnheader', { name: 'Tools' })).toBeVisible();
       await expect(p.getByRole('button', { name: 'Create' }).or(p.getByRole('link', { name: 'Create' })).first()).toBeVisible(); // the toolbar has rendered
-      await expect(p.getByTestId('sync-content')).toHaveCount(allowed ? 1 : 0);
-      expect(allowed, 'an organisation admin does not hold sync_content (the platform re-pushes)').toBe(false);
+      await expect(p.getByTestId('sync-content')).toHaveCount(1);
     } finally {
       await ctx.close();
     }
