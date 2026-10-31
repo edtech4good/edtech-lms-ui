@@ -727,7 +727,7 @@ test.describe('a publish that is refused or fails (the API\'s answer mocked)', (
 
   test('a publish that stands but whose push failed: the drawer closes and an error toast stays, with the API\'s sentence', async () => {
     const c = await openChanged();
-    const message = 'Published. The push to the learner server failed; a platform admin can re-push from Sync Content. The learner server could not be reached.';
+    const message = 'Published. The push to the learner server failed; an Admin or Organisation Admin can send it again with Sync Content. The learner server could not be reached.';
     await page.route(
       PUBLISH,
       answer(200, { error: false, data: { publicationid: 'mock', publishedat: new Date().toISOString(), summary: { counts: {}, changes: {}, affected: { lessons: {}, questions: {} }, shared: [] }, push: { status: 'failed', message } } }),
@@ -831,7 +831,7 @@ test.describe('deleting a curriculum, signed in as the organisation\'s admin', (
   test('a delete whose push failed is an error toast that stays, and the curriculum is still deleted', async () => {
     const c = await makeContent(oa);
     await publishViaApi(oa, c);
-    const message = 'Deleted. The push to the learner server failed; a platform admin can re-push from Sync Content. The learner server could not be reached.';
+    const message = 'Deleted. The push to the learner server failed; an Admin or Organisation Admin can send it again with Sync Content. The learner server could not be reached.';
     await page.route('**/curriculum/*', async (route) => {
       if (route.request().method() !== 'DELETE') return route.fallback();
       const real = await route.fetch();

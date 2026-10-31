@@ -50,13 +50,15 @@ async function offered(p: Page): Promise<{ students: number; content: number }> 
   await expect(p.getByRole('columnheader', { name: 'Tools' })).toBeVisible();
   const row = p.locator('tr', { hasText: SCHOOL });
   await expect(row, 'our school is on the list').toHaveCount(1);
-  // the Edit button is in every row for a role that may edit; wait for the row's tools to have rendered before counting
+  // The buttons are drawn by the permission directive, so a count taken before the permissions are applied would read 0 for
+  // everyone. The shell's menu is drawn by the same directive and every one of these roles has a group in it: once it is
+  // there the permissions are applied, and a button that is going to appear has appeared.
+  await expect(p.locator('app-shell-nav .group').first(), 'the menu (drawn from the permissions) is there').toBeVisible();
   await expect(row.locator('td').last()).toBeVisible();
-  await p.waitForTimeout(400);
   const students = await row.getByTestId('sync-students').count();
   await p.goto('/curriculum/index');
   await expect(p.getByRole('columnheader', { name: 'Tools' })).toBeVisible();
-  await p.waitForTimeout(400);
+  await expect(p.locator('app-shell-nav .group').first(), 'the menu (drawn from the permissions) is there').toBeVisible();
   const content = await p.getByTestId('sync-content').count();
   return { students, content };
 }
