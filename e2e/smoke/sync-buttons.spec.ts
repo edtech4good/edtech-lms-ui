@@ -51,14 +51,16 @@ async function offered(p: Page): Promise<{ students: number; content: number }> 
   const row = p.locator('tr', { hasText: SCHOOL });
   await expect(row, 'our school is on the list').toHaveCount(1);
   // The buttons are drawn by the permission directive, so a count taken before the permissions are applied would read 0 for
-  // everyone. The shell's menu is drawn by the same directive and every one of these roles has a group in it: once it is
-  // there the permissions are applied, and a button that is going to appear has appeared.
-  await expect(p.locator('app-shell-nav .group').first(), 'the menu (drawn from the permissions) is there').toBeVisible();
+  // everyone. The menu's People group is drawn by the same directive (`*ngxPermissionsOnly` on `view_school` and the others,
+  // shell-nav.component.html:36), and all four roles here hold view_school: once it is there the permissions are applied,
+  // and a button that is going to appear has appeared. (Not the Home group, `.tone-home`: it is drawn on every render.)
+  await expect(p.locator('app-shell-nav .group.tone-people'), 'the People group (drawn from the permissions) is there').toBeVisible();
   await expect(row.locator('td').last()).toBeVisible();
   const students = await row.getByTestId('sync-students').count();
   await p.goto('/curriculum/index');
   await expect(p.getByRole('columnheader', { name: 'Tools' })).toBeVisible();
-  await expect(p.locator('app-shell-nav .group').first(), 'the menu (drawn from the permissions) is there').toBeVisible();
+  // the Content group is drawn by the same directive (`view_curriculum`, held by all four roles)
+  await expect(p.locator('app-shell-nav .group.tone-content'), 'the Content group (drawn from the permissions) is there').toBeVisible();
   const content = await p.getByTestId('sync-content').count();
   return { students, content };
 }
