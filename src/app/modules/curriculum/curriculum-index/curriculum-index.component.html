@@ -121,8 +121,9 @@
     </nz-card>
     <ng-template #extraTemplate>
       <app-create-action link="/curriculum/create" *ngxPermissionsOnly="['create_curriculum']"></app-create-action>
-      <!-- Only platform staff (superadmin, or sync_content) re-push the published set; the tooltip is on a wrapper because
-           the popconfirm already owns the button's overlay. -->
+      <!-- Whoever holds sync_content (an Admin or Organisation Admin, for their own organisation) or the platform account
+           (superadmin) re-pushes the published set; the tooltip is on a wrapper because the popconfirm already owns the
+           button's overlay. -->
       <span
         *ngxPermissionsOnly="['superadmin', 'sync_content']"
         nz-tooltip
