@@ -1,5 +1,6 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import { Injectable } from '@angular/core';
+import { FIELD_ERRORS_INLINE } from 'src/app/interceptors/error-context';
 import { IPaging } from 'src/app/models/IPaging';
 import { CoreService } from 'src/app/services/core.service';
 import { IMultiPaging } from '../models/IPaging';
@@ -20,10 +21,14 @@ export class StandardService {
     );
   }
 
+  /**
+   * A class that still has learners is refused with a 400 whose sentence says how many. The error interceptor reduces a
+   * 400 to its generic line, so the class list says the refusal itself (400, 403 and 404 are then its to word).
+   */
   delete(standardid: string) {
     return this.http.delete(
       `${this.coreService.CORE_API()}standard/${standardid}`,
-      this.coreService.jsonhttpOptions
+      { ...this.coreService.jsonhttpOptions, context: new HttpContext().set(FIELD_ERRORS_INLINE, true) }
     );
   }
 

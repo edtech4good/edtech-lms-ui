@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, inject } from '@angular/core';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
@@ -9,6 +10,8 @@ import { IMultiFilter, IMultiPaging } from '../../../models/IPaging';
 import { object, x } from 'joi';
 import { organisationOf, withOrganisationFilter } from 'src/app/shared/owner/owner-view';
 import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
+import { NOT_FOUND_MESSAGE, NOT_FOUND_TOAST_KEY } from 'src/app/interceptors/error.interceptor';
+import { classDeleteRefusalText } from './standard-delete-refusal';
 
 @Component({
     selector: 'app-standard-index',
@@ -84,7 +87,25 @@ export class StandardIndexComponent implements OnInit {
   }
 
   deletetag = async (standardid: string) => {
-    await this.standardService.delete(standardid).pipe(first()).toPromise();
+    try {
+      await this.standardService.delete(standardid).pipe(first()).toPromise();
+    } catch (e) {
+      // The delete request opts out of the interceptor's 400, 403 and 404 notices, so each is said here, once. Any
+      // other failure (500, 429, the gateway, no connection) is still the interceptor's.
+      const error = e as HttpErrorResponse;
+      if (error?.status === 400) {
+        this.notification.create('error', 'Error', classDeleteRefusalText(error.error));
+      } else if (error?.status === 403) {
+        this.notification.create('error', 'Error', "You don't have permission to do that.");
+      } else if (error?.status === 404) {
+        const said = error.error?.errormessage;
+        this.notification.create('error', 'Error', typeof said === 'string' && said.trim() ? said : NOT_FOUND_MESSAGE, { nzKey: NOT_FOUND_TOAST_KEY });
+        this.loadDataFromServer({ filter: [...this.filter], pageindex: this.pageIndex, pagesize: this.pageSize });
+      } else {
+        throw e;
+      }
+      return;
+    }
     this.loadDataFromServer({
       filter: [...this.filter],
       pageindex: this.pageIndex,
