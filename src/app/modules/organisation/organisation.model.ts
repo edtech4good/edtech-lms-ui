@@ -25,6 +25,8 @@ export interface Organisation {
   brandingconfig: OrganisationBranding | null;
   /** The language the organisation's content text is written in; its translations are other languages. null: none set yet. */
   contentlanguage?: string | null;
+  /** Only on one organisation read by id (the list does not carry it): a failed lesson quiz earns no points while it is on. */
+  requireLessonQuizPass?: boolean;
   countries: OrganisationCountry[];
 }
 
@@ -51,6 +53,8 @@ export interface OrganisationWrite {
   organisationstatus?: boolean;
   /** Sent on edit only; null clears it. */
   contentlanguage?: string | null;
+  /** Sent on edit only, and only when it was changed; left out, the API keeps what it has. */
+  requireLessonQuizPass?: boolean;
   countryids: string[];
 }
 

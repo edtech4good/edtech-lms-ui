@@ -250,6 +250,32 @@
             <p class="help" id="org-language-help">Set after the organisation is created, from Edit.</p>
           }
         </div>
+
+        <!-- Lesson quiz rule (edit only: the create call does not take it) -->
+        @if (isEdit()) {
+          <div class="field">
+            <label class="switch-row">
+              <nz-switch
+                data-testid="org-quizpass"
+                [ngModel]="quizPass()"
+                (ngModelChange)="setQuizPass($event)"
+                [ngModelOptions]="{ standalone: true }"
+                [nzLoading]="quizPassState() === 'loading'"
+                [nzDisabled]="quizPassState() !== 'ready' || submitting()"
+                [appSwitchAria]="quizPass()"
+                describedBy="org-quizpass-help"
+              />
+              <span class="label switch-label">Learners must pass the quiz to finish a lesson</span>
+            </label>
+            @if (quizPassState() === 'error') {
+              <p class="field-error" role="alert" data-testid="org-quizpass-error">
+                This setting couldn't be loaded, so it can't be changed now. Everything else can still be saved.
+                <button type="button" class="link" (click)="loadQuizPass()">Try again</button>
+              </p>
+            }
+            <p class="help" id="org-quizpass-help">When on, a failed quiz can be retried as many times as needed. The lesson isn't complete until it is passed. Applies to learners after the next Sync Content.</p>
+          </div>
+        }
       </form>
 
       <footer class="foot">
