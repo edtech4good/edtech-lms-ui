@@ -261,7 +261,9 @@
                 (ngModelChange)="setQuizPass($event)"
                 [ngModelOptions]="{ standalone: true }"
                 [nzLoading]="quizPassState() === 'loading'"
-                [nzDisabled]="quizPassState() !== 'ready'"
+                [nzDisabled]="quizPassState() !== 'ready' || submitting()"
+                [appSwitchAria]="quizPass()"
+                describedBy="org-quizpass-help"
               />
               <span class="label switch-label">Learners must pass the quiz to finish a lesson</span>
             </label>
@@ -271,7 +273,7 @@
                 <button type="button" class="link" (click)="loadQuizPass()">Try again</button>
               </p>
             }
-            <p class="help" id="org-quizpass-help">When on, a failed quiz can be retried as many times as needed. The lesson isn't complete until it is passed.</p>
+            <p class="help" id="org-quizpass-help">When on, a failed quiz can be retried as many times as needed. The lesson isn't complete until it is passed. Applies to learners after the next Sync Content.</p>
           </div>
         }
       </form>

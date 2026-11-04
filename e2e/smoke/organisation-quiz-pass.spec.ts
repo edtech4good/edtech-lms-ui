@@ -20,7 +20,7 @@ let api: APIRequestContext;
 let page: Page;
 
 const LABEL = 'Learners must pass the quiz to finish a lesson';
-const HELP = "When on, a failed quiz can be retried as many times as needed. The lesson isn't complete until it is passed.";
+const HELP = "When on, a failed quiz can be retried as many times as needed. The lesson isn't complete until it is passed. Applies to learners after the next Sync Content.";
 
 async function tokenOf(p: Page): Promise<string> {
   return p.evaluate(() => {
@@ -68,8 +68,8 @@ async function setViaApi(id: string, value: boolean): Promise<void> {
 }
 
 const drawer = () => page.getByRole('dialog', { name: /organisation/i });
-// ng-zorro's switch is a button named by its label; it sets no aria-checked, so "on" is read from its class.
-const quizSwitch = () => drawer().getByRole('button', { name: LABEL });
+// The switch's semantics come from SwitchAriaDirective: role="switch" and aria-checked on ng-zorro's inner button.
+const quizSwitch = () => drawer().getByRole('switch', { name: LABEL });
 
 async function openEdit(name: string): Promise<void> {
   await page.goto('/organisation');
@@ -117,7 +117,7 @@ test.describe('the lesson quiz switch in the Edit organisation drawer', () => {
     const o = await makeViaApi();
     await openEdit(o.name);
     await ready();
-    await expect(quizSwitch()).not.toHaveClass(/ant-switch-checked/);
+    await expect(quizSwitch()).not.toBeChecked();
     await expect(drawer().getByText(LABEL, { exact: true })).toBeVisible();
     await expect(drawer().getByText(HELP, { exact: true })).toBeVisible();
     expect(await stored(o.id)).toBe(false);
@@ -128,13 +128,13 @@ test.describe('the lesson quiz switch in the Edit organisation drawer', () => {
     await openEdit(o.name);
     await ready();
     await quizSwitch().click();
-    await expect(quizSwitch()).toHaveClass(/ant-switch-checked/);
+    await expect(quizSwitch()).toBeChecked();
     const body = await save();
     expect(body.requireLessonQuizPass).toBe(true);
     expect(await stored(o.id)).toBe(true);
     await openEdit(o.name);
     await ready();
-    await expect(quizSwitch()).toHaveClass(/ant-switch-checked/);
+    await expect(quizSwitch()).toBeChecked();
   });
 
   test('turning it off sends false (not a missing key), and the API holds false', async () => {
@@ -142,9 +142,9 @@ test.describe('the lesson quiz switch in the Edit organisation drawer', () => {
     await setViaApi(o.id, true);
     await openEdit(o.name);
     await ready();
-    await expect(quizSwitch()).toHaveClass(/ant-switch-checked/);
+    await expect(quizSwitch()).toBeChecked();
     await quizSwitch().click();
-    await expect(quizSwitch()).not.toHaveClass(/ant-switch-checked/);
+    await expect(quizSwitch()).not.toBeChecked();
     const body = await save();
     expect(body).toHaveProperty('requireLessonQuizPass', false);
     expect(await stored(o.id)).toBe(false);
@@ -190,7 +190,7 @@ test.describe('the lesson quiz switch in the Edit organisation drawer', () => {
     await openEdit(o.name);
     await expect(drawer().getByTestId('org-quizpass-error')).toContainText("couldn't be loaded");
     await expect(quizSwitch()).toBeDisabled();
-    await expect(quizSwitch()).not.toHaveClass(/ant-switch-checked/);
+    await expect(quizSwitch()).not.toBeChecked();
     // everything else can still be saved
     await drawer().getByLabel(/^Name/).fill(`${o.name} c`);
     const body = await save();
@@ -214,9 +214,82 @@ test.describe('the lesson quiz switch in the Edit organisation drawer', () => {
     failing = false;
     await drawer().getByRole('button', { name: 'Try again' }).click();
     await ready();
-    await expect(quizSwitch()).toHaveClass(/ant-switch-checked/);
+    await expect(quizSwitch()).toBeChecked();
     await expect(drawer().getByTestId('org-quizpass-error')).toHaveCount(0);
     await page.unroute(new RegExp(`/organisation/${o.id}$`));
+  });
+
+  test('is a switch in the accessibility tree: name, state after a click and after Space, and the help text as its description', async () => {
+    const o = await makeViaApi();
+    await openEdit(o.name);
+    await ready();
+    await expect(quizSwitch()).toHaveAttribute('aria-checked', 'false');
+    await expect(quizSwitch()).toHaveAccessibleDescription(HELP);
+    expect(await quizSwitch().ariaSnapshot()).toContain(`switch "${LABEL}"`);
+    await quizSwitch().click();
+    await expect(quizSwitch()).toHaveAttribute('aria-checked', 'true');
+    await expect(quizSwitch()).toBeChecked();
+    expect(await quizSwitch().ariaSnapshot()).toContain('[checked]');
+    await quizSwitch().focus();
+    await page.keyboard.press('Space');
+    await expect(quizSwitch()).toHaveAttribute('aria-checked', 'false');
+    await expect(quizSwitch()).not.toBeChecked();
+    await page.keyboard.press('Space');
+    await expect(quizSwitch()).toBeChecked();
+  });
+
+  test('a slow read for one organisation that lands after the drawer moved to another is ignored', async () => {
+    const a = await makeViaApi();
+    const b = await makeViaApi();
+    await setViaApi(a.id, true);
+    let released = false;
+    const re = new RegExp(`/organisation/${a.id}$`);
+    await page.route(re, async (route) => {
+      if (route.request().method() !== 'GET') return route.continue();
+      const real = await route.fetch();
+      await new Promise((r) => setTimeout(r, 3000));
+      await route.fulfill({ response: real });
+      released = true;
+    });
+    await openEdit(a.name);
+    await expect(drawer().locator('nz-switch .ant-switch-loading')).toHaveCount(1);
+    await drawer().getByRole('button', { name: 'Close' }).click();
+    await expect(drawer()).toBeHidden();
+    await page.getByRole('row').filter({ hasText: b.name }).getByRole('button', { name: `Edit ${b.name}` }).click();
+    await expect(drawer().getByRole('heading', { name: 'Edit organisation' })).toBeVisible();
+    await ready();
+    await expect(quizSwitch()).not.toBeChecked();
+    await expect.poll(() => released, { timeout: 8000 }).toBe(true);
+    await page.waitForTimeout(500);
+    await expect(quizSwitch(), "A's answer (on) must not show on B").not.toBeChecked();
+    // and nothing about it is sent when B is saved
+    const body = await save();
+    expect(body).not.toHaveProperty('requireLessonQuizPass');
+    expect(await stored(b.id)).toBe(false);
+    await page.unroute(re);
+  });
+
+  test('the switch cannot be toggled while a save is running, and the other fields still can', async () => {
+    const o = await makeViaApi();
+    await openEdit(o.name);
+    await ready();
+    await quizSwitch().click();
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const re = new RegExp(`/organisation/${o.id}$`);
+    await page.route(re, async (route) => {
+      if (route.request().method() !== 'PUT') return route.continue();
+      await gate;
+      return route.continue();
+    });
+    await drawer().getByRole('button', { name: 'Save changes' }).click();
+    await expect(drawer().getByRole('button', { name: 'Saving…' })).toBeVisible();
+    await expect(quizSwitch()).toBeDisabled();
+    await expect(drawer().getByLabel(/^Name/)).toBeEnabled();
+    release();
+    await expect(drawer()).toBeHidden();
+    expect(await stored(o.id)).toBe(true);
+    await page.unroute(re);
   });
 
   test('the New organisation drawer has no such switch: the create call does not take it', async () => {

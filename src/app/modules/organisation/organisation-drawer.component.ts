@@ -43,6 +43,7 @@ import {
   OrganisationPreset,
 } from './organisation.model';
 import { OrganisationService } from './organisation.service';
+import { SwitchAriaDirective } from './switch-aria.directive';
 
 const PRESETS: Array<{ value: OrganisationPreset; title: string; help: string; tone: string }> = [
   {
@@ -73,7 +74,7 @@ const FIELD_ORDER: FieldKey[] = ['organisationname', 'organisationshortname', 'o
 @Component({
   selector: 'app-organisation-drawer',
   standalone: true,
-  imports: [FormsModule, NzButtonModule, NzDrawerModule, NzSelectModule, NzSwitchModule],
+  imports: [FormsModule, NzButtonModule, NzDrawerModule, NzSelectModule, NzSwitchModule, SwitchAriaDirective],
   templateUrl: './organisation-drawer.component.html',
   styleUrl: './organisation-drawer.component.less',
   changeDetection: ChangeDetectionStrategy.OnPush,
