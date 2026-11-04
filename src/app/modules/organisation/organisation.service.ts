@@ -42,6 +42,18 @@ export class OrganisationService {
       .pipe(map((r) => r.data));
   }
 
+  /**
+   * The same read for the edit drawer, which says a failure itself, beside the setting it could not load (so no
+   * gateway or not-found toast as well).
+   */
+  getForDrawer(organisationid: string): Observable<Organisation> {
+    return this.http
+      .get<{ data: Organisation }>(this.url(`/${organisationid}`), {
+        context: new HttpContext().set(FORBIDDEN_HANDLED, true).set(GATEWAY_HANDLED, true).set(NOT_FOUND_HANDLED, true),
+      })
+      .pipe(map((r) => r.data));
+  }
+
   create(body: OrganisationCreate): Observable<Organisation> {
     return this.http
       .post<{ data: Organisation }>(this.url(), body, {

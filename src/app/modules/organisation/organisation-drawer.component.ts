@@ -17,6 +17,7 @@ import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzDrawerModule } from 'ng-zorro-antd/drawer';
 import { NzModalService } from 'ng-zorro-antd/modal';
 import { NzSelectModule } from 'ng-zorro-antd/select';
+import { NzSwitchModule } from 'ng-zorro-antd/switch';
 import { confirmDialog } from './confirm-dialog';
 import {
   DEFAULT_TILE_COLOUR,
@@ -72,7 +73,7 @@ const FIELD_ORDER: FieldKey[] = ['organisationname', 'organisationshortname', 'o
 @Component({
   selector: 'app-organisation-drawer',
   standalone: true,
-  imports: [FormsModule, NzButtonModule, NzDrawerModule, NzSelectModule],
+  imports: [FormsModule, NzButtonModule, NzDrawerModule, NzSelectModule, NzSwitchModule],
   templateUrl: './organisation-drawer.component.html',
   styleUrl: './organisation-drawer.component.less',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -107,6 +108,17 @@ export class OrganisationDrawerComponent {
     { label: 'Another language…', value: OTHER_LANGUAGE },
   ];
   readonly isOtherLanguage = computed(() => this.languageChoice() === OTHER_LANGUAGE);
+
+  /**
+   * "Learners must pass the quiz to finish a lesson". The list row does not carry it, so on edit it is read by id when
+   * the drawer opens: `quizPassState` says whether that read is done, and `quizPassLoaded` is what it found. Until it
+   * is `ready` the switch cannot be used and the save sends nothing about it; the save sends it only when it was changed.
+   */
+  readonly quizPass = signal(false);
+  readonly quizPassLoaded = signal(false);
+  readonly quizPassState = signal<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  /** Which read of the organisation is current: an answer to an earlier open of the drawer is ignored. */
+  private quizPassRead = 0;
 
   /** Branding keys the form does not edit (a logo, a display name): kept as they are. */
   private otherBranding: OrganisationBranding = {};
@@ -164,7 +176,10 @@ export class OrganisationDrawerComponent {
 
   readonly tileInk = computed(() => tileTextColour(this.colour()));
 
-  readonly dirty = computed(() => this.snapshot() !== this.initial);
+  /** The switch differs from what was read (it cannot differ before the read is done). */
+  readonly quizPassChanged = computed(() => this.quizPassState() === 'ready' && this.quizPass() !== this.quizPassLoaded());
+
+  readonly dirty = computed(() => this.snapshot() !== this.initial || this.quizPassChanged());
 
   readonly nameInput = viewChild<ElementRef<HTMLInputElement>>('nameInput');
   readonly shortNameInput = viewChild<ElementRef<HTMLInputElement>>('shortNameInput');
@@ -227,10 +242,43 @@ export class OrganisationDrawerComponent {
     const language = contentLanguageChoice(org?.contentlanguage);
     this.languageChoice.set(language.choice);
     this.otherLanguage.set(language.other);
+    this.quizPass.set(false);
+    this.quizPassLoaded.set(false);
+    this.quizPassState.set('idle');
+    if (org) {
+      this.loadQuizPass();
+    }
     this.initial = this.snapshot();
     if (this.countriesState() !== 'ready') {
       this.loadCountries();
     }
+  }
+
+  /** Reads the organisation by id for the switch. A failure leaves the switch off-limits and the save silent about it. */
+  loadQuizPass(): void {
+    const org = this.organisation();
+    if (!org) return;
+    const read = ++this.quizPassRead;
+    this.quizPassState.set('loading');
+    this.service.getForDrawer(org.organisationid).subscribe({
+      next: (full) => {
+        if (read !== this.quizPassRead) return;
+        // Strictly true turns it on, as the API reads it; anything else is off.
+        const on = full.requireLessonQuizPass === true;
+        this.quizPassLoaded.set(on);
+        this.quizPass.set(on);
+        this.quizPassState.set('ready');
+      },
+      error: () => {
+        if (read !== this.quizPassRead) return;
+        this.quizPassState.set('error');
+      },
+    });
+  }
+
+  setQuizPass(value: boolean): void {
+    if (this.quizPassState() !== 'ready') return;
+    this.quizPass.set(value === true);
   }
 
   loadCountries(): void {
@@ -327,10 +375,13 @@ export class OrganisationDrawerComponent {
     };
     this.submitting.set(true);
     const org = this.organisation();
+    // Only a value that was read and then changed is sent: a failed read, a read still running or a switch left
+    // alone sends nothing, so the API keeps what it has.
     const request = org
       ? this.service.update(org.organisationid, {
           ...write,
           contentlanguage: contentLanguageValue(this.languageChoice(), this.otherLanguage()),
+          ...(this.quizPassChanged() ? { requireLessonQuizPass: this.quizPass() } : {}),
         })
       : this.service.create({
           ...write,
