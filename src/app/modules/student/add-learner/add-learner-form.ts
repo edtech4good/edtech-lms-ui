@@ -7,19 +7,25 @@ import type { HttpErrorResponse } from '@angular/common/http';
 
 /** What the admin calls a learner's group. Today every screen says "Class"; a per-organisation word is a later setting. */
 export const CLASS_WORD = 'Class';
+export const CLASS_WORD_PLURAL = 'Classes';
 
 export const USERNAME_MIN = 2;
 export const USERNAME_MAX = 16;
 export const PASSWORD_MIN = 8;
 export const PASSWORD_MAX = 32;
 
-export const USERNAME_RULE_MESSAGE = 'Use 2 to 16 letters and digits, with no spaces or symbols.';
+export const USERNAME_RULE_MESSAGE = 'Use 2 to 16 English letters or numbers.';
 export const PASSWORD_RULE_MESSAGE = 'Use 8 to 32 characters with at least one letter and one number, and no spaces.';
 export const USERNAME_AVAILABLE_MESSAGE = 'Available. Learners use this to sign in.';
 export const USERNAME_TAKEN_MESSAGE = 'That username is taken.';
 export const FORM_INVALID_MESSAGE = "Some of the information isn't valid. Check the form and try again.";
 export const SAVE_FAILED = "The learner couldn't be added. Try again.";
 export const NO_ACCESS_MESSAGE = "You don't have permission to add learners.";
+export const GENDER_MESSAGE = 'Choose a gender.';
+export const DATE_OF_BIRTH_MESSAGE = 'Enter a date of birth between 1900 and yesterday.';
+export const NO_CURRICULA_MESSAGE = 'This school has no curricula yet.';
+/** Shown under the class field when a school has none. */
+export const noClassesMessage = (): string => `This school has no ${CLASS_WORD_PLURAL.toLowerCase()} yet. Add one on the Schools screen.`;
 export const NOT_FOUND_MESSAGE = 'That school or class no longer exists. Close this and try again.';
 
 const USERNAME_PATTERN = /^[A-Za-z0-9]+$/;
@@ -59,7 +65,7 @@ export function usernameError(value: string): string | null {
 export function passwordError(value: string): string | null {
   if (!value) return 'Enter a password.';
   const length = [...value].length;
-  if (length < PASSWORD_MIN || length > PASSWORD_MAX || /\s/u.test(value) || !/\p{L}/u.test(value) || !/\p{Nd}/u.test(value)) {
+  if (length < PASSWORD_MIN || length > PASSWORD_MAX || /\s/u.test(value) || !/\p{L}/u.test(value) || !/[0-9]/.test(value)) {
     return PASSWORD_RULE_MESSAGE;
   }
   return null;
@@ -79,6 +85,34 @@ export function firstNameError(value: string): string | null {
 export function lastNameError(value: string): string | null {
   const length = [...value.trim()].length;
   return length === 0 || length <= NAME_MAX ? null : LAST_NAME_MESSAGE;
+}
+
+// ---- Date of birth -------------------------------------------------------------------------------------------------
+
+export const DATE_OF_BIRTH_MIN = '1900-01-01';
+
+const pad = (n: number) => String(n).padStart(2, '0');
+const isoDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+/** Yesterday on the admin's own calendar: the latest date of birth central accepts. */
+export function yesterdayOf(now: Date = new Date()): string {
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  return isoDate(d);
+}
+
+/**
+ * Optional: empty is fine. A date that is partly typed (`badInput`, as a date input reports it), not a real date, before
+ * 1900 or not yet in the past is refused here in the same terms as central.
+ */
+export function dateOfBirthError(value: string, badInput = false, now: Date = new Date()): string | null {
+  if (badInput) return DATE_OF_BIRTH_MESSAGE;
+  if (!value) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return DATE_OF_BIRTH_MESSAGE;
+  const [y, m, d] = [Number(match[1]), Number(match[2]), Number(match[3])];
+  const real = new Date(y, m - 1, d);
+  if (real.getFullYear() !== y || real.getMonth() !== m - 1 || real.getDate() !== d) return DATE_OF_BIRTH_MESSAGE;
+  return value >= DATE_OF_BIRTH_MIN && value <= yesterdayOf(now) ? null : DATE_OF_BIRTH_MESSAGE;
 }
 
 // ---- Generate ----------------------------------------------------------------------------------------------------
@@ -134,8 +168,8 @@ const FALLBACK_FIELD_MESSAGES: Record<FieldKey, string> = {
   schoolid: 'Choose a school.',
   standard: `Choose a ${CLASS_WORD.toLowerCase()} of this school.`,
   curriculumids: 'Choose at least one curriculum of this school.',
-  genderid: 'Choose Female or Male.',
-  dateofbirth: 'Enter a date of birth that has already passed.',
+  genderid: GENDER_MESSAGE,
+  dateofbirth: DATE_OF_BIRTH_MESSAGE,
 };
 
 /**
@@ -147,9 +181,20 @@ export function serverFieldErrors(error: HttpErrorResponse): ServerFieldErrors {
   const out: ServerFieldErrors = { fields: {} };
   if ([0, 429, 500].includes(error.status)) return out;
   const body = (error.error && typeof error.error === 'object' ? error.error : {}) as ApiErrorBody;
-  if (error.status === 400) {
+  if (error.status === 404) {
+    // A missing school or class is named by the field, such as "That school doesn't exist." beside School.
     for (const f of Array.isArray(body.fields) ? body.fields : []) {
       const key = FIELD_ORDER.find((k) => k === f?.field);
+      if (key && typeof f.message === 'string' && f.message.trim()) out.fields[key] = f.message;
+    }
+    if (Object.keys(out.fields).length === 0) out.form = NOT_FOUND_MESSAGE;
+    return out;
+  }
+  if (error.status === 400) {
+    for (const f of Array.isArray(body.fields) ? body.fields : []) {
+      // The username check names its field `username`; the form's key for it is `schoolusername`.
+      const named = f?.field === 'username' ? 'schoolusername' : f?.field;
+      const key = FIELD_ORDER.find((k) => k === named);
       if (key) {
         out.fields[key] = typeof f.message === 'string' && f.message.trim() ? f.message : FALLBACK_FIELD_MESSAGES[key];
       } else {
@@ -163,7 +208,6 @@ export function serverFieldErrors(error: HttpErrorResponse): ServerFieldErrors {
     return out;
   }
   if (error.status === 403) out.form = NO_ACCESS_MESSAGE;
-  else if (error.status === 404) out.form = NOT_FOUND_MESSAGE;
   else if (error.status === 502 || error.status === 503) return out; // the interceptor's gateway notice says it
   else out.form = SAVE_FAILED;
   return out;
@@ -191,12 +235,20 @@ export interface CreatedLearner {
   push?: { status?: PushStatus; message?: string };
 }
 
-/** The toast after a 201: what the push to the learning server did. */
-export function addedToast(result: Pick<CreatedLearner, 'studentname' | 'push'>): { kind: 'success' | 'warning'; text: string } {
-  const status = result.push?.status;
-  if (status === 'pushed') return { kind: 'success', text: `Added. ${result.studentname} can sign in now.` };
-  if (status === 'failed') {
-    return { kind: 'warning', text: 'Added. The learning server did not answer: run Sync Students for this school on the Schools screen.' };
+/** The line in the done panel after a 201: what the push to the learning server means for signing in. */
+export function signInLine(result: Pick<CreatedLearner, 'studentname' | 'push'>): { tone: 'ok' | 'warn' | 'info'; text: string } {
+  const name = result.studentname;
+  switch (result.push?.status) {
+    case 'pushed':
+      return { tone: 'ok', text: `${name} can sign in now with these details.` };
+    case 'failed':
+      return {
+        tone: 'warn',
+        text: `${name} can't sign in yet: the learning server did not answer. Run Sync Students for this school on the Schools screen.`,
+      };
+    case 'skipped':
+      return { tone: 'info', text: `${name} can sign in once the learning server next syncs.` };
+    default:
+      return { tone: 'info', text: `${name} was added.` };
   }
-  return { kind: 'success', text: 'Added.' };
 }

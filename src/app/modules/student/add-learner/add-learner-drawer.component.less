@@ -209,6 +209,20 @@
   font-size: 16px;
   line-height: 24px;
   font-weight: 600;
+
+  // The account was saved but the learner cannot sign in yet: a warning, not an error.
+  &.warn {
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: var(--color-plan-tint);
+    color: var(--color-plan-ink);
+    font-size: 14px;
+    line-height: 20px;
+  }
+}
+
+.title:focus {
+  outline: none;
 }
 
 .note {

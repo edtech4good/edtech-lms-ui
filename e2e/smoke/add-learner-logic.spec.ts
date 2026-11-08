@@ -4,7 +4,11 @@ import {
   PASSWORD_RULE_MESSAGE,
   PASSWORD_WORDS,
   USERNAME_RULE_MESSAGE,
-  addedToast,
+  DATE_OF_BIRTH_MESSAGE,
+  dateOfBirthError,
+  noClassesMessage,
+  signInLine,
+  yesterdayOf,
   generatePassword,
   passwordError,
   randomBelow,
@@ -31,12 +35,38 @@ test.describe('the username rule', () => {
 
 test.describe('the name rules', () => {
   test('a first name is 2 to 45 characters, counted as letters not bytes', () => {
-    for (const ok of ['Jo', 'x'.repeat(45), ' សុខា ', 'ស'.repeat(45)]) expect(firstNameError(ok), ok).toBeNull();
-    for (const bad of ['', ' ', 'J', 'x'.repeat(46), 'ស'.repeat(46)]) expect(firstNameError(bad), bad).toBe('Enter a name of 2 to 45 characters.');
+    for (const ok of ['សុខា', 'x'.repeat(45), ' សុខា ', 'ស'.repeat(45)]) expect(firstNameError(ok), ok).toBeNull();
+    for (const bad of ['', ' ', 'ស', 'x'.repeat(46), 'ស'.repeat(46)]) expect(firstNameError(bad), bad).toBe('Enter a name of 2 to 45 characters.');
   });
   test('a last name is optional, and 1 to 45 characters when given', () => {
-    for (const ok of ['', '  ', 'C', 'x'.repeat(45)]) expect(lastNameError(ok), ok).toBeNull();
+    for (const ok of ['', '  ', 'ច', 'ស'.repeat(45)]) expect(lastNameError(ok), ok).toBeNull();
     expect(lastNameError('x'.repeat(46))).toBe('Enter a name of 1 to 45 characters.');
+  });
+});
+
+test.describe('the words', () => {
+  test('the username rule and the no-classes line say what the design says', () => {
+    expect(USERNAME_RULE_MESSAGE).toBe('Use 2 to 16 English letters or numbers.');
+    expect(noClassesMessage()).toBe('This school has no classes yet. Add one on the Schools screen.');
+  });
+});
+
+test.describe('the date of birth rule', () => {
+  const now = new Date(2026, 10, 8); // 8 November 2026
+  test('yesterday is the latest date, on the admin’s own calendar', () => {
+    expect(yesterdayOf(now)).toBe('2026-11-07');
+    expect(yesterdayOf(new Date(2026, 0, 1))).toBe('2025-12-31');
+    expect(yesterdayOf(new Date(2024, 2, 1))).toBe('2024-02-29');
+  });
+  test('accepts empty, 1900-01-01 and yesterday', () => {
+    for (const ok of ['', '1900-01-01', '2014-03-05', '2026-11-07']) expect(dateOfBirthError(ok, false, now), ok).toBeNull();
+  });
+  test('refuses a date before 1900, today, the future, a date that is not real, and a half-typed one', () => {
+    for (const bad of ['1899-12-31', '2026-11-08', '2999-01-01', '2014-02-30', '20140-03-05', '2014-3-5', 'x']) {
+      expect(dateOfBirthError(bad, false, now), bad).toBe(DATE_OF_BIRTH_MESSAGE);
+    }
+    expect(dateOfBirthError('', true, now)).toBe(DATE_OF_BIRTH_MESSAGE);
+    expect(DATE_OF_BIRTH_MESSAGE).toBe('Enter a date of birth between 1900 and yesterday.');
   });
 });
 
@@ -44,8 +74,12 @@ test.describe('the password rule', () => {
   test('accepts 8 to 32 characters with a letter and a number and no spaces', () => {
     for (const ok of ['abcdefg1', 'riverlamp47', 'A1' + 'x'.repeat(30), 'pass-word-9', 'សុខាសុខា12']) expect(passwordError(ok), ok).toBeNull();
   });
+  test('only the digits 0 to 9 count as a number, as on central', () => {
+    expect(passwordError('abcdefgh១២')).toBe(PASSWORD_RULE_MESSAGE);
+    expect(passwordError('abcdefgh7')).toBeNull();
+  });
   test('says the rule for a short, long, spaced, letterless or numberless one', () => {
-    for (const bad of ['abcdefg', 'a1', 'A1' + 'x'.repeat(31), 'has space1', '12345678', 'abcdefgh', 'abcd efg1', ' abcdefg1']) {
+    for (const bad of ['abcdefg', 'a1', 'A1' + 'x'.repeat(31), 'has space1', '12345678', 'abcdefgh', 'abcd efg1', ' abcdefg1', 'abcdefgh១២', 'abcdefgh٣']) {
       expect(passwordError(bad), bad).toBe(PASSWORD_RULE_MESSAGE);
     }
     expect(passwordError('')).toBe('Enter a password.');
@@ -121,6 +155,15 @@ test.describe('what a failed save says', () => {
   test('no connection, 429 and 500 say nothing here (the interceptor toasts them)', () => {
     for (const status of [0, 429, 500, 502, 503]) expect(serverFieldErrors(failure(status, { errormessage: 'x' })), String(status)).toEqual({ fields: {} });
   });
+  test('the username check names its field `username`, which is the username field', () => {
+    expect(serverFieldErrors(failure(400, body([{ field: 'username', message: USERNAME_RULE_MESSAGE }]))).fields).toEqual({ schoolusername: USERNAME_RULE_MESSAGE });
+  });
+  test('a 404 that names the school puts its sentence under School; one that names nothing says one line for the form', () => {
+    expect(serverFieldErrors(failure(404, body([{ field: 'schoolid', message: "That school doesn't exist." }])))).toEqual({
+      fields: { schoolid: "That school doesn't exist." },
+    });
+    expect(serverFieldErrors(failure(404, { errormessage: 'Not found' })).form).toBe('That school or class no longer exists. Close this and try again.');
+  });
   test('403, 404 and anything else say one line for the form', () => {
     expect(serverFieldErrors(failure(403)).form).toBe("You don't have permission to add learners.");
     expect(serverFieldErrors(failure(404)).form).toBe('That school or class no longer exists. Close this and try again.');
@@ -128,18 +171,21 @@ test.describe('what a failed save says', () => {
   });
 });
 
-test.describe('the toast after a save', () => {
-  const learner = { studentname: 'Sokha Chan' };
-  test('says what the push did', () => {
-    expect(addedToast({ ...learner, push: { status: 'pushed', message: '' } })).toEqual({ kind: 'success', text: 'Added. Sokha Chan can sign in now.' });
-    expect(addedToast({ ...learner, push: { status: 'failed', message: '' } })).toEqual({
-      kind: 'warning',
-      text: 'Added. The learning server did not answer: run Sync Students for this school on the Schools screen.',
+test.describe('the line in the done panel', () => {
+  const learner = { studentname: 'សុខា ចាន់' };
+  test('says what the push means for signing in', () => {
+    expect(signInLine({ ...learner, push: { status: 'pushed', message: '' } })).toEqual({ tone: 'ok', text: 'សុខា ចាន់ can sign in now with these details.' });
+    expect(signInLine({ ...learner, push: { status: 'failed', message: 'The account was saved, but the learning server did not answer.' } })).toEqual({
+      tone: 'warn',
+      text: "សុខា ចាន់ can't sign in yet: the learning server did not answer. Run Sync Students for this school on the Schools screen.",
     });
-    expect(addedToast({ ...learner, push: { status: 'skipped', message: '' } })).toEqual({ kind: 'success', text: 'Added.' });
+    expect(signInLine({ ...learner, push: { status: 'skipped', message: '' } })).toEqual({
+      tone: 'info',
+      text: 'សុខា ចាន់ can sign in once the learning server next syncs.',
+    });
   });
-  test('says only "Added." when the push is missing or unknown', () => {
-    expect(addedToast(learner)).toEqual({ kind: 'success', text: 'Added.' });
-    expect(addedToast({ ...learner, push: { status: 'other' as never } })).toEqual({ kind: 'success', text: 'Added.' });
+  test('promises nothing when the push is missing or unknown', () => {
+    expect(signInLine(learner)).toEqual({ tone: 'info', text: 'សុខា ចាន់ was added.' });
+    expect(signInLine({ ...learner, push: { status: 'other' as never } })).toEqual({ tone: 'info', text: 'សុខា ចាន់ was added.' });
   });
 });

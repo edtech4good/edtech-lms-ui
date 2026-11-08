@@ -18,10 +18,10 @@ import { FormsModule } from '@angular/forms';
 import { NzButtonModule } from 'ng-zorro-antd/button';
 import { NzDrawerModule } from 'ng-zorro-antd/drawer';
 import { NzModalService } from 'ng-zorro-antd/modal';
-import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzSelectModule } from 'ng-zorro-antd/select';
-import { Subject, of } from 'rxjs';
-import { catchError, debounceTime, distinctUntilChanged, map, switchMap, tap } from 'rxjs/operators';
+import { EMPTY, Subject, timer } from 'rxjs';
+import { catchError, distinctUntilChanged, map, switchMap, tap } from 'rxjs/operators';
+import { of } from 'rxjs';
 import { SchoolService } from 'src/app/services/school.service';
 import { StandardService } from 'src/app/services/standard.service';
 import { StudentService } from 'src/app/services/student.service';
@@ -30,11 +30,17 @@ import {
   AddLearnerBody,
   CLASS_WORD,
   CreatedLearner,
+  DATE_OF_BIRTH_MIN,
   FIELD_ORDER,
+  GENDER_MESSAGE,
+  NO_CURRICULA_MESSAGE,
   FieldKey,
   USERNAME_AVAILABLE_MESSAGE,
   USERNAME_TAKEN_MESSAGE,
-  addedToast,
+  dateOfBirthError,
+  noClassesMessage,
+  signInLine,
+  yesterdayOf,
   firstNameError,
   lastNameError,
   NAME_MAX,
@@ -76,7 +82,6 @@ export class AddLearnerDrawerComponent {
   private readonly students = inject(StudentService);
   private readonly schoolService = inject(SchoolService);
   private readonly standardService = inject(StandardService);
-  private readonly notification = inject(NzNotificationService);
   private readonly modal = inject(NzModalService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -87,7 +92,10 @@ export class AddLearnerDrawerComponent {
 
   readonly classWord = CLASS_WORD;
   readonly nameMax = NAME_MAX;
-  readonly today = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+  readonly dobMin = DATE_OF_BIRTH_MIN;
+  readonly dobMax = yesterdayOf();
+  readonly noClasses = noClassesMessage();
+  readonly noCurricula = NO_CURRICULA_MESSAGE;
 
   // ---- Form values -------------------------------------------------------------------------------------------
   readonly firstName = signal('');
@@ -100,6 +108,11 @@ export class AddLearnerDrawerComponent {
   readonly curriculumIds = signal<string[]>([]);
   readonly genderId = signal<1 | 2 | null>(null);
   readonly dateOfBirth = signal('');
+  /** The date input holds something that is not a date (partly typed): it reports an empty value and `badInput`. */
+  readonly dobBad = signal(false);
+  /** What the form chose for the person (one school, one curriculum): not a change the person made. */
+  private readonly presetSchool = signal<string | null>(null);
+  private readonly presetCurricula = signal<string[]>([]);
 
   // ---- Lists for the selects ---------------------------------------------------------------------------------
   readonly schools = signal<Option[]>([]);
@@ -118,8 +131,7 @@ export class AddLearnerDrawerComponent {
   readonly formError = signal<string | null>(null);
   readonly availability = signal<Availability>({ kind: 'idle' });
   /** The learner just added; the password is kept here only until the drawer is closed. */
-  readonly created = signal<CreatedLearner | null>(null);
-  readonly createdPassword = signal('');
+  readonly done = signal<{ learner: CreatedLearner; password: string } | null>(null);
   readonly copied = signal<{ username: 'ok' | 'failed' | null; password: 'ok' | 'failed' | null }>({ username: null, password: null });
 
   private readonly usernameTyped$ = new Subject<string>();
@@ -133,8 +145,8 @@ export class AddLearnerDrawerComponent {
     schoolid: this.schoolId() ? null : 'Choose a school.',
     standard: this.standardId() ? null : `Choose a ${this.classWord.toLowerCase()}.`,
     curriculumids: this.curriculumIds().length ? null : 'Choose at least one curriculum.',
-    genderid: this.genderId() ? null : 'Choose Female or Male.',
-    dateofbirth: null,
+    genderid: this.genderId() ? null : GENDER_MESSAGE,
+    dateofbirth: dateOfBirthError(this.dateOfBirth(), this.dobBad()),
   }));
 
   /** The message to show for a field: ours once the form has been submitted, the API's always. */
@@ -167,8 +179,17 @@ export class AddLearnerDrawerComponent {
 
   readonly dirty = computed(
     () =>
-      this.created() === null &&
-      (this.firstName().trim() !== '' || this.lastName().trim() !== '' || this.username() !== '' || this.password() !== '' || this.dateOfBirth() !== ''),
+      this.done() === null &&
+      (this.firstName().trim() !== '' ||
+        this.lastName().trim() !== '' ||
+        this.username() !== '' ||
+        this.password() !== '' ||
+        this.schoolId() !== this.presetSchool() ||
+        this.standardId() !== null ||
+        this.curriculumIds().join('|') !== this.presetCurricula().join('|') ||
+        this.genderId() !== null ||
+        this.dateOfBirth() !== '' ||
+        this.dobBad()),
   );
 
   readonly firstNameInput = viewChild<ElementRef<HTMLInputElement>>('firstNameInput');
@@ -176,6 +197,7 @@ export class AddLearnerDrawerComponent {
   readonly usernameInput = viewChild<ElementRef<HTMLInputElement>>('usernameInput');
   readonly passwordInput = viewChild<ElementRef<HTMLInputElement>>('passwordInput');
   readonly dobInput = viewChild<ElementRef<HTMLInputElement>>('dobInput');
+  readonly doneTitle = viewChild<ElementRef<HTMLElement>>('doneTitle');
   readonly submitButton = viewChild('submitButton', { read: ElementRef<HTMLButtonElement> });
 
   constructor() {
@@ -189,7 +211,7 @@ export class AddLearnerDrawerComponent {
     });
     effect(() => {
       const first = this.firstNameInput();
-      if (first && this.open() && this.created() === null) {
+      if (first && this.open() && this.done() === null) {
         for (const delay of [0, 150, 400]) {
           setTimeout(() => {
             const active = document.activeElement;
@@ -200,7 +222,8 @@ export class AddLearnerDrawerComponent {
       }
     });
 
-    // The availability check: debounced, one answer at a time, never louder than a line under the field.
+    // The availability check: every keystroke cancels the check in flight and clears what was said, so an answer for an
+    // earlier value can never land on a later one. Only a value the rule accepts waits out the pause and asks.
     this.usernameTyped$
       .pipe(
         map((value) => value.trim()),
@@ -209,16 +232,19 @@ export class AddLearnerDrawerComponent {
           const problem = value ? usernameError(value) : null;
           this.availability.set(!value ? { kind: 'idle' } : problem ? { kind: 'rule', message: problem } : { kind: 'checking' });
         }),
-        debounceTime(DEBOUNCE_MS),
         switchMap((value) => {
-          if (!value || usernameError(value)) return of<Availability>(this.availability());
-          return this.students.usernameAvailable(value).pipe(
-            map((answer): Availability => (answer?.available === true ? { kind: 'available' } : { kind: 'taken' })),
-            // A failed check says nothing and never blocks a save: the server decides.
-            catchError((error: HttpErrorResponse) => {
-              const message = serverFieldErrors(error).fields.schoolusername;
-              return of<Availability>(error.status === 400 && message ? { kind: 'rule', message } : { kind: 'idle' });
-            }),
+          if (!value || usernameError(value)) return EMPTY;
+          return timer(DEBOUNCE_MS).pipe(
+            switchMap(() =>
+              this.students.usernameAvailable(value).pipe(
+                map((answer): Availability => (answer?.available === true ? { kind: 'available' } : { kind: 'taken' })),
+                // A failed check says nothing and never blocks a save: the server decides.
+                catchError((error: HttpErrorResponse) => {
+                  const message = serverFieldErrors(error).fields.schoolusername;
+                  return of<Availability>(error.status === 400 && message ? { kind: 'rule', message } : { kind: 'idle' });
+                }),
+              ),
+            ),
           );
         }),
         takeUntilDestroyed(this.destroyRef),
@@ -231,7 +257,7 @@ export class AddLearnerDrawerComponent {
     this.loadSchools();
   }
 
-  /** Back to empty. The once-shown password goes with it. */
+  /** Back to empty. The once-shown password goes with it: it lives only inside `done`, so clearing that clears it. */
   private forget(): void {
     this.placementRead++;
     this.schoolsRead++;
@@ -245,6 +271,9 @@ export class AddLearnerDrawerComponent {
     this.curriculumIds.set([]);
     this.genderId.set(null);
     this.dateOfBirth.set('');
+    this.dobBad.set(false);
+    this.presetSchool.set(null);
+    this.presetCurricula.set([]);
     this.standards.set([]);
     this.curricula.set([]);
     this.placementState.set('idle');
@@ -253,8 +282,7 @@ export class AddLearnerDrawerComponent {
     this.serverErrors.set({});
     this.formError.set(null);
     this.availability.set({ kind: 'idle' });
-    this.created.set(null);
-    this.createdPassword.set('');
+    this.done.set(null);
     this.copied.set({ username: null, password: null });
     this.usernameTyped$.next('');
   }
@@ -270,7 +298,10 @@ export class AddLearnerDrawerComponent {
         this.schools.set(rows.map((s) => ({ label: s.schoolname, value: s.schoolid })));
         this.schoolsState.set('ready');
         // One school: it is the school.
-        if (rows.length === 1 && !this.schoolId()) this.setSchool(rows[0].schoolid);
+        if (rows.length === 1 && !this.schoolId()) {
+          this.presetSchool.set(rows[0].schoolid);
+          this.setSchool(rows[0].schoolid);
+        }
       },
       error: () => {
         if (read === this.schoolsRead) this.schoolsState.set('error');
@@ -285,6 +316,7 @@ export class AddLearnerDrawerComponent {
     this.curriculumIds.set([]);
     this.standards.set([]);
     this.curricula.set([]);
+    this.presetCurricula.set([]);
     this.clearServer('schoolid');
     this.clearServer('standard');
     this.clearServer('curriculumids');
@@ -302,6 +334,7 @@ export class AddLearnerDrawerComponent {
       // One curriculum: it is the curriculum.
       if (!failed && this.curricula().length === 1 && this.curriculumIds().length === 0) {
         this.curriculumIds.set([this.curricula()[0].value]);
+        this.presetCurricula.set([this.curricula()[0].value]);
       }
     };
     this.standardService.getSchoolidStandard(schoolid).subscribe({
@@ -370,7 +403,12 @@ export class AddLearnerDrawerComponent {
   }
   setDateOfBirth(value: string): void {
     this.dateOfBirth.set(value);
+    this.readDobValidity();
     this.clearServer('dateofbirth');
+  }
+  /** A partly typed date reads as empty to the form; the input itself knows it is not. */
+  readDobValidity(): void {
+    this.dobBad.set(this.dobInput()?.nativeElement.validity.badInput === true);
   }
 
   /** A new password in the field, shown so it can be read out or written down. */
@@ -399,6 +437,7 @@ export class AddLearnerDrawerComponent {
   // ---- Saving ------------------------------------------------------------------------------------------------
   submit(): void {
     if (this.submitting()) return;
+    this.readDobValidity();
     this.submitted.set(true);
     const errors = this.clientErrors();
     const first = FIELD_ORDER.find((k) => errors[k]);
@@ -426,16 +465,26 @@ export class AddLearnerDrawerComponent {
       next: (answer) => {
         const result = ((answer as any)?.data?.schooluserid ? (answer as any).data : answer) as CreatedLearner;
         this.submitting.set(false);
-        this.createdPassword.set(password);
-        this.created.set(result);
+        this.done.set({ learner: result, password });
         this.serverErrors.set({});
-        const toast = addedToast(result);
-        this.notification.create(toast.kind, 'Learner added', toast.text);
         this.added.emit(result);
+        this.focusDoneTitle();
       },
       error: (error: HttpErrorResponse) => this.failed(error),
     });
   }
+
+  /** The panel's heading takes focus, so a screen reader announces it (and the line it is described by). */
+  private focusDoneTitle(attempt = 0): void {
+    const title = this.doneTitle()?.nativeElement;
+    if (title) title.focus({ preventScroll: true });
+    else if (attempt < 20) setTimeout(() => this.focusDoneTitle(attempt + 1), 25);
+  }
+
+  readonly signIn = computed(() => {
+    const done = this.done();
+    return done ? signInLine(done.learner) : null;
+  });
 
   private failed(error: HttpErrorResponse): void {
     this.submitting.set(false);
@@ -479,7 +528,7 @@ export class AddLearnerDrawerComponent {
 
   // ---- After the save ----------------------------------------------------------------------------------------
   async copy(which: 'username' | 'password'): Promise<void> {
-    const text = which === 'username' ? this.created()?.schoolusername ?? '' : this.createdPassword();
+    const text = which === 'username' ? this.done()?.learner.schoolusername ?? '' : this.done()?.password ?? '';
     let result: 'ok' | 'failed' = 'ok';
     try {
       await navigator.clipboard.writeText(text);

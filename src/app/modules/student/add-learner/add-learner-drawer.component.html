@@ -11,7 +11,13 @@
   <ng-container *nzDrawerContent>
     <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="add-learner-title">
       <header class="head">
-        <h2 id="add-learner-title" class="title">{{ created() ? 'Learner added' : 'Add learner' }}</h2>
+        <h2
+          #doneTitle
+          id="add-learner-title"
+          class="title"
+          tabindex="-1"
+          [attr.aria-describedby]="done() ? 'add-learner-outcome' : null"
+        >{{ done() ? 'Learner added' : 'Add learner' }}</h2>
         <button type="button" class="close" aria-label="Close" (click)="requestClose()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" focusable="false">
             <path d="M6 6l12 12M18 6L6 18" />
@@ -19,14 +25,16 @@
         </button>
       </header>
 
-      @if (created(); as learner) {
+      @if (done(); as shown) {
         <div class="body" data-testid="add-learner-done">
-          <p class="lead">{{ learner.studentname }} can sign in with these details.</p>
+          @if (signIn(); as outcome) {
+            <p class="lead" [class.warn]="outcome.tone === 'warn'" id="add-learner-outcome" data-testid="done-outcome">{{ outcome.text }}</p>
+          }
 
           <div class="field">
             <span class="label" id="done-username-label">Username</span>
             <div class="secret-row">
-              <output class="secret mono" aria-labelledby="done-username-label" data-testid="done-username">{{ learner.schoolusername }}</output>
+              <output class="secret mono" aria-labelledby="done-username-label" data-testid="done-username">{{ shown.learner.schoolusername }}</output>
               <button type="button" nz-button class="side-button" (click)="copy('username')">
                 {{ copied().username === 'ok' ? 'Copied' : 'Copy' }}<span class="sr-only"> username</span>
               </button>
@@ -39,7 +47,7 @@
           <div class="field">
             <span class="label" id="done-password-label">Password</span>
             <div class="secret-row">
-              <output class="secret mono" aria-labelledby="done-password-label" data-testid="done-password">{{ createdPassword() }}</output>
+              <output class="secret mono" aria-labelledby="done-password-label" data-testid="done-password">{{ shown.password }}</output>
               <button type="button" nz-button class="side-button" (click)="copy('password')">
                 {{ copied().password === 'ok' ? 'Copied' : 'Copy' }}<span class="sr-only"> password</span>
               </button>
@@ -213,6 +221,9 @@
               (ngModelChange)="setStandard($event)"
               [ngModelOptions]="{ standalone: true }"
             />
+            @if (placementState() === 'ready' && schoolId() && standards().length === 0) {
+              <p class="help" data-testid="no-classes">{{ noClasses }}</p>
+            }
             @if (errors().standard; as message) {
               <p class="field-error" role="alert">{{ message }}</p>
             }
@@ -234,6 +245,9 @@
               (ngModelChange)="setCurricula($event)"
               [ngModelOptions]="{ standalone: true }"
             />
+            @if (placementState() === 'ready' && schoolId() && curricula().length === 0) {
+              <p class="help" data-testid="no-curricula">{{ noCurricula }}</p>
+            }
             @if (placementState() === 'error') {
               <p class="field-error" role="alert">
                 This school's classes or curricula couldn't be loaded.
@@ -249,7 +263,7 @@
 
           <fieldset class="field fieldset">
             <legend class="label">Gender <span class="req" aria-hidden="true">*</span></legend>
-            <div class="segments" role="radiogroup" aria-label="Gender">
+            <div class="segments">
               <label class="segment" [class.selected]="genderId() === 2">
                 <input id="add-learner-gender-female" class="hit" type="radio" name="genderid" [checked]="genderId() === 2" (change)="setGender(2)" />
                 <span>Female</span>
@@ -272,11 +286,14 @@
               class="input"
               [class.invalid]="errors().dateofbirth"
               type="date"
-              [max]="today"
+              [min]="dobMin"
+              [max]="dobMax"
               [attr.aria-invalid]="errors().dateofbirth ? 'true' : null"
               [attr.aria-describedby]="errors().dateofbirth ? 'add-learner-dob-error' : null"
               [ngModel]="dateOfBirth()"
               (ngModelChange)="setDateOfBirth($event)"
+              (input)="readDobValidity()"
+              (blur)="readDobValidity()"
               name="dateofbirth"
             />
             @if (errors().dateofbirth; as message) {
