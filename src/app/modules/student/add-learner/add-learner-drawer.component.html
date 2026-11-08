@@ -74,6 +74,7 @@
               <input
                 #firstNameInput
                 id="add-learner-first"
+                [attr.maxlength]="nameMax"
                 class="input"
                 [class.invalid]="errors().studentfirstname"
                 type="text"
@@ -94,6 +95,7 @@
               <input
                 #lastNameInput
                 id="add-learner-last"
+                [attr.maxlength]="nameMax"
                 class="input"
                 [class.invalid]="errors().studentlastname"
                 type="text"

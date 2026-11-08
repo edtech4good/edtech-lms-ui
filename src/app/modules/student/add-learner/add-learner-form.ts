@@ -65,8 +65,20 @@ export function passwordError(value: string): string | null {
   return null;
 }
 
+/** Names are stored in 45-character columns. */
+export const NAME_MAX = 45;
+export const FIRST_NAME_MESSAGE = `Enter a name of 2 to ${NAME_MAX} characters.`;
+export const LAST_NAME_MESSAGE = `Enter a name of 1 to ${NAME_MAX} characters.`;
+
 export function firstNameError(value: string): string | null {
-  return value.trim() ? null : 'Enter a first name.';
+  const length = [...value.trim()].length;
+  return length >= 2 && length <= NAME_MAX ? null : FIRST_NAME_MESSAGE;
+}
+
+/** Optional: empty is fine; a name that is given is 1 to 45 characters. */
+export function lastNameError(value: string): string | null {
+  const length = [...value.trim()].length;
+  return length === 0 || length <= NAME_MAX ? null : LAST_NAME_MESSAGE;
 }
 
 // ---- Generate ----------------------------------------------------------------------------------------------------
@@ -115,8 +127,8 @@ export interface ServerFieldErrors {
 
 /** Shown beside a field the API names when it gave no sentence of its own. */
 const FALLBACK_FIELD_MESSAGES: Record<FieldKey, string> = {
-  studentfirstname: 'Enter a first name.',
-  studentlastname: "That last name isn't valid.",
+  studentfirstname: FIRST_NAME_MESSAGE,
+  studentlastname: LAST_NAME_MESSAGE,
   schoolusername: USERNAME_RULE_MESSAGE,
   password: PASSWORD_RULE_MESSAGE,
   schoolid: 'Choose a school.',

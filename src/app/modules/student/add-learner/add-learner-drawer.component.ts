@@ -36,6 +36,8 @@ import {
   USERNAME_TAKEN_MESSAGE,
   addedToast,
   firstNameError,
+  lastNameError,
+  NAME_MAX,
   generatePassword,
   passwordError,
   serverFieldErrors,
@@ -84,6 +86,7 @@ export class AddLearnerDrawerComponent {
   readonly closed = output<void>();
 
   readonly classWord = CLASS_WORD;
+  readonly nameMax = NAME_MAX;
   readonly today = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
 
   // ---- Form values -------------------------------------------------------------------------------------------
@@ -124,7 +127,7 @@ export class AddLearnerDrawerComponent {
   /** What is wrong with each field by our own rules (the server's answer is kept apart). */
   private readonly clientErrors = computed<Record<FieldKey, string | null>>(() => ({
     studentfirstname: firstNameError(this.firstName()),
-    studentlastname: null,
+    studentlastname: lastNameError(this.lastName()),
     schoolusername: usernameError(this.username()),
     password: passwordError(this.password()),
     schoolid: this.schoolId() ? null : 'Choose a school.',

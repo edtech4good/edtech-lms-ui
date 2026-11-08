@@ -10,6 +10,8 @@ import {
   randomBelow,
   serverFieldErrors,
   usernameError,
+  firstNameError,
+  lastNameError,
 } from '../../src/app/modules/student/add-learner/add-learner-form';
 
 /** The Add learner drawer's rules and wording (add-learner-form.ts), in Node. The drawer in a browser is add-learner.spec.ts. */
@@ -24,6 +26,17 @@ test.describe('the username rule', () => {
       expect(usernameError(bad), bad).toBe(USERNAME_RULE_MESSAGE);
     }
     expect(usernameError('')).toBe('Enter a username.');
+  });
+});
+
+test.describe('the name rules', () => {
+  test('a first name is 2 to 45 characters, counted as letters not bytes', () => {
+    for (const ok of ['Jo', 'x'.repeat(45), ' សុខា ', 'ស'.repeat(45)]) expect(firstNameError(ok), ok).toBeNull();
+    for (const bad of ['', ' ', 'J', 'x'.repeat(46), 'ស'.repeat(46)]) expect(firstNameError(bad), bad).toBe('Enter a name of 2 to 45 characters.');
+  });
+  test('a last name is optional, and 1 to 45 characters when given', () => {
+    for (const ok of ['', '  ', 'C', 'x'.repeat(45)]) expect(lastNameError(ok), ok).toBeNull();
+    expect(lastNameError('x'.repeat(46))).toBe('Enter a name of 1 to 45 characters.');
   });
 });
 

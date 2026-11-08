@@ -174,7 +174,8 @@ test.describe('Add learner drawer', () => {
     for (const later of ['Profile questions', 'Washington', 'Non-binary', 'Prefer not to say', 'Teacher']) {
       expect(text, `${later} belongs to a later slice`).not.toContain(later);
     }
-    expect(mock.unmocked, 'every request the page made was one this spec answers').toEqual([]);
+    // (The list's own search boxes ask `.../all`, in no fixed order; every other request is one this spec answers.)
+    expect(mock.unmocked.filter((r) => !r.endsWith('/all'))).toEqual([]);
   });
 
   test('says Available, Taken and the rule as the username is typed, and a failed check blocks nothing', async ({ context }) => {
@@ -347,6 +348,7 @@ test.describe('Add learner drawer', () => {
   test('a 400 that names no field (no organisation chosen) is said once at the top of the form', async ({ context }) => {
     const mock = newMock();
     mock.createAnswer = () => json(400, { error: true, code: 'INVALID_INPUT', errormessage: 'Choose an organisation.' });
+    // (The body names no field here; the next test is the one central sends, naming School.)
     const page = await openLearners(context, mock);
     await openDrawer(page);
     await fillRequired(page);
@@ -355,12 +357,47 @@ test.describe('Add learner drawer', () => {
     expect(await toasts(page).count()).toBe(0);
   });
 
+  test('the “Choose an organisation.” 400 that names School is shown under School', async ({ context }) => {
+    const mock = newMock();
+    mock.createAnswer = () => invalid([{ field: 'schoolid', message: 'Choose an organisation.' }]);
+    const page = await openLearners(context, mock);
+    await openDrawer(page);
+    await fillRequired(page);
+    await page.getByRole('button', { name: 'Add learner', exact: true }).click();
+    await expect(errorOf(page, '#add-learner-school')).toHaveText('Choose an organisation.');
+    await expect(drawer(page).locator('.form-error')).toHaveCount(0);
+  });
+
+  test('names are limited to 45 characters, the first at least 2, and extra push keys are ignored', async ({ context }) => {
+    const mock = newMock();
+    mock.createAnswer = () =>
+      json(201, {
+        schooluserid: 'su-1', schoolusername: 'sokha1', studentname: 'Sokha Chan',
+        push: { status: 'failed', message: 'x', cause: 'timeout', hint: 'retry', code: 'E1', reason: 'nocloud' },
+      });
+    const page = await openLearners(context, mock);
+    await openDrawer(page);
+    await expect(page.locator('#add-learner-first')).toHaveAttribute('maxlength', '45');
+    await expect(page.locator('#add-learner-last')).toHaveAttribute('maxlength', '45');
+    await fillRequired(page);
+    await page.locator('#add-learner-first').fill('S');
+    await page.getByRole('button', { name: 'Add learner', exact: true }).click();
+    await expect(errorOf(page, '#add-learner-first')).toHaveText('Enter a name of 2 to 45 characters.');
+    expect(mock.created).toEqual([]);
+    await page.locator('#add-learner-first').fill('');
+    await page.locator('#add-learner-first').pressSequentially('x'.repeat(60));
+    expect(await page.locator('#add-learner-first').inputValue()).toHaveLength(45);
+    await page.locator('#add-learner-first').fill('Sokha');
+    await page.getByRole('button', { name: 'Add learner', exact: true }).click();
+    await expect(toasts(page)).toHaveText('Added. The learning server did not answer: run Sync Students for this school on the Schools screen.');
+  });
+
   test('required fields are named before anything is sent, and the first empty one takes focus', async ({ context }) => {
     const mock = newMock();
     const page = await openLearners(context, mock);
     await openDrawer(page);
     await page.getByRole('button', { name: 'Add learner', exact: true }).click();
-    await expect(errorOf(page, '#add-learner-first')).toHaveText('Enter a first name.');
+    await expect(errorOf(page, '#add-learner-first')).toHaveText('Enter a name of 2 to 45 characters.');
     await expect(page.locator('#add-learner-username')).toHaveAttribute('aria-invalid', 'true');
     await expect(note(page)).toHaveText('Enter a username.');
     await expect(errorOf(page, '#add-learner-password')).toHaveText('Enter a password.');
