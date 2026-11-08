@@ -364,6 +364,82 @@ test.describe('Add learner drawer', () => {
     expect(await page.locator('body').innerHTML()).not.toContain('riverlamp47');
   });
 
+  /** Opens the done panel for sokha1 / riverlamp47. `stubs` runs in the page before the app, to refuse a copy route. */
+  async function openDonePanel(context: BrowserContext, stubs?: () => void): Promise<Page> {
+    if (stubs) await context.addInitScript(stubs);
+    const page = await openLearners(context, newMock());
+    await openDrawer(page);
+    await fillRequired(page);
+    await page.getByRole('button', { name: 'Add learner', exact: true }).click();
+    await expect(page.getByTestId('done-username')).toHaveText('sokha1');
+    return page;
+  }
+  const refuseClipboardApi = () => {
+    Object.defineProperty(navigator.clipboard, 'writeText', {
+      configurable: true,
+      value: () => Promise.reject(new DOMException('Write permission denied.', 'NotAllowedError')),
+    });
+  };
+  // (Each stub is serialised into the page on its own, so it cannot call the other.)
+  const refuseBoth = () => {
+    Object.defineProperty(navigator.clipboard, 'writeText', {
+      configurable: true,
+      value: () => Promise.reject(new DOMException('Write permission denied.', 'NotAllowedError')),
+    });
+    document.execCommand = () => false;
+  };
+  /** The system clipboard, read back through the browser (clipboard-read is granted in openLearners). */
+  const clipboardText = (page: Page) => page.evaluate(() => navigator.clipboard.readText());
+
+  test('Copy still works when the Clipboard API refuses the write: the password and the username reach the clipboard', async ({ context }) => {
+    const page = await openDonePanel(context, refuseClipboardApi);
+    await page.getByRole('button', { name: 'Copy password' }).click();
+    await expect(page.getByRole('button', { name: 'Copied password' })).toBeVisible();
+    await expect(page.getByText("The copy didn't work")).toHaveCount(0);
+    expect(await clipboardText(page)).toBe('riverlamp47');
+    await page.getByRole('button', { name: 'Copy username' }).click();
+    await expect(page.getByRole('button', { name: 'Copied username' })).toBeVisible();
+    await expect(page.getByText("The copy didn't work")).toHaveCount(0);
+    expect(await clipboardText(page)).toBe('sokha1');
+  });
+
+  test('Copy says it did not work, and stays Copy, only when both copy routes fail', async ({ context }) => {
+    const page = await openDonePanel(context, refuseBoth);
+    await page.getByRole('button', { name: 'Copy password' }).click();
+    await expect(page.getByText("The copy didn't work. Select the password and copy it by hand.")).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Copy password' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Copied password' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Copy username' }).click();
+    await expect(page.getByText("The copy didn't work. Select the username and copy it by hand.")).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Copy username' })).toBeVisible();
+    await expect(page.locator('textarea')).toHaveCount(0);
+  });
+
+  test('Copy through the working Clipboard API still reaches the clipboard, and leaves nothing behind in the drawer', async ({ context }) => {
+    const page = await openDonePanel(context);
+    await page.getByRole('button', { name: 'Copy password' }).click();
+    await expect(page.getByRole('button', { name: 'Copied password' })).toBeVisible();
+    expect(await clipboardText(page)).toBe('riverlamp47');
+    await expect(page.locator('textarea')).toHaveCount(0);
+  });
+
+  for (const [title, stubs] of [
+    ['refused by the Clipboard API', refuseClipboardApi],
+    ['refused by both routes', refuseBoth],
+    ['by the Clipboard API', undefined],
+  ] as const) {
+    test(`after a copy ${title}, no textarea is left in the drawer and focus is on the pressed button`, async ({ context }) => {
+      const page = await openDonePanel(context, stubs);
+      for (const which of ['password', 'username']) {
+        const button = page.getByRole('button', { name: new RegExp(`^Cop(y|ied) ${which}$`) });
+        await button.click();
+        await expect(button).toHaveText(/Cop(y|ied)/);
+        await expect(page.locator('textarea')).toHaveCount(0);
+        await expect(button).toBeFocused();
+      }
+    });
+  }
+
   for (const [status, text, tone] of [
     ['pushed', `${FULL} can sign in now with these details.`, 'ok'],
     ['failed', `${FULL} can't sign in yet: the learning server did not answer. Run Sync Students for this school on the Schools screen.`, 'warn'],

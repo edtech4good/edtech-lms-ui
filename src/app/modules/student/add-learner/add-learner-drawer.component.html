@@ -36,7 +36,7 @@
             <span class="label" id="done-username-label">Username</span>
             <div class="secret-row">
               <output class="secret mono" aria-labelledby="done-username-label" data-testid="done-username">{{ shown.learner.schoolusername }}</output>
-              <button type="button" nz-button class="side-button" (click)="copy('username')">
+              <button type="button" nz-button class="side-button" (click)="copy('username', $event)">
                 {{ copied().username === 'ok' ? 'Copied' : 'Copy' }}<span class="sr-only"> username</span>
               </button>
             </div>
@@ -49,7 +49,7 @@
             <span class="label" id="done-password-label">Password</span>
             <div class="secret-row">
               <output class="secret mono" aria-labelledby="done-password-label" data-testid="done-password">{{ shown.password }}</output>
-              <button type="button" nz-button class="side-button" (click)="copy('password')">
+              <button type="button" nz-button class="side-button" (click)="copy('password', $event)">
                 {{ copied().password === 'ok' ? 'Copied' : 'Copy' }}<span class="sr-only"> password</span>
               </button>
             </div>
