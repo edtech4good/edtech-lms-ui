@@ -1,0 +1,317 @@
+<nz-drawer
+  [nzVisible]="open()"
+  nzPlacement="right"
+  nzWidth="560px"
+  [nzClosable]="false"
+  [nzMaskClosable]="true"
+  nzWrapClassName="org-drawer"
+  [nzMaskStyle]="{ background: 'rgba(30, 41, 59, 0.35)' }"
+  (nzOnClose)="requestClose()"
+  (nzVisibleChange)="onVisibleChange($event)"
+>
+  <ng-container *nzDrawerContent>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="add-learner-title">
+      <header class="head">
+        <h2
+          #doneTitle
+          id="add-learner-title"
+          class="title"
+          tabindex="-1"
+          [attr.aria-describedby]="done() ? 'add-learner-outcome' : null"
+        >{{ done() ? 'Learner added' : 'Add learner' }}</h2>
+        <button type="button" class="close" aria-label="Close" (click)="requestClose()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" focusable="false">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </header>
+
+      @if (done(); as shown) {
+        <div class="body" data-testid="add-learner-done">
+          @if (signIn(); as outcome) {
+            <p class="lead" [class.warn]="outcome.tone === 'warn'" id="add-learner-outcome" data-testid="done-outcome">{{ outcome.text }}</p>
+          }
+
+          <div class="field">
+            <span class="label" id="done-username-label">Username</span>
+            <div class="secret-row">
+              <output class="secret mono" aria-labelledby="done-username-label" data-testid="done-username">{{ shown.learner.schoolusername }}</output>
+              <button type="button" nz-button class="side-button" (click)="copy('username')">
+                {{ copied().username === 'ok' ? 'Copied' : 'Copy' }}<span class="sr-only"> username</span>
+              </button>
+            </div>
+            @if (copied().username === 'failed') {
+              <p class="field-error" role="alert">The copy didn't work. Select the username and copy it by hand.</p>
+            }
+          </div>
+
+          <div class="field">
+            <span class="label" id="done-password-label">Password</span>
+            <div class="secret-row">
+              <output class="secret mono" aria-labelledby="done-password-label" data-testid="done-password">{{ shown.password }}</output>
+              <button type="button" nz-button class="side-button" (click)="copy('password')">
+                {{ copied().password === 'ok' ? 'Copied' : 'Copy' }}<span class="sr-only"> password</span>
+              </button>
+            </div>
+            @if (copied().password === 'failed') {
+              <p class="field-error" role="alert">The copy didn't work. Select the password and copy it by hand.</p>
+            }
+          </div>
+
+          <p class="notice" data-testid="done-notice">Write it down or copy it now; it is not shown again.</p>
+        </div>
+
+        <footer class="foot">
+          <button nz-button nzType="primary" type="button" class="foot-button" (click)="requestClose()">Done</button>
+        </footer>
+      } @else {
+        <form id="add-learner-form" class="body" novalidate (ngSubmit)="submit()">
+          @if (formError(); as message) {
+            <p class="form-error" role="alert">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 8v4M12 16h.01" />
+              </svg>
+              <span>{{ message }}</span>
+            </p>
+          }
+
+          <h3 class="section">Account</h3>
+
+          <div class="row">
+            <div class="field">
+              <label class="label" for="add-learner-first">First name <span class="req" aria-hidden="true">*</span></label>
+              <input
+                #firstNameInput
+                id="add-learner-first"
+                [attr.maxlength]="nameMax"
+                class="input"
+                [class.invalid]="errors().studentfirstname"
+                type="text"
+                autocomplete="off"
+                aria-required="true"
+                [attr.aria-invalid]="errors().studentfirstname ? 'true' : null"
+                [attr.aria-describedby]="errors().studentfirstname ? 'add-learner-first-error' : null"
+                [ngModel]="firstName()"
+                (ngModelChange)="setFirstName($event)"
+                name="studentfirstname"
+              />
+              @if (errors().studentfirstname; as message) {
+                <p class="field-error" id="add-learner-first-error" role="alert">{{ message }}</p>
+              }
+            </div>
+            <div class="field">
+              <label class="label" for="add-learner-last">Last name</label>
+              <input
+                #lastNameInput
+                id="add-learner-last"
+                [attr.maxlength]="nameMax"
+                class="input"
+                [class.invalid]="errors().studentlastname"
+                type="text"
+                autocomplete="off"
+                [attr.aria-invalid]="errors().studentlastname ? 'true' : null"
+                [attr.aria-describedby]="errors().studentlastname ? 'add-learner-last-error' : null"
+                [ngModel]="lastName()"
+                (ngModelChange)="setLastName($event)"
+                name="studentlastname"
+              />
+              @if (errors().studentlastname; as message) {
+                <p class="field-error" id="add-learner-last-error" role="alert">{{ message }}</p>
+              }
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="label" for="add-learner-username">Username <span class="req" aria-hidden="true">*</span></label>
+            <input
+              #usernameInput
+              id="add-learner-username"
+              class="input mono"
+              [class.invalid]="usernameNote().tone === 'error'"
+              type="text"
+              autocomplete="off"
+              autocapitalize="none"
+              spellcheck="false"
+              aria-required="true"
+              [attr.aria-invalid]="usernameNote().tone === 'error' ? 'true' : null"
+              aria-describedby="add-learner-username-note"
+              [ngModel]="username()"
+              (ngModelChange)="setUsername($event)"
+              name="schoolusername"
+            />
+            <p
+              id="add-learner-username-note"
+              class="note"
+              [class.ok]="usernameNote().tone === 'ok'"
+              [class.bad]="usernameNote().tone === 'error'"
+              aria-live="polite"
+              data-testid="username-note"
+            >{{ usernameNote().text }}</p>
+          </div>
+
+          <div class="field">
+            <label class="label" for="add-learner-password">Password <span class="req" aria-hidden="true">*</span></label>
+            <div class="secret-row">
+              <input
+                #passwordInput
+                id="add-learner-password"
+                class="input mono"
+                [class.invalid]="errors().password"
+                [attr.type]="showPassword() ? 'text' : 'password'"
+                autocomplete="new-password"
+                autocapitalize="none"
+                spellcheck="false"
+                aria-required="true"
+                [attr.aria-invalid]="errors().password ? 'true' : null"
+                [attr.aria-describedby]="'add-learner-password-help' + (errors().password ? ' add-learner-password-error' : '')"
+                [ngModel]="password()"
+                (ngModelChange)="setPassword($event)"
+                name="password"
+              />
+              <button type="button" nz-button class="side-button" (click)="generate()">Generate</button>
+              <button type="button" nz-button class="side-button" [attr.aria-pressed]="showPassword()" (click)="showPassword.set(!showPassword())">
+                {{ showPassword() ? 'Hide' : 'Show' }}
+              </button>
+            </div>
+            @if (errors().password; as message) {
+              <p class="field-error" id="add-learner-password-error" role="alert">{{ message }}</p>
+            }
+            <p class="help" id="add-learner-password-help">8 to 32 characters with at least one letter and one number.</p>
+          </div>
+
+          <h3 class="section">Where</h3>
+
+          <div class="field">
+            <label class="label" for="add-learner-school-input">School <span class="req" aria-hidden="true">*</span></label>
+            @if (schoolsState() === 'error') {
+              <p class="field-error" role="alert">
+                The schools couldn't be loaded.
+                <button type="button" class="link" (click)="loadSchools()">Try again</button>
+              </p>
+            } @else {
+              <nz-select
+                id="add-learner-school"
+                nzId="add-learner-school-input"
+                class="wide"
+                nzPlaceHolder="Choose a school"
+                [class.invalid]="errors().schoolid"
+                [nzLoading]="schoolsState() === 'loading'"
+                [nzOptions]="schools()"
+                [ngModel]="schoolId()"
+                (ngModelChange)="setSchool($event)"
+                [ngModelOptions]="{ standalone: true }"
+              />
+            }
+            @if (errors().schoolid; as message) {
+              <p class="field-error" role="alert">{{ message }}</p>
+            }
+          </div>
+
+          <div class="field">
+            <label class="label" for="add-learner-class-input">{{ classWord }} <span class="req" aria-hidden="true">*</span></label>
+            <nz-select
+              id="add-learner-class"
+              [attr.aria-describedby]="placementState() === 'ready' && schoolId() && standards().length === 0 ? 'add-learner-class-note' : null"
+              nzId="add-learner-class-input"
+              class="wide"
+              [nzPlaceHolder]="schoolId() ? 'Choose a ' + classWord.toLowerCase() : 'Choose a school first'"
+              [class.invalid]="errors().standard"
+              [nzDisabled]="!schoolId()"
+              [nzLoading]="placementState() === 'loading'"
+              [nzOptions]="standards()"
+              [ngModel]="standardId()"
+              (ngModelChange)="setStandard($event)"
+              [ngModelOptions]="{ standalone: true }"
+            />
+            @if (placementState() === 'ready' && schoolId() && standards().length === 0) {
+              <p class="help" id="add-learner-class-note" data-testid="no-classes">{{ noClasses }}</p>
+            }
+            @if (errors().standard; as message) {
+              <p class="field-error" role="alert">{{ message }}</p>
+            }
+          </div>
+
+          <div class="field">
+            <label class="label" for="add-learner-curricula-input">Curriculum <span class="req" aria-hidden="true">*</span></label>
+            <nz-select
+              id="add-learner-curricula"
+              [attr.aria-describedby]="placementState() === 'ready' && schoolId() && curricula().length === 0 ? 'add-learner-curricula-note' : null"
+              nzId="add-learner-curricula-input"
+              class="wide"
+              nzMode="multiple"
+              [nzPlaceHolder]="schoolId() ? 'Choose one or more' : 'Choose a school first'"
+              [class.invalid]="errors().curriculumids"
+              [nzDisabled]="!schoolId()"
+              [nzLoading]="placementState() === 'loading'"
+              [nzOptions]="curricula()"
+              [ngModel]="curriculumIds()"
+              (ngModelChange)="setCurricula($event)"
+              [ngModelOptions]="{ standalone: true }"
+            />
+            @if (placementState() === 'ready' && schoolId() && curricula().length === 0) {
+              <p class="help" id="add-learner-curricula-note" data-testid="no-curricula">{{ noCurricula }}</p>
+            }
+            @if (placementState() === 'error') {
+              <p class="field-error" role="alert">
+                This school's classes or curricula couldn't be loaded.
+                <button type="button" class="link" (click)="setSchool(schoolId())">Try again</button>
+              </p>
+            }
+            @if (errors().curriculumids; as message) {
+              <p class="field-error" role="alert">{{ message }}</p>
+            }
+          </div>
+
+          <h3 class="section">About the learner</h3>
+
+          <fieldset class="field fieldset">
+            <legend class="label">Gender <span class="req" aria-hidden="true">*</span></legend>
+            <div class="segments">
+              <label class="segment" [class.selected]="genderId() === 2">
+                <input id="add-learner-gender-female" class="hit" type="radio" name="genderid" [checked]="genderId() === 2" (change)="setGender(2)" />
+                <span>Female</span>
+              </label>
+              <label class="segment" [class.selected]="genderId() === 1">
+                <input id="add-learner-gender-male" class="hit" type="radio" name="genderid" [checked]="genderId() === 1" (change)="setGender(1)" />
+                <span>Male</span>
+              </label>
+            </div>
+            @if (errors().genderid; as message) {
+              <p class="field-error" role="alert">{{ message }}</p>
+            }
+          </fieldset>
+
+          <div class="field">
+            <label class="label" for="add-learner-dob">Date of birth</label>
+            <input
+              #dobInput
+              id="add-learner-dob"
+              class="input"
+              [class.invalid]="errors().dateofbirth"
+              type="date"
+              [min]="dobMin"
+              [max]="dobMax"
+              [attr.aria-invalid]="errors().dateofbirth ? 'true' : null"
+              [attr.aria-describedby]="errors().dateofbirth ? 'add-learner-dob-error' : null"
+              [ngModel]="dateOfBirth()"
+              (ngModelChange)="setDateOfBirth($event)"
+              (input)="readDobValidity()"
+              (blur)="readDobValidity()"
+              name="dateofbirth"
+            />
+            @if (errors().dateofbirth; as message) {
+              <p class="field-error" id="add-learner-dob-error" role="alert">{{ message }}</p>
+            }
+          </div>
+        </form>
+
+        <footer class="foot">
+          <button nz-button type="button" class="foot-button" (click)="requestClose()">Cancel</button>
+          <button #submitButton nz-button nzType="primary" class="foot-button" type="submit" form="add-learner-form" [disabled]="submitting()">
+            {{ submitting() ? 'Adding…' : 'Add learner' }}
+          </button>
+        </footer>
+      }
+    </div>
+  </ng-container>
+</nz-drawer>

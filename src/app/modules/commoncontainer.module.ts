@@ -5,6 +5,7 @@ import { SharedModule } from '../shared/shared.module';
 import { CommonRoutingModule } from './common-routing.module';
 import { CommonComponent } from './common.component';
 import { StudentDetailsComponent } from './student/student-details/student-details.component';
+import { AddLearnerDrawerComponent } from './student/add-learner/add-learner-drawer.component';
 import { StudentIndexComponent } from './student/student-index/student-index.component';
 import { StudentStatsComponent } from './student/student-stats/student-stats.component';
 import { TeacherIndexComponent } from './teacher/teacher-index/teacher-index.component';
@@ -31,6 +32,7 @@ import { ShellNavComponent } from './shell/shell-nav.component';
         // NgxPermissionsModule.forChild(),
         CommonRoutingModule,
         SharedModule,
+        AddLearnerDrawerComponent,
     ]
 })
 export class CommonContainer {}

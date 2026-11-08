@@ -151,6 +151,19 @@
               ></i>
             </a>
     
+            <span nz-tooltip [nzTooltipTitle]="owner.createBlocked() ? chooseOrganisationNotice : null" class="create-action-blocked" style="margin-right: 16px">
+              <button
+                (click)="showAddLearner()"
+                type="button"
+                nzType="primary"
+                nz-button
+                [disabled]="owner.createBlocked()"
+                data-testid="add-learner"
+              >
+                + Add learner
+              </button>
+            </span>
+
             <span nz-tooltip [nzTooltipTitle]="owner.createBlocked() ? chooseOrganisationNotice : null" class="create-action-blocked">
               <button
                 (click)="showuploadStudents()"
@@ -401,3 +414,8 @@
     </tr>
   </table>
 </ng-template>
+<app-add-learner-drawer
+  [open]="showAddLearnerDrawer"
+  (added)="onLearnerAdded()"
+  (closed)="closeAddLearner()"
+></app-add-learner-drawer>
