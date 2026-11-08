@@ -140,7 +140,7 @@ export class AddLearnerDrawerComponent {
   private readonly clientErrors = computed<Record<FieldKey, string | null>>(() => ({
     studentfirstname: firstNameError(this.firstName()),
     studentlastname: lastNameError(this.lastName()),
-    schoolusername: usernameError(this.username()),
+    schoolusername: usernameError(this.username().trim()),
     password: passwordError(this.password()),
     schoolid: this.schoolId() ? null : 'Choose a school.',
     standard: this.standardId() ? null : `Choose a ${this.classWord.toLowerCase()}.`,
@@ -351,7 +351,12 @@ export class AddLearnerDrawerComponent {
     this.schoolService.getCurriculums(schoolid).subscribe({
       next: (answer: any) => {
         if (read !== this.placementRead) return;
-        this.curricula.set(((answer?.data as any[]) ?? []).map((c) => ({ label: c.curriculumname, value: c.curriculumid })));
+        // The route marks no deleted curriculum; a deleted one comes back without a name, so a missing name drops it.
+        this.curricula.set(
+          ((answer?.data as any[]) ?? [])
+            .filter((c) => c && !c.isdeleted && typeof c.curriculumname === 'string' && c.curriculumname.trim() !== '')
+            .map((c) => ({ label: c.curriculumname, value: c.curriculumid })),
+        );
         done();
       },
       error: () => {
@@ -418,6 +423,13 @@ export class AddLearnerDrawerComponent {
   }
 
   // ---- Closing -----------------------------------------------------------------------------------------------
+  /** The drawer closed itself (the browser's Back disposes it): forget as a normal close does, and tell the parent. */
+  onVisibleChange(visible: boolean): void {
+    if (visible || !this.open()) return;
+    this.forget();
+    this.closed.emit();
+  }
+
   requestClose(): void {
     if (this.submitting()) return;
     if (!this.dirty()) {

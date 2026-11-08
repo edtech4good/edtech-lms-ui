@@ -7,6 +7,7 @@
   nzWrapClassName="org-drawer"
   [nzMaskStyle]="{ background: 'rgba(30, 41, 59, 0.35)' }"
   (nzOnClose)="requestClose()"
+  (nzVisibleChange)="onVisibleChange($event)"
 >
   <ng-container *nzDrawerContent>
     <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="add-learner-title">
@@ -210,6 +211,7 @@
             <label class="label" for="add-learner-class-input">{{ classWord }} <span class="req" aria-hidden="true">*</span></label>
             <nz-select
               id="add-learner-class"
+              [attr.aria-describedby]="placementState() === 'ready' && schoolId() && standards().length === 0 ? 'add-learner-class-note' : null"
               nzId="add-learner-class-input"
               class="wide"
               [nzPlaceHolder]="schoolId() ? 'Choose a ' + classWord.toLowerCase() : 'Choose a school first'"
@@ -222,7 +224,7 @@
               [ngModelOptions]="{ standalone: true }"
             />
             @if (placementState() === 'ready' && schoolId() && standards().length === 0) {
-              <p class="help" data-testid="no-classes">{{ noClasses }}</p>
+              <p class="help" id="add-learner-class-note" data-testid="no-classes">{{ noClasses }}</p>
             }
             @if (errors().standard; as message) {
               <p class="field-error" role="alert">{{ message }}</p>
@@ -233,6 +235,7 @@
             <label class="label" for="add-learner-curricula-input">Curriculum <span class="req" aria-hidden="true">*</span></label>
             <nz-select
               id="add-learner-curricula"
+              [attr.aria-describedby]="placementState() === 'ready' && schoolId() && curricula().length === 0 ? 'add-learner-curricula-note' : null"
               nzId="add-learner-curricula-input"
               class="wide"
               nzMode="multiple"
@@ -246,7 +249,7 @@
               [ngModelOptions]="{ standalone: true }"
             />
             @if (placementState() === 'ready' && schoolId() && curricula().length === 0) {
-              <p class="help" data-testid="no-curricula">{{ noCurricula }}</p>
+              <p class="help" id="add-learner-curricula-note" data-testid="no-curricula">{{ noCurricula }}</p>
             }
             @if (placementState() === 'error') {
               <p class="field-error" role="alert">

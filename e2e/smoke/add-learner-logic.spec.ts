@@ -1,6 +1,7 @@
 import type { HttpErrorResponse } from '@angular/common/http';
 import { expect, test } from '@playwright/test';
 import {
+  CLASS_WORD_PLURAL,
   PASSWORD_RULE_MESSAGE,
   PASSWORD_WORDS,
   USERNAME_RULE_MESSAGE,
@@ -47,6 +48,7 @@ test.describe('the name rules', () => {
 test.describe('the words', () => {
   test('the username rule and the no-classes line say what the design says', () => {
     expect(USERNAME_RULE_MESSAGE).toBe('Use 2 to 16 English letters or numbers.');
+    expect(CLASS_WORD_PLURAL).toBe('Classes');
     expect(noClassesMessage()).toBe('This school has no classes yet. Add one on the Schools screen.');
   });
 });

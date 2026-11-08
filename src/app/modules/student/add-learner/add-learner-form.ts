@@ -7,7 +7,7 @@ import type { HttpErrorResponse } from '@angular/common/http';
 
 /** What the admin calls a learner's group. Today every screen says "Class"; a per-organisation word is a later setting. */
 export const CLASS_WORD = 'Class';
-export const CLASS_WORD_PLURAL = 'Classes';
+export const CLASS_WORD_PLURAL = `${CLASS_WORD}es`;
 
 export const USERNAME_MIN = 2;
 export const USERNAME_MAX = 16;

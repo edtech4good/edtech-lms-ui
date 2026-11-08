@@ -18,6 +18,7 @@ const ADMIN_ROLE = 'zr5ER4QD';
 const SCHOOL_A = { schoolid: 'school-a', schoolname: 'North Valley School' };
 const SCHOOL_B = { schoolid: 'school-b', schoolname: 'South Hill School' };
 const SCHOOL_C = { schoolid: 'school-c', schoolname: 'Empty Hill School' };
+const SCHOOL_D = { schoolid: 'school-d', schoolname: 'Gone Curriculum School' };
 const FIRST = 'សុខា';
 const LAST = 'ចាន់';
 const FULL = `${FIRST} ${LAST}`;
@@ -28,6 +29,7 @@ const CLASSES: Record<string, Array<{ standardid: string; standardname: string }
   ],
   'school-b': [{ standardid: 'class-b1', standardname: 'Class 9B' }],
   'school-c': [],
+  'school-d': [{ standardid: 'class-d1', standardname: 'Class 4D' }],
 };
 const CURRICULA: Record<string, Array<{ curriculumid: string; curriculumname: string }>> = {
   'school-a': [
@@ -36,6 +38,8 @@ const CURRICULA: Record<string, Array<{ curriculumid: string; curriculumname: st
   ],
   'school-b': [{ curriculumid: 'cur-3', curriculumname: 'Science Starters' }],
   'school-c': [],
+  // The route lists a deleted curriculum without its name.
+  'school-d': [{ curriculumid: 'cur-gone' } as { curriculumid: string; curriculumname: string }],
 };
 
 const b64 = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
@@ -683,6 +687,62 @@ test.describe('Add learner drawer', () => {
     await page.getByRole('button', { name: 'Add learner', exact: true }).click();
     await expect(page.getByTestId('done-outcome')).toBeVisible();
     await page.screenshot({ path: `${process.env.E2E_SHOTS}/add-learner-done-failed.png` });
+  });
+
+  test('the browser Back button closes the drawer completely: the password is gone and the next opening is empty', async ({ context }) => {
+    const mock = newMock();
+    const page = await openLearners(context, mock);
+    await page.evaluate(() => history.pushState({}, '', location.href));
+    await openDrawer(page);
+    await fillRequired(page);
+    await page.getByRole('button', { name: 'Add learner', exact: true }).click();
+    await expect(page.getByTestId('done-password')).toHaveText('riverlamp47');
+    await page.goBack();
+    await expect(drawer(page)).toHaveCount(0);
+    await page.getByTestId('add-learner').click();
+    await expect(drawer(page)).toBeVisible();
+    await expect(page.locator('#add-learner-first')).toHaveValue('');
+    await expect(page.locator('#add-learner-password')).toHaveValue('');
+    await expect(page.getByTestId('done-password')).toHaveCount(0);
+    expect(await page.locator('body').innerText()).not.toContain('riverlamp47');
+    expect(await page.content()).not.toContain('riverlamp47');
+  });
+
+  test('a space after the username is ignored by the live note and by Save, and the trimmed name is sent', async ({ context }) => {
+    const mock = newMock();
+    const page = await openLearners(context, mock);
+    await openDrawer(page);
+    await fillRequired(page, 'sokha1 ');
+    await expect(note(page)).toHaveText('Available. Learners use this to sign in.');
+    await page.getByRole('button', { name: 'Add learner', exact: true }).click();
+    await expect(page.getByTestId('done-username')).toHaveText('sokha1');
+    expect(mock.created).toHaveLength(1);
+    expect(mock.created[0].schoolusername).toBe('sokha1');
+  });
+
+  test('a deleted curriculum (listed without a name) is not offered, and a school left with none says so', async ({ context }) => {
+    const mock = newMock();
+    mock.schools = [SCHOOL_A, SCHOOL_D];
+    const page = await openLearners(context, mock);
+    await openDrawer(page);
+    await choose(page, 'add-learner-school-input', 'Gone Curriculum School');
+    await expect(page.getByTestId('no-curricula')).toHaveText('This school has no curricula yet.');
+    await expect(page.locator('#add-learner-curricula .ant-select-selection-item')).toHaveCount(0);
+    await page.locator('#add-learner-curricula .ant-select-selector').click();
+    await expect(page.locator('.ant-select-item-option')).toHaveCount(0);
+  });
+
+  test('the notes under Class and Curriculum are linked to their selects', async ({ context }) => {
+    const mock = newMock();
+    mock.schools = [SCHOOL_A, SCHOOL_C];
+    const page = await openLearners(context, mock);
+    await openDrawer(page);
+    await choose(page, 'add-learner-school-input', 'Empty Hill School');
+    await expect(page.getByTestId('no-classes')).toBeVisible();
+    await expect(page.locator('#add-learner-class')).toHaveAttribute('aria-describedby', 'add-learner-class-note');
+    await expect(page.locator('#add-learner-class-note')).toHaveText(/no classes yet/);
+    await expect(page.locator('#add-learner-curricula')).toHaveAttribute('aria-describedby', 'add-learner-curricula-note');
+    await expect(page.locator('#add-learner-curricula-note')).toHaveText(/no curricula yet/);
   });
 
   test('in the platform view (no acting organisation) the button is disabled and no drawer opens', async ({ context }) => {
