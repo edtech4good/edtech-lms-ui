@@ -153,6 +153,17 @@ export class StudentIndexComponent implements OnInit {
     this.searchData[this.currentSearch].visible = false;
     await this.loadDataFromServer();
   }
+  showAddLearnerDrawer = false;
+  showAddLearner = () => {
+    this.showAddLearnerDrawer = true;
+  };
+  closeAddLearner = () => {
+    this.showAddLearnerDrawer = false;
+  };
+  /** A learner was added: the list shows them. The drawer stays open to show the password once. */
+  onLearnerAdded() {
+    void this.loadDataFromServer();
+  }
   showuploadStudents = () => {
     this.showUpload = true;
   };

@@ -1,7 +1,9 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { IPaging } from 'src/app/models/IPaging';
+import { FAILURES_SHOWN_BY_CALLER, FIELD_ERRORS_INLINE } from 'src/app/interceptors/error-context';
 import { CoreService } from 'src/app/services/core.service';
+import { AddLearnerBody, CreatedLearner } from '../modules/student/add-learner/add-learner-form';
 import { StudentEditedImportBody, StudentImportBody } from '../models/studentimport';
 
 @Injectable({
@@ -25,6 +27,21 @@ export class StudentService {
       data,
       this.coreService.jsonhttpOptions
     );
+  }
+  /** Whether a learner username is free. The caller says every failure itself (a failed check never blocks a save). */
+  usernameAvailable(username: string) {
+    return this.http.get<{ available: boolean }>(`${this.coreService.CORE_API()}student/username-available`, {
+      ...this.coreService.jsonhttpOptions,
+      params: new HttpParams().set('username', username),
+      context: new HttpContext().set(FAILURES_SHOWN_BY_CALLER, true),
+    });
+  }
+  /** One learner, made as the acting organisation. A 400 names its fields; the caller shows them beside the form. */
+  createOne(body: AddLearnerBody) {
+    return this.http.post<CreatedLearner>(`${this.coreService.CORE_API()}student/one`, body, {
+      ...this.coreService.jsonhttpOptions,
+      context: new HttpContext().set(FIELD_ERRORS_INLINE, true),
+    });
   }
   uploadEditedStudent(data: StudentEditedImportBody) {
     return this.http.put(
