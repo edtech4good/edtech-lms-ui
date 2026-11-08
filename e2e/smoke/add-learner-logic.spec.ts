@@ -1,4 +1,3 @@
-import type { HttpErrorResponse } from '@angular/common/http';
 import { expect, test } from '@playwright/test';
 import {
   CLASS_WORD_PLURAL,
@@ -17,10 +16,11 @@ import {
   usernameError,
   firstNameError,
   lastNameError,
+  type HttpFailure,
 } from '../../src/app/modules/student/add-learner/add-learner-form';
 
 /** The Add learner drawer's rules and wording (add-learner-form.ts), in Node. The drawer in a browser is add-learner.spec.ts. */
-const failure = (status: number, error?: unknown) => ({ status, error }) as HttpErrorResponse;
+const failure = (status: number, error?: unknown) => ({ status, error }) as HttpFailure;
 
 test.describe('the username rule', () => {
   test('accepts 2 to 16 English letters and digits', () => {

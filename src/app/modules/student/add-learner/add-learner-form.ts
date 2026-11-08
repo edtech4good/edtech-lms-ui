@@ -1,4 +1,3 @@
-import type { HttpErrorResponse } from '@angular/common/http';
 
 /**
  * The rules and wording of the Add learner drawer, kept free of Angular so they can be checked in plain Node.
@@ -177,7 +176,13 @@ const FALLBACK_FIELD_MESSAGES: Record<FieldKey, string> = {
  * sentence is shown (it is written for users). Statuses the error interceptor toasts (no connection, 429, 500) say
  * nothing here, so a failure is one message.
  */
-export function serverFieldErrors(error: HttpErrorResponse): ServerFieldErrors {
+/** The two parts of a failed request this reads; Angular's HttpErrorResponse fits it, and plain Node specs can build one. */
+export interface HttpFailure {
+  status: number;
+  error?: unknown;
+}
+
+export function serverFieldErrors(error: HttpFailure): ServerFieldErrors {
   const out: ServerFieldErrors = { fields: {} };
   if ([0, 429, 500].includes(error.status)) return out;
   const body = (error.error && typeof error.error === 'object' ? error.error : {}) as ApiErrorBody;
