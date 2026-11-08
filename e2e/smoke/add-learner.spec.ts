@@ -84,8 +84,9 @@ async function openLearners(
   context: BrowserContext,
   mock: Mock,
   claims: object = { isplatform: false, organisationid: 'org-1' },
+  clipboardWrite = true,
 ): Promise<Page> {
-  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(BASE_URL).origin }).catch(() => undefined);
+  await context.grantPermissions(clipboardWrite ? ['clipboard-read', 'clipboard-write'] : ['clipboard-read'], { origin: new URL(BASE_URL).origin }).catch(() => undefined);
   await context.addInitScript(
     ({ keys, token }) => {
       const [alg, payload, hash] = token.split('.');
@@ -345,9 +346,11 @@ test.describe('Add learner drawer', () => {
     await expect(page.locator('#add-learner-password'), 'the form is gone').toHaveCount(0);
     expect(mock.listCalls, 'the learners list was asked again').toBeGreaterThan(listCallsBefore);
 
+    await seedClipboard(page, context, false);
     await page.getByRole('button', { name: 'Copy password' }).click();
     await expect(page.getByRole('button', { name: 'Copied password' })).toBeVisible();
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('riverlamp47');
+    await seedClipboard(page, context, false);
     await page.getByRole('button', { name: 'Copy username' }).click();
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('sokha1');
 
@@ -367,7 +370,8 @@ test.describe('Add learner drawer', () => {
   /** Opens the done panel for sokha1 / riverlamp47. `stubs` runs in the page before the app, to refuse a copy route. */
   async function openDonePanel(context: BrowserContext, stubs?: () => void): Promise<Page> {
     if (stubs) await context.addInitScript(stubs);
-    const page = await openLearners(context, newMock());
+    // A refusal spec holds only clipboard-read, so the permission state matches the real failure ("denied").
+    const page = await openLearners(context, newMock(), undefined, !stubs);
     await openDrawer(page);
     await fillRequired(page);
     await page.getByRole('button', { name: 'Add learner', exact: true }).click();
@@ -375,6 +379,7 @@ test.describe('Add learner drawer', () => {
     return page;
   }
   const refuseClipboardApi = () => {
+    (window as unknown as { __realWriteText: (t: string) => Promise<void> }).__realWriteText = navigator.clipboard.writeText.bind(navigator.clipboard);
     Object.defineProperty(navigator.clipboard, 'writeText', {
       configurable: true,
       value: () => Promise.reject(new DOMException('Write permission denied.', 'NotAllowedError')),
@@ -382,6 +387,7 @@ test.describe('Add learner drawer', () => {
   };
   // (Each stub is serialised into the page on its own, so it cannot call the other.)
   const refuseBoth = () => {
+    (window as unknown as { __realWriteText: (t: string) => Promise<void> }).__realWriteText = navigator.clipboard.writeText.bind(navigator.clipboard);
     Object.defineProperty(navigator.clipboard, 'writeText', {
       configurable: true,
       value: () => Promise.reject(new DOMException('Write permission denied.', 'NotAllowedError')),
@@ -390,13 +396,38 @@ test.describe('Add learner drawer', () => {
   };
   /** The system clipboard, read back through the browser (clipboard-read is granted in openLearners). */
   const clipboardText = (page: Page) => page.evaluate(() => navigator.clipboard.readText());
+  /**
+   * The headless browser has one clipboard for every test, so a read-back could pass on a value an earlier test left.
+   * Writes a random sentinel first and returns it. A refusal spec has no write permission, so it is granted for this
+   * write (through the page's own unstubbed writeText) and taken away again.
+   */
+  async function seedClipboard(page: Page, context: BrowserContext, refusing: boolean): Promise<string> {
+    const sentinel = `sentinel-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+    const origin = new URL(BASE_URL).origin;
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin });
+    await page.evaluate(
+      (value) => {
+        const real = (window as unknown as { __realWriteText?: (t: string) => Promise<void> }).__realWriteText;
+        return (real ?? navigator.clipboard.writeText.bind(navigator.clipboard))(value);
+      },
+      sentinel,
+    );
+    if (refusing) {
+      await context.clearPermissions();
+      await context.grantPermissions(['clipboard-read'], { origin });
+    }
+    expect(await clipboardText(page), 'the sentinel is on the clipboard').toBe(sentinel);
+    return sentinel;
+  }
 
   test('Copy still works when the Clipboard API refuses the write: the password and the username reach the clipboard', async ({ context }) => {
     const page = await openDonePanel(context, refuseClipboardApi);
+    await seedClipboard(page, context, true);
     await page.getByRole('button', { name: 'Copy password' }).click();
     await expect(page.getByRole('button', { name: 'Copied password' })).toBeVisible();
     await expect(page.getByText("The copy didn't work")).toHaveCount(0);
     expect(await clipboardText(page)).toBe('riverlamp47');
+    await seedClipboard(page, context, true);
     await page.getByRole('button', { name: 'Copy username' }).click();
     await expect(page.getByRole('button', { name: 'Copied username' })).toBeVisible();
     await expect(page.getByText("The copy didn't work")).toHaveCount(0);
@@ -405,18 +436,22 @@ test.describe('Add learner drawer', () => {
 
   test('Copy says it did not work, and stays Copy, only when both copy routes fail', async ({ context }) => {
     const page = await openDonePanel(context, refuseBoth);
+    const sentinel = await seedClipboard(page, context, true);
     await page.getByRole('button', { name: 'Copy password' }).click();
     await expect(page.getByText("The copy didn't work. Select the password and copy it by hand.")).toBeVisible();
+    expect(await clipboardText(page), 'nothing was copied').toBe(sentinel);
     await expect(page.getByRole('button', { name: 'Copy password' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Copied password' })).toHaveCount(0);
     await page.getByRole('button', { name: 'Copy username' }).click();
     await expect(page.getByText("The copy didn't work. Select the username and copy it by hand.")).toBeVisible();
     await expect(page.getByRole('button', { name: 'Copy username' })).toBeVisible();
+    expect(await clipboardText(page), 'nothing was copied').toBe(sentinel);
     await expect(page.locator('textarea')).toHaveCount(0);
   });
 
   test('Copy through the working Clipboard API still reaches the clipboard, and leaves nothing behind in the drawer', async ({ context }) => {
     const page = await openDonePanel(context);
+    await seedClipboard(page, context, false);
     await page.getByRole('button', { name: 'Copy password' }).click();
     await expect(page.getByRole('button', { name: 'Copied password' })).toBeVisible();
     expect(await clipboardText(page)).toBe('riverlamp47');
@@ -432,6 +467,7 @@ test.describe('Add learner drawer', () => {
       const page = await openDonePanel(context, stubs);
       for (const which of ['password', 'username']) {
         const button = page.getByRole('button', { name: new RegExp(`^Cop(y|ied) ${which}$`) });
+        await seedClipboard(page, context, !!stubs);
         await button.click();
         await expect(button).toHaveText(/Cop(y|ied)/);
         await expect(page.locator('textarea')).toHaveCount(0);

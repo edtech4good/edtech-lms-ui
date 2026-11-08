@@ -555,8 +555,8 @@ export class AddLearnerDrawerComponent {
 
   /**
    * Copies through a temporary read-only textarea that is selected and handed to the browser's copy command. It sits
-   * inside the drawer (outside it, the focus trap would refuse the selection), off screen and hidden from assistive
-   * technology, and is removed in every path. Focus goes back to the button that was pressed.
+   * inside the drawer rather than on the page body, so it stays within the dialog's focus scope and stacking; it is
+   * off screen, hidden from assistive technology, and removed in every path. Focus goes back to the button that was pressed.
    */
   private copyBySelection(text: string, button: HTMLElement | null): boolean {
     const host = button?.closest('.dialog') ?? button?.parentElement;
@@ -571,6 +571,7 @@ export class AddLearnerDrawerComponent {
       host.appendChild(area);
       area.focus({ preventScroll: true });
       area.select();
+      area.setSelectionRange(0, text.length); // iOS ignores select() alone
       return document.execCommand('copy');
     } catch {
       return false;
