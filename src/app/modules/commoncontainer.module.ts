@@ -8,6 +8,7 @@ import { StudentDetailsComponent } from './student/student-details/student-detai
 import { AddLearnerDrawerComponent } from './student/add-learner/add-learner-drawer.component';
 import { StudentIndexComponent } from './student/student-index/student-index.component';
 import { StudentStatsComponent } from './student/student-stats/student-stats.component';
+import { AddTeacherDrawerComponent } from './teacher/add-teacher/add-teacher-drawer.component';
 import { TeacherIndexComponent } from './teacher/teacher-index/teacher-index.component';
 import { LessonModule } from "./lesson/lesson.module";
 import { ShellBreadcrumbComponent } from './shell/shell-breadcrumb.component';
@@ -33,6 +34,7 @@ import { ShellNavComponent } from './shell/shell-nav.component';
         CommonRoutingModule,
         SharedModule,
         AddLearnerDrawerComponent,
+        AddTeacherDrawerComponent,
     ]
 })
 export class CommonContainer {}
