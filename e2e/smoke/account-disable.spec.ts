@@ -250,6 +250,102 @@ test.describe('Learners list', () => {
   });
 });
 
+const focusedLabel = (page: Page) => page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? document.activeElement?.tagName ?? '');
+
+test.describe('Learners list: keyboard and focus', () => {
+  test('keyboard only: the Actions button opens the menu, focus lands on the item, Enter opens the confirm, Enter confirms', async ({ context }) => {
+    const mock = newMock();
+    const page = await openLearners(context, mock);
+    const button = actions(page, 'dara1');
+    await expect(button).toHaveAttribute('aria-haspopup', 'menu');
+    await expect(button).toHaveAttribute('aria-expanded', 'false');
+    await button.focus();
+    await page.keyboard.press('Enter');
+    await expect(button).toHaveAttribute('aria-expanded', 'true');
+    await expect(menuItem(page, 'Disable')).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(popconfirm(page)).toContainText('Disable dara1?');
+    await expect(popconfirm(page).getByRole('button', { name: 'Disable' })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(row(page, 'dara1').getByTestId('disabled-tag')).toHaveText('Disabled');
+    expect(mock.requests).toEqual([{ method: 'PUT', path: 'student/lu-1/disabled', body: { disabled: true } }]);
+  });
+
+  test('Space on the item also opens the confirm', async ({ context }) => {
+    const page = await openLearners(context, newMock());
+    await actions(page, 'dara1').focus();
+    await page.keyboard.press('Enter');
+    await expect(menuItem(page, 'Disable')).toBeFocused();
+    await page.keyboard.press('Space');
+    await expect(popconfirm(page)).toContainText('Disable dara1?');
+  });
+
+  for (const how of ['Confirm', 'Cancel', 'Escape'] as const) {
+    test(`focus returns to the Actions button after ${how}`, async ({ context }) => {
+      const mock = newMock();
+      const page = await openLearners(context, mock);
+      await actions(page, 'dara1').focus();
+      await page.keyboard.press('Enter');
+      await expect(menuItem(page, 'Disable')).toBeFocused();
+      await page.keyboard.press('Enter');
+      await expect(popconfirm(page)).toBeVisible();
+      if (how === 'Escape') await page.keyboard.press('Escape');
+      else await popconfirm(page).getByRole('button', { name: how === 'Confirm' ? 'Disable' : 'Cancel' }).click();
+      await expect(popconfirm(page)).toHaveCount(0);
+      await expect.poll(() => focusedLabel(page)).toBe('Actions for dara1');
+      expect(mock.requests).toHaveLength(how === 'Confirm' ? 1 : 0);
+    });
+  }
+
+  test('focus returns to the Actions button after the menu is closed with Escape', async ({ context }) => {
+    const page = await openLearners(context, newMock());
+    await actions(page, 'dara1').focus();
+    await page.keyboard.press('Enter');
+    await expect(menuItem(page, 'Disable')).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(menuItem(page, 'Disable')).toHaveCount(0);
+    await expect.poll(() => focusedLabel(page)).toBe('Actions for dara1');
+  });
+});
+
+test.describe('Teachers list: accessible names and focus', () => {
+  test('each Disable or Enable button names its teacher; Delete keeps its own name', async ({ context }) => {
+    const page = await openTeachers(context, newMock());
+    await expect(page.getByRole('button', { name: 'Disable teacher.one', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Enable teacher.two', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Disable teacher.two' })).toHaveCount(0);
+    await expect(row(page, 'teacher.one').getByText('Delete', { exact: true })).toBeVisible();
+  });
+
+  test('keyboard only: Enter opens the confirm with focus on its button, Enter confirms', async ({ context }) => {
+    const mock = newMock();
+    const page = await openTeachers(context, mock);
+    await page.getByRole('button', { name: 'Disable teacher.one', exact: true }).focus();
+    await page.keyboard.press('Enter');
+    await expect(popconfirm(page)).toContainText('Disable teacher.one?');
+    await expect(popconfirm(page).getByRole('button', { name: 'Disable' })).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(row(page, 'teacher.one').getByTestId('disabled-tag')).toHaveText('Disabled');
+    expect(mock.requests).toEqual([{ method: 'PUT', path: 'teacher/tu-1/disabled', body: { disabled: true } }]);
+  });
+
+  for (const how of ['Confirm', 'Cancel', 'Escape'] as const) {
+    test(`focus returns to the row's button after ${how}`, async ({ context }) => {
+      const mock = newMock();
+      const page = await openTeachers(context, mock);
+      await page.getByRole('button', { name: 'Disable teacher.one', exact: true }).focus();
+      await page.keyboard.press('Enter');
+      await expect(popconfirm(page)).toBeVisible();
+      if (how === 'Escape') await page.keyboard.press('Escape');
+      else await popconfirm(page).getByRole('button', { name: how === 'Confirm' ? 'Disable' : 'Cancel' }).click();
+      await expect(popconfirm(page)).toHaveCount(0);
+      const after = how === 'Confirm' ? 'Enable teacher.one' : 'Disable teacher.one';
+      await expect.poll(() => focusedLabel(page)).toBe(after);
+      expect(mock.requests).toHaveLength(how === 'Confirm' ? 1 : 0);
+    });
+  }
+});
+
 test.describe('Teachers list', () => {
   test('a disabled row carries a Disabled tag, and Delete stays beside Disable and Enable', async ({ context }) => {
     const page = await openTeachers(context, newMock());
@@ -320,7 +416,7 @@ test.describe('Teachers list', () => {
 
   test('without update_teacher there is no Disable or Enable, and Delete stays', async ({ context }) => {
     const page = await openTeachers(context, newMock(), WITHOUT);
-    await expect(page.getByRole('button', { name: /^(Disable|Enable)$/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^(Disable|Enable) / })).toHaveCount(0);
     await expect(row(page, 'teacher.one').getByText('Delete', { exact: true })).toBeVisible();
   });
 

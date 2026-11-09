@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import * as csv from 'csvtojson';
 import { uniq } from 'lodash';
@@ -8,7 +8,7 @@ import { NzTableQueryParams } from 'ng-zorro-antd/table';
 import { NzUploadChangeParam, NzUploadFile } from 'ng-zorro-antd/upload';
 import { BehaviorSubject, EMPTY, Observable, of, Subscription } from 'rxjs';
 import { catchError, debounceTime, filter, finalize, first, map, switchMap } from 'rxjs/operators';
-import { disableConfirmText, disableNotice, withDisabled } from '../account-disable';
+import { CONFIRM_OK_SELECTOR, disableConfirmText, disableNotice, focusSoon, rowControl, withDisabled } from '../account-disable';
 import { IFilter } from 'src/app/models/IPaging';
 import { StudentImport, StudentImportForEdit } from 'src/app/models/studentimport';
 import { CoreService } from 'src/app/services/core.service';
@@ -314,11 +314,31 @@ export class StudentIndexComponent implements OnInit {
   isChanging = (row: any) => this.changing.has(row.schooluserid);
   username = (row: any): string => row['schooluser.schoolusername'];
   confirmText = (row: any) => disableConfirmText(this.username(row), !row.isdisabled);
-  askToggle(row: any) {
-    if (!this.changing.has(row.schooluserid)) this.confirming = row.schooluserid;
+  /** The schooluserid whose Actions menu is open. */
+  menuOpen: string | null = null;
+  onMenuVisible(visible: boolean, row: any) {
+    this.menuOpen = visible ? row.schooluserid : this.menuOpen === row.schooluserid ? null : this.menuOpen;
+    if (visible) focusSoon('.ant-dropdown [data-menu-action]');
+    else if (!this.confirming) focusSoon(rowControl(row.schooluserid));
   }
+  askToggle(row: any) {
+    if (this.changing.has(row.schooluserid)) return;
+    this.confirming = row.schooluserid;
+    focusSoon(CONFIRM_OK_SELECTOR);
+  }
+  /** The confirm closed without a change (Cancel, Escape, a click outside): focus goes back to the Actions button. */
   closeConfirm(visible: boolean, row: any) {
-    if (!visible && this.confirming === row.schooluserid) this.confirming = null;
+    if (!visible && this.confirming === row.schooluserid) {
+      this.confirming = null;
+      focusSoon(rowControl(row.schooluserid));
+    }
+  }
+  @HostListener('document:keydown.escape')
+  onEscape() {
+    const id = this.confirming;
+    if (!id) return;
+    this.confirming = null;
+    focusSoon(rowControl(id));
   }
   /** Disables or enables a learner; the row changes in place and a toast says what the learning server did. */
   toggleDisabled(row: any) {
@@ -330,7 +350,13 @@ export class StudentIndexComponent implements OnInit {
     const username = this.username(row);
     this.studentService
       .setDisabled(id, disabled)
-      .pipe(first(), finalize(() => this.changing.delete(id)))
+      .pipe(
+        first(),
+        finalize(() => {
+          this.changing.delete(id);
+          focusSoon(rowControl(id));
+        }),
+      )
       .subscribe({
         next: (result) => {
           const state = typeof result?.disabled === 'boolean' ? result.disabled : disabled;

@@ -36,15 +36,28 @@ export function disableNotice(kind: AccountKind, username: string, result: Pick<
     case 'failed':
       return {
         type: 'warning',
-        title: 'Saved on central',
+        title: 'Saved',
         text: `${username} is ${word} on central, but the learning server did not answer. Run ${sync} for this school on the Schools screen.`,
       };
     case 'skipped':
       return { type: 'info', title: 'Saved', text: `${username} is ${word}. The learning server gets the change at its next sync.` };
-    default:
+    case 'pushed':
       return { type: 'success', title: 'Success', text: disabled ? `${username} is disabled.` : `${username} can sign in again.` };
+    default:
+      return { type: 'info', title: 'Saved', text: `${username} was updated.` };
   }
 }
+
+/** Moves focus to the first element matching `selector`, after Angular has drawn the change. */
+export function focusSoon(selector: string): void {
+  setTimeout(() => (document.querySelector(selector) as HTMLElement | null)?.focus(), 0);
+}
+
+/** The confirm button of the open popconfirm, so a keyboard user can reach it (the overlay sits at the end of the page). */
+export const CONFIRM_OK_SELECTOR = '.ant-popover .ant-btn-primary';
+
+/** The attribute that marks a row's control, and the selector for one row's. */
+export const rowControl = (id: string) => `[data-row-control="${id.replace(/["\\]/g, '')}"]`;
 
 /** The rows with one row's `isdisabled` set. A new array and a new row, so nothing else changes. */
 export function withDisabled<T extends { schooluserid?: string; isdisabled?: boolean }>(rows: T[], schooluserid: string, disabled: boolean): T[] {

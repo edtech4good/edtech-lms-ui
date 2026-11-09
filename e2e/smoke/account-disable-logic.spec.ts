@@ -35,9 +35,18 @@ test.describe('the toast after a 200', () => {
       'dara1 is enabled. The learning server gets the change at its next sync.',
     );
   });
-  test('an answer with no push status reads as pushed', () => {
-    expect(disableNotice('learner', 'dara1', { disabled: true }).text).toBe('dara1 is disabled.');
-    expect(disableNotice('learner', 'dara1', { disabled: false, push: {} }).text).toBe('dara1 can sign in again.');
+  test('an answer with no push status, or an unknown one, gets a neutral toast', () => {
+    for (const disabled of [true, false]) {
+      expect(disableNotice('learner', 'dara1', { disabled })).toEqual({ type: 'info', title: 'Saved', text: 'dara1 was updated.' });
+      expect(disableNotice('teacher', 'dara1', { disabled, push: {} }).text).toBe('dara1 was updated.');
+      expect(disableNotice('teacher', 'dara1', { disabled, push: { status: 'later' as never } }).text).toBe('dara1 was updated.');
+    }
+  });
+  test('every toast title is Saved or Success, never a place name', () => {
+    for (const status of ['pushed', 'failed', 'skipped', undefined] as const) {
+      expect(['Saved', 'Success']).toContain(disableNotice('learner', 'dara1', { disabled: true, push: { status } }).title);
+    }
+    expect(disableNotice('learner', 'dara1', { disabled: true, push: { status: 'failed' } }).title).toBe('Saved');
   });
   test('the teacher text never names learners', () => {
     for (const status of ['pushed', 'failed', 'skipped'] as const) {
