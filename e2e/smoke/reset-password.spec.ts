@@ -347,6 +347,48 @@ for (const where of [LEARNER, TEACHER]) {
       expect(await page.locator('body').innerText(), 'the password is nowhere on the page').not.toContain(NEW_PASSWORD);
     });
 
+    test('an answer that arrives while the drawer is still closed is not kept: reopening starts empty', async ({ context }) => {
+      const mock = newMock();
+      let release!: () => void;
+      mock.hold = new Promise<void>((resolve) => (release = resolve));
+      const page = await open(context, mock);
+      await openDrawer(page, where);
+      await saveNew(page);
+      await expect.poll(() => mock.requests.length).toBe(1);
+      await page.evaluate(() => {
+        history.pushState({}, '', location.pathname + '?back=1');
+        history.back();
+      });
+      await expect(drawer(page)).toBeHidden();
+      release();
+      await page.waitForTimeout(600);
+      await openDrawer(page, where);
+      await expect(passwordField(page)).toHaveValue('');
+      await expect(page.getByTestId('reset-password-done')).toHaveCount(0);
+      expect(await page.locator('body').innerText(), 'the password is nowhere on the page').not.toContain(NEW_PASSWORD);
+    });
+
+    test('a refusal that arrives after close and reopen is not shown in the new drawer', async ({ context }) => {
+      const mock = newMock();
+      mock.answer = () => json(400, { error: true, code: 'INVALID_INPUT', errormessage: 'Invalid input', fields: [{ field: 'password', message: 'That password is too common. Choose another.' }] });
+      let release!: () => void;
+      mock.hold = new Promise<void>((resolve) => (release = resolve));
+      const page = await open(context, mock);
+      await openDrawer(page, where);
+      await saveNew(page);
+      await expect.poll(() => mock.requests.length).toBe(1);
+      await page.evaluate(() => {
+        history.pushState({}, '', location.pathname + '?back=1');
+        history.back();
+      });
+      await expect(drawer(page)).toBeHidden();
+      await openDrawer(page, where);
+      release();
+      await page.waitForTimeout(600);
+      await expect(drawer(page).locator('#reset-password-error')).toHaveCount(0);
+      await expect(passwordField(page)).toHaveValue('');
+    });
+
     test('an enabled account shows no disabled note', async ({ context }) => {
       const page = await open(context, newMock());
       await openDrawer(page, where);

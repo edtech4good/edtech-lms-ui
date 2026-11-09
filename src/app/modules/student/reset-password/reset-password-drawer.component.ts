@@ -78,7 +78,11 @@ export class ResetPasswordDrawerComponent {
     });
   }
 
+  /** Bumped each time the drawer is emptied; an answer for an earlier opening carries an older number and is dropped. */
+  private session = 0;
+
   private forget(): void {
+    this.session++;
     this.password.set('');
     this.showPassword.set(false);
     this.submitting.set(false);
@@ -124,19 +128,23 @@ export class ResetPasswordDrawerComponent {
     const username = this.username();
     const id = this.schooluserid();
     const accountDisabled = this.accountDisabled();
+    const session = this.session;
     this.submitting.set(true);
     this.formError.set(null);
     const request = this.kind() === 'teacher' ? this.teachers.resetPassword(id, resetBody(password)) : this.students.resetPassword(id, resetBody(password));
     request.subscribe({
       next: (answer) => {
-        // A late answer after the drawer was closed (the browser's Back during a save) is not kept.
-        if (!this.open()) return;
+        // An answer for an opening that has since been closed (the browser's Back during a save) is not kept or shown.
+        if (session !== this.session) return;
         this.submitting.set(false);
         this.serverError.set(null);
         this.done.set({ username, password, accountDisabled, result: answer ?? null });
         this.focusDoneTitle();
       },
-      error: (error: HttpErrorResponse) => this.failed(error),
+      error: (error: HttpErrorResponse) => {
+        if (session !== this.session) return;
+        this.failed(error);
+      },
     });
   }
 
