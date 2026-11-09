@@ -452,7 +452,7 @@ test.describe('Sync Teachers on the Schools screen', () => {
     await page.locator('tr', { hasText: SCHOOL_A.schoolname }).getByTestId('sync-teachers').click();
     await page.locator('.ant-popover:not(.ant-popover-hidden) button', { hasText: 'OK' }).click();
     await expect(toasts(page)).toHaveText('There are no teachers to sync.');
-    await expect(page.locator('.ant-notification-notice-error')).toHaveCount(1);
+    await expect(page.locator('.ant-notification-notice-message')).toHaveText('Error');
     expect(mock.syncCalls).toHaveLength(1);
   });
 
