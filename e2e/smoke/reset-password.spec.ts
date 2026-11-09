@@ -512,7 +512,14 @@ for (const where of [LEARNER, TEACHER]) {
 
     test('without the update permission there is no way to open it', async ({ context }) => {
       const page = await open(context, newMock(), WITHOUT);
-      await expect(page.getByRole('button', { name: /^Manage / })).toHaveCount(0);
+      if (where.kind === 'learner') {
+        await expect(page.getByRole('button', { name: /^Manage / })).toHaveCount(0);
+      } else {
+        // A teacher's menu is still there for Delete (delete_teacher is held), but it offers no Reset password.
+        await actions(page, where.username).click();
+        await expect(menuItem(page, 'Delete')).toBeVisible();
+        await expect(menuItem(page, 'Reset password')).toHaveCount(0);
+      }
       await expect(page.getByRole('dialog')).toHaveCount(0);
     });
   });
