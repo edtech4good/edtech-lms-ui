@@ -1,0 +1,177 @@
+<nz-drawer
+  [nzVisible]="open()"
+  nzPlacement="right"
+  nzWidth="560px"
+  [nzClosable]="false"
+  [nzMaskClosable]="true"
+  nzWrapClassName="org-drawer"
+  [nzMaskStyle]="{ background: 'rgba(30, 41, 59, 0.35)' }"
+  (nzOnClose)="requestClose()"
+  (nzVisibleChange)="onVisibleChange($event)"
+>
+  <ng-container *nzDrawerContent>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="add-teacher-title">
+      <header class="head">
+        <h2
+          #doneTitle
+          id="add-teacher-title"
+          class="title"
+          tabindex="-1"
+          [attr.aria-describedby]="done() ? 'add-teacher-outcome' : null"
+        >{{ done() ? 'Teacher added' : 'Add teacher' }}</h2>
+        <button type="button" class="close" aria-label="Close" (click)="requestClose()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" focusable="false">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </header>
+
+      @if (done(); as shown) {
+        <div class="body" data-testid="add-teacher-done">
+          @if (signIn(); as outcome) {
+            <p class="lead" [class.warn]="outcome.tone === 'warn'" id="add-teacher-outcome" data-testid="done-outcome">{{ outcome.text }}</p>
+          }
+
+          <div class="field">
+            <span class="label" id="done-username-label">Username</span>
+            <div class="secret-row">
+              <output class="secret mono" aria-labelledby="done-username-label" data-testid="done-username">{{ shown.teacher.schoolusername }}</output>
+              <button type="button" nz-button class="side-button" (click)="copy('username', $event)">
+                {{ copied().username === 'ok' ? 'Copied' : 'Copy' }}<span class="sr-only"> username</span>
+              </button>
+            </div>
+            @if (copied().username === 'failed') {
+              <p class="field-error" role="alert">The copy didn't work. Select the username and copy it by hand.</p>
+            }
+          </div>
+
+          <div class="field">
+            <span class="label" id="done-password-label">Password</span>
+            <div class="secret-row">
+              <output class="secret mono" aria-labelledby="done-password-label" data-testid="done-password">{{ shown.password }}</output>
+              <button type="button" nz-button class="side-button" (click)="copy('password', $event)">
+                {{ copied().password === 'ok' ? 'Copied' : 'Copy' }}<span class="sr-only"> password</span>
+              </button>
+            </div>
+            @if (copied().password === 'failed') {
+              <p class="field-error" role="alert">The copy didn't work. Select the password and copy it by hand.</p>
+            }
+          </div>
+
+          <p class="notice" data-testid="done-notice">Write it down or copy it now; it is not shown again.</p>
+        </div>
+
+        <footer class="foot">
+          <button nz-button nzType="primary" type="button" class="foot-button" (click)="requestClose()">Done</button>
+        </footer>
+      } @else {
+        <form id="add-teacher-form" class="body" novalidate (ngSubmit)="submit()">
+          @if (formError(); as message) {
+            <p class="form-error" role="alert">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 8v4M12 16h.01" />
+              </svg>
+              <span>{{ message }}</span>
+            </p>
+          }
+
+          <h3 class="section">Account</h3>
+
+          <div class="field">
+            <label class="label" for="add-teacher-username">Username <span class="req" aria-hidden="true">*</span></label>
+            <input
+              #usernameInput
+              id="add-teacher-username"
+              class="input mono"
+              [class.invalid]="usernameNote().tone === 'error'"
+              type="text"
+              autocomplete="off"
+              autocapitalize="none"
+              spellcheck="false"
+              aria-required="true"
+              [attr.aria-invalid]="usernameNote().tone === 'error' ? 'true' : null"
+              aria-describedby="add-teacher-username-note"
+              [ngModel]="username()"
+              (ngModelChange)="setUsername($event)"
+              name="schoolusername"
+            />
+            <p
+              id="add-teacher-username-note"
+              class="note"
+              [class.ok]="usernameNote().tone === 'ok'"
+              [class.bad]="usernameNote().tone === 'error'"
+              aria-live="polite"
+              data-testid="username-note"
+            >{{ usernameNote().text }}</p>
+          </div>
+
+          <div class="field">
+            <label class="label" for="add-teacher-password">Password <span class="req" aria-hidden="true">*</span></label>
+            <div class="secret-row">
+              <input
+                #passwordInput
+                id="add-teacher-password"
+                class="input mono"
+                [class.invalid]="errors().password"
+                [attr.type]="showPassword() ? 'text' : 'password'"
+                autocomplete="new-password"
+                autocapitalize="none"
+                spellcheck="false"
+                aria-required="true"
+                [attr.aria-invalid]="errors().password ? 'true' : null"
+                [attr.aria-describedby]="'add-teacher-password-help' + (errors().password ? ' add-teacher-password-error' : '')"
+                [ngModel]="password()"
+                (ngModelChange)="setPassword($event)"
+                name="password"
+              />
+              <button type="button" nz-button class="side-button" (click)="generate()">Generate</button>
+              <button type="button" nz-button class="side-button" [attr.aria-pressed]="showPassword()" (click)="showPassword.set(!showPassword())">
+                {{ showPassword() ? 'Hide' : 'Show' }}
+              </button>
+            </div>
+            @if (errors().password; as message) {
+              <p class="field-error" id="add-teacher-password-error" role="alert">{{ message }}</p>
+            }
+            <p class="help" id="add-teacher-password-help">8 to 32 characters with at least one letter and one number.</p>
+          </div>
+
+          <h3 class="section">Where</h3>
+
+          <div class="field">
+            <label class="label" for="add-teacher-school-input">School <span class="req" aria-hidden="true">*</span></label>
+            @if (schoolsState() === 'error') {
+              <p class="field-error" role="alert">
+                The schools couldn't be loaded.
+                <button type="button" class="link" (click)="loadSchools()">Try again</button>
+              </p>
+            } @else {
+              <nz-select
+                id="add-teacher-school"
+                nzId="add-teacher-school-input"
+                class="wide"
+                nzPlaceHolder="Choose a school"
+                [class.invalid]="errors().schoolid"
+                [nzLoading]="schoolsState() === 'loading'"
+                [nzOptions]="schools()"
+                [ngModel]="schoolId()"
+                (ngModelChange)="setSchool($event)"
+                [ngModelOptions]="{ standalone: true }"
+              />
+            }
+            @if (errors().schoolid; as message) {
+              <p class="field-error" role="alert">{{ message }}</p>
+            }
+          </div>
+
+        </form>
+
+        <footer class="foot">
+          <button nz-button type="button" class="foot-button" (click)="requestClose()">Cancel</button>
+          <button #submitButton nz-button nzType="primary" class="foot-button" type="submit" form="add-teacher-form" [disabled]="submitting()">
+            {{ submitting() ? 'Adding…' : 'Add teacher' }}
+          </button>
+        </footer>
+      }
+    </div>
+  </ng-container>
+</nz-drawer>

@@ -1,8 +1,10 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { IPaging } from 'src/app/models/IPaging';
+import { FIELD_ERRORS_INLINE } from 'src/app/interceptors/error-context';
 import { CoreService } from 'src/app/services/core.service';
 import { TeacherImportBody } from '../models/teacherimport';
+import { AddTeacherBody, CreatedTeacher } from '../modules/teacher/add-teacher/add-teacher-form';
 
 @Injectable({
   providedIn: 'root',
@@ -25,6 +27,13 @@ export class TeacherService {
       data,
       this.coreService.jsonhttpOptions
     );
+  }
+  /** One teacher, made as the acting organisation. A 400 names its fields; the caller shows them beside the form. */
+  createOne(body: AddTeacherBody) {
+    return this.http.post<CreatedTeacher>(`${this.coreService.CORE_API()}teacher/one`, body, {
+      ...this.coreService.jsonhttpOptions,
+      context: new HttpContext().set(FIELD_ERRORS_INLINE, true),
+    });
   }
   exportTeacher(schoolname: string) {
     return this.http.get(

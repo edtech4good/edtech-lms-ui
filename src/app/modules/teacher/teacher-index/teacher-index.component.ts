@@ -89,6 +89,17 @@ export class TeacherIndexComponent implements OnInit {
     this.searchData[this.currentSearch].visible = false;
     await this.loadDataFromServer();
   }
+  showAddTeacherDrawer = false;
+  showAddTeacher = () => {
+    this.showAddTeacherDrawer = true;
+  };
+  closeAddTeacher = () => {
+    this.showAddTeacherDrawer = false;
+  };
+  /** A teacher was added: the list shows them. The drawer stays open to show the password once. */
+  onTeacherAdded() {
+    void this.loadDataFromServer();
+  }
   showuploadTeachers = () => {
     this.showUpload = true;
   };

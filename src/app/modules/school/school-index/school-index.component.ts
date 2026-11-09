@@ -8,6 +8,7 @@ import { CurriculumService } from 'src/app/services/curriculum.service';
 import { SchoolContributeService } from 'src/app/services/school-contribute.service';
 import { SchoolService } from 'src/app/services/school.service';
 import { StudentService } from 'src/app/services/student.service';
+import { TeacherService } from 'src/app/services/teacher.service';
 import { organisationOf, withOrganisationFilter } from 'src/app/shared/owner/owner-view';
 import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
 
@@ -103,6 +104,7 @@ export class SchoolIndexComponent implements OnInit {
     private readonly schoolService: SchoolService,
     private readonly notification: NzNotificationService,
     private readonly studentService: StudentService,
+    private readonly teacherService: TeacherService,
     private readonly countryService: CountryService,
     private readonly curriculumService: CurriculumService,
     private readonly schoolContributeService: SchoolContributeService
@@ -157,6 +159,19 @@ export class SchoolIndexComponent implements OnInit {
           'success',
           'Success',
           `${schoolname} students synced sucessfully`
+        );
+      });
+
+  /** Sends the school's teachers to the learning server. A refusal (such as "There are no teachers to sync.") is the error interceptor's notice. */
+  synccloudTeachers = (schoolname: string) =>
+    this.teacherService
+      .synccloudTeacher(schoolname)
+      .pipe(first())
+      .subscribe(async (_res: any) => {
+        this.notification.create(
+          'success',
+          'Success',
+          `${schoolname} teachers synced successfully`
         );
       });
 

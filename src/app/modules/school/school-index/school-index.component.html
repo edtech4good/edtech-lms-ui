@@ -84,6 +84,18 @@
                 >Sync Students</a
               >
               <a
+                *ngxPermissionsOnly="['superadmin', 'sync_students']"
+                data-testid="sync-teachers"
+                nz-button
+                nzType="primary"
+                nzSize="small"
+                style="margin-right: 20px"
+                nz-popconfirm
+                nzPopconfirmTitle="Sure to sync?"
+                (nzOnConfirm)="synccloudTeachers(data.schoolname)"
+                >Sync Teachers</a
+              >
+              <a
                 nz-button
                 [routerLink]="['/school', 'update', data.schoolid]"
                 style="margin-right: 20px"
