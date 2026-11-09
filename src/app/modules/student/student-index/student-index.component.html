@@ -192,8 +192,8 @@
                         [nzDisabled]="isChanging(data)"
                         [attr.aria-disabled]="isChanging(data)"
                         (click)="askToggle(data)"
-                        (keydown.enter)="askToggle(data)"
-                        (keydown.space)="$event.preventDefault(); askToggle(data)"
+                        (keydown.enter)="$any($event.currentTarget).click()"
+                        (keydown.space)="$event.preventDefault(); $any($event.currentTarget).click()"
                       >
                         {{ data.isdisabled ? "Enable" : "Disable" }}
                       </li>

@@ -343,16 +343,41 @@ export class TeacherIndexComponent implements OnInit {
       });
   }
 
+  /** After a delete the row is gone: focus goes to the next row's Manage button, else the previous row's, else the list heading. */
+  private focusAfterDelete(before: string[], deleted: string) {
+    const at = before.indexOf(deleted);
+    const candidates = [...before.slice(at + 1), ...before.slice(0, Math.max(at, 0)).reverse()];
+    let done = false;
+    [100, 300, 700, 1200].forEach((delay, i, all) => {
+      setTimeout(() => {
+        // The list is read again after the delete; wait until the deleted row is gone.
+        if (done || document.querySelector(rowControl(deleted))) return;
+        const active = document.activeElement as HTMLElement | null;
+        if (active && active !== document.body && active.isConnected) return; // the user has moved on
+        const control = candidates.map((id) => document.querySelector(rowControl(id)) as HTMLElement | null).find((el) => !!el);
+        const heading = document.querySelector('app-teacher-index .ant-card-head-title') as HTMLElement | null;
+        if (control) control.focus();
+        else if (i === all.length - 1 && heading) {
+          heading.setAttribute('tabindex', '-1');
+          heading.focus();
+        } else return;
+        done = true;
+      }, delay);
+    });
+  }
+
   deleteTeacher = async (schooluserid: string) => {
     this.confirming = null;
     if (this.changing.has(schooluserid)) return;
     this.changing.add(schooluserid);
+    const before = this.data.map((r) => r.schooluserid as string);
     try {
       await this.teacherService
         .deleteTeacher(schooluserid)
         .pipe(first())
         .toPromise();
       await this.loadDataFromServer();
+      this.focusAfterDelete(before, schooluserid);
       this.notification.create(
         'success',
         'Success',

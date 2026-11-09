@@ -47,7 +47,7 @@
               </nz-filter-trigger>
             </th>
 
-            <th nzColumnKey="">Actions</th>
+            <th *ngxPermissionsOnly="['update_teacher', 'zr5ER4QD', 'Mapyr2Pw', 'delete_teacher', 'superadmin']" nzColumnKey="">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -58,8 +58,8 @@
             </td>
             <td *ngIf="owner.active()"><app-owner-name [id]="data.organisationid"></app-owner-name></td>
             <td>{{ data.schoolname }}</td>
-            <td>
-              <ng-container *ngxPermissionsOnly="['update_teacher', 'zr5ER4QD', 'Mapyr2Pw', 'delete_teacher', 'superadmin']">
+            <td *ngxPermissionsOnly="['update_teacher', 'zr5ER4QD', 'Mapyr2Pw', 'delete_teacher', 'superadmin']">
+              <ng-container>
                 <button
                   type="button"
                   nz-button
@@ -111,8 +111,8 @@
                         [nzDisabled]="isChanging(data)"
                         [attr.aria-disabled]="isChanging(data)"
                         (click)="askToggle(data)"
-                        (keydown.enter)="askToggle(data)"
-                        (keydown.space)="$event.preventDefault(); askToggle(data)"
+                        (keydown.enter)="$any($event.currentTarget).click()"
+                        (keydown.space)="$event.preventDefault(); $any($event.currentTarget).click()"
                       >
                         {{ data.isdisabled ? "Enable" : "Disable" }}
                       </li>
@@ -131,8 +131,8 @@
                         [nzDisabled]="isChanging(data)"
                         [attr.aria-disabled]="isChanging(data)"
                         (click)="askDelete(data)"
-                        (keydown.enter)="askDelete(data)"
-                        (keydown.space)="$event.preventDefault(); askDelete(data)"
+                        (keydown.enter)="$any($event.currentTarget).click()"
+                        (keydown.space)="$event.preventDefault(); $any($event.currentTarget).click()"
                       >
                         Delete
                       </li>

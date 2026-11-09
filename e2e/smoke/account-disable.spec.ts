@@ -117,7 +117,7 @@ async function openTeachers(context: BrowserContext, mock: Mock, permissions = W
   const page = await context.newPage();
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/teacher/index');
-  await expect(page.getByRole('columnheader', { name: 'Actions' })).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'Teacher User Name' })).toBeVisible();
   await expect(page.locator('tbody tr', { hasText: 'teacher.one' })).toHaveCount(1);
   return page;
 }
@@ -730,6 +730,7 @@ test.describe('Manage menu: permissions', () => {
   test('a user with none of the permissions sees no Manage button', async ({ context }) => {
     const page = await openTeachers(context, newMock(), ['view_teacher', 'view_school']);
     await expect(page.getByRole('button', { name: /^Manage / })).toHaveCount(0);
+    await expect(page.getByRole('columnheader', { name: 'Actions' })).toHaveCount(0);
     await expect(row(page, 'teacher.one').getByTestId('disabled-tag')).toHaveCount(0);
     await expect(row(page, 'teacher.two').getByTestId('disabled-tag')).toHaveText('Disabled');
   });
@@ -746,5 +747,105 @@ test.describe('Manage menu: permissions', () => {
     await manage(page, 'teacher.one').click();
     await expect(page.getByRole('menuitem')).toHaveText(['Reset password', 'Disable']);
     await expect(page.locator('.ant-dropdown-menu-item-divider')).toHaveCount(0);
+  });
+});
+
+test.describe('Manage menu: reopening after a keyboard-chosen item', () => {
+  type Case = { list: 'learners' | 'teachers'; item: string; closeWith: 'Escape' | 'Cancel' };
+  const cases: Case[] = [
+    { list: 'learners', item: 'Disable', closeWith: 'Escape' },
+    { list: 'learners', item: 'Disable', closeWith: 'Cancel' },
+    { list: 'teachers', item: 'Disable', closeWith: 'Escape' },
+    { list: 'teachers', item: 'Disable', closeWith: 'Cancel' },
+    { list: 'teachers', item: 'Delete', closeWith: 'Escape' },
+    { list: 'teachers', item: 'Delete', closeWith: 'Cancel' },
+  ];
+  for (const c of cases) {
+    test(`${c.list}: ${c.item} chosen by keyboard, closed with ${c.closeWith}, one Enter on Manage opens the menu`, async ({ context }) => {
+      const mock = newMock();
+      const page = c.list === 'learners' ? await openLearners(context, mock) : await openTeachers(context, mock);
+      const button = c.list === 'learners' ? actions(page, 'dara1') : manage(page, 'teacher.one');
+      await button.focus();
+      await page.keyboard.press('Enter');
+      await expect(page.getByRole('menuitem').first()).toBeFocused();
+      const items = await page.getByRole('menuitem').allTextContents();
+      const steps = items.map((x) => x.trim()).indexOf(c.item);
+      for (let i = 0; i < steps; i++) {
+        await page.keyboard.press('Tab');
+        await expect(page.getByRole('menuitem').nth(i + 1)).toBeFocused();
+      }
+      await page.keyboard.press('Enter');
+      await expect(popconfirm(page)).toBeVisible();
+      if (c.closeWith === 'Escape') await page.keyboard.press('Escape');
+      else await popconfirm(page).getByRole('button', { name: 'Cancel' }).click();
+      await expect(popconfirm(page)).toHaveCount(0);
+      await expect(button).toBeFocused();
+      await expect(page.locator('.ant-dropdown'), 'the menu has finished closing').toHaveCount(0);
+      await page.keyboard.press('Enter');
+      await expect(button).toHaveAttribute('aria-expanded', 'true');
+      await expect(page.getByRole('menuitem').first()).toBeVisible();
+      expect(mock.requests).toEqual([]);
+    });
+  }
+});
+
+test.describe('Manage menu: the confirm follows the item chosen last', () => {
+  test('Delete, Escape, then Disable on the same row: the Disable text, and Confirm sends only the disabled request', async ({ context }) => {
+    const mock = newMock();
+    const page = await openTeachers(context, mock);
+    await chooseTeacherItem(page, 'teacher.one', 'Delete');
+    await expect(popconfirm(page)).toContainText('Sure to delete?');
+    await page.keyboard.press('Escape');
+    await expect(popconfirm(page)).toHaveCount(0);
+    await chooseTeacherItem(page, 'teacher.one', 'Disable');
+    await expect(popconfirm(page)).toContainText("Disable teacher.one? They won't be able to sign in.");
+    await expect(popconfirm(page)).not.toContainText('Sure to delete?');
+    await popconfirm(page).getByRole('button', { name: 'Disable' }).click();
+    await expect(row(page, 'teacher.one').getByTestId('disabled-tag')).toHaveText('Disabled');
+    expect(mock.requests).toEqual([{ method: 'PUT', path: 'teacher/tu-1/disabled', body: { disabled: true } }]);
+    await expect(row(page, 'teacher.one')).toHaveCount(1);
+  });
+
+  test('Disable, Escape, then Delete on the same row: the delete text, and Confirm sends only the delete', async ({ context }) => {
+    const mock = newMock();
+    const page = await openTeachers(context, mock);
+    await chooseTeacherItem(page, 'teacher.one', 'Disable');
+    await expect(popconfirm(page)).toContainText('Disable teacher.one?');
+    await page.keyboard.press('Escape');
+    await expect(popconfirm(page)).toHaveCount(0);
+    await chooseTeacherItem(page, 'teacher.one', 'Delete');
+    await expect(popconfirm(page)).toContainText('Sure to delete?');
+    await expect(popconfirm(page)).not.toContainText('Disable teacher.one?');
+    await popconfirm(page).locator('.ant-btn-primary').click();
+    await expect(row(page, 'teacher.one')).toHaveCount(0);
+    expect(mock.requests).toEqual([{ method: 'DELETE', path: 'teacher/tu-1', body: null }]);
+  });
+});
+
+test.describe('Manage menu: focus after a teacher is deleted', () => {
+  test('the next row\'s Manage button gets focus', async ({ context }) => {
+    const page = await openTeachers(context, newMock());
+    await chooseTeacherItem(page, 'teacher.one', 'Delete');
+    await popconfirm(page).locator('.ant-btn-primary').click();
+    await expect(row(page, 'teacher.one')).toHaveCount(0);
+    await expect.poll(() => focusedLabel(page)).toBe('Manage teacher.two');
+  });
+
+  test('the previous row\'s Manage button gets focus when the last row was deleted', async ({ context }) => {
+    const page = await openTeachers(context, newMock());
+    await chooseTeacherItem(page, 'teacher.two', 'Delete');
+    await popconfirm(page).locator('.ant-btn-primary').click();
+    await expect(row(page, 'teacher.two')).toHaveCount(0);
+    await expect.poll(() => focusedLabel(page)).toBe('Manage teacher.one');
+  });
+
+  test('the list heading gets focus when no row remains', async ({ context }) => {
+    const mock = newMock();
+    mock.teachers = mock.teachers.slice(0, 1);
+    const page = await openTeachers(context, mock);
+    await chooseTeacherItem(page, 'teacher.one', 'Delete');
+    await popconfirm(page).locator('.ant-btn-primary').click();
+    await expect(row(page, 'teacher.one')).toHaveCount(0);
+    await expect(page.locator('.ant-card-head-title')).toBeFocused();
   });
 });
