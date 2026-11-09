@@ -33,6 +33,19 @@ test.describe('the line after a 200', () => {
       'teacher.one can sign in with the new password now. Anyone signed in with the old one has been signed out.',
     );
   });
+  test('pushed on a disabled account: the new password works once the account is enabled', () => {
+    expect(resetDoneLine('learner', 'dara1', { status: 'pushed' }, true)).toEqual({
+      tone: 'info',
+      text: 'dara1 can sign in with the new password once you enable the account. Anyone signed in with the old one has been signed out.',
+    });
+    expect(resetDoneLine('teacher', 'teacher.one', { status: 'pushed' }, true).text).toContain('once you enable the account');
+    expect(resetDoneLine('learner', 'dara1', { status: 'pushed' }, false).text).toContain('can sign in with the new password now');
+  });
+  test('failed, skipped and neutral lines are the same for a disabled account', () => {
+    for (const push of [{ status: 'failed' as const }, { status: 'skipped' as const }, {}]) {
+      expect(resetDoneLine('learner', 'dara1', push, true)).toEqual(resetDoneLine('learner', 'dara1', push, false));
+    }
+  });
   test('failed: the old password still works there, and the Sync button is named for the account kind', () => {
     expect(resetDoneLine('learner', 'dara1', { status: 'failed' })).toEqual({
       tone: 'warn',

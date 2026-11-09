@@ -28,10 +28,13 @@ export interface ResetResult {
 }
 
 /** The line in the done panel after a 200: what the push to the learning server means for signing in with it. */
-export function resetDoneLine(kind: AccountKind, username: string, push?: ResetResult['push']): { tone: 'ok' | 'warn' | 'info'; text: string } {
+export function resetDoneLine(kind: AccountKind, username: string, push?: ResetResult['push'], disabled = false): { tone: 'ok' | 'warn' | 'info'; text: string } {
   const sync = kind === 'teacher' ? 'Sync Teachers' : 'Sync Students';
   switch (push?.status) {
     case 'pushed':
+      if (disabled) {
+        return { tone: 'info', text: `${username} can sign in with the new password once you enable the account. Anyone signed in with the old one has been signed out.` };
+      }
       return { tone: 'ok', text: `${username} can sign in with the new password now. Anyone signed in with the old one has been signed out.` };
     case 'failed':
       return {

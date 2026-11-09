@@ -262,6 +262,8 @@ test.describe('Learners list: keyboard and focus', () => {
     await button.focus();
     await page.keyboard.press('Enter');
     await expect(button).toHaveAttribute('aria-expanded', 'true');
+    await expect(menuItem(page, 'Reset password')).toBeFocused();
+    await page.keyboard.press('Tab');
     await expect(menuItem(page, 'Disable')).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(popconfirm(page)).toContainText('Disable dara1?');
@@ -275,6 +277,8 @@ test.describe('Learners list: keyboard and focus', () => {
     const page = await openLearners(context, newMock());
     await actions(page, 'dara1').focus();
     await page.keyboard.press('Enter');
+    await expect(menuItem(page, 'Reset password')).toBeFocused();
+    await page.keyboard.press('Tab');
     await expect(menuItem(page, 'Disable')).toBeFocused();
     await page.keyboard.press('Space');
     await expect(popconfirm(page)).toContainText('Disable dara1?');
@@ -286,6 +290,8 @@ test.describe('Learners list: keyboard and focus', () => {
       const page = await openLearners(context, mock);
       await actions(page, 'dara1').focus();
       await page.keyboard.press('Enter');
+      await expect(menuItem(page, 'Reset password')).toBeFocused();
+      await page.keyboard.press('Tab');
       await expect(menuItem(page, 'Disable')).toBeFocused();
       await page.keyboard.press('Enter');
       await expect(popconfirm(page)).toBeVisible();
@@ -319,7 +325,7 @@ test.describe('Learners list: keyboard and focus', () => {
     await expect(popconfirm(page)).toHaveCount(0);
     await expect(menuItem(page, 'Disable')).toBeVisible();
     expect(mock.requests).toEqual([]);
-    await expect(menuItem(page, 'Disable')).toBeFocused();
+    await expect(menuItem(page, 'Reset password')).toBeFocused();
   });
 
   test('when the request ends, focus is not pulled back if the user has moved on', async ({ context }) => {
@@ -356,7 +362,7 @@ test.describe('Learners list: keyboard and focus', () => {
     const page = await openLearners(context, newMock());
     await actions(page, 'dara1').focus();
     await page.keyboard.press('Enter');
-    await expect(menuItem(page, 'Disable')).toBeFocused();
+    await expect(menuItem(page, 'Reset password')).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(menuItem(page, 'Disable')).toHaveCount(0);
     await expect.poll(() => focusedLabel(page)).toBe('Actions for dara1');

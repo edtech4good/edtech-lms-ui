@@ -45,13 +45,13 @@ export class ResetPasswordDrawerComponent {
   readonly serverError = signal<string | null>(null);
   readonly formError = signal<string | null>(null);
   /** The new password, kept here only until the drawer is closed. */
-  readonly done = signal<{ username: string; password: string; result: ResetResult | null } | null>(null);
+  readonly done = signal<{ username: string; password: string; accountDisabled: boolean; result: ResetResult | null } | null>(null);
   readonly copied = signal<{ username: 'ok' | 'failed' | null; password: 'ok' | 'failed' | null }>({ username: null, password: null });
 
   readonly passwordMessage = computed(() => (this.submitted() ? passwordError(this.password()) : null) ?? this.serverError());
   readonly doneLine = computed(() => {
     const done = this.done();
-    return done ? resetDoneLine(this.kind(), done.username, done.result?.push) : null;
+    return done ? resetDoneLine(this.kind(), done.username, done.result?.push, done.accountDisabled) : null;
   });
 
   readonly passwordInput = viewChild<ElementRef<HTMLInputElement>>('passwordInput');
@@ -123,14 +123,17 @@ export class ResetPasswordDrawerComponent {
     const password = this.password();
     const username = this.username();
     const id = this.schooluserid();
+    const accountDisabled = this.accountDisabled();
     this.submitting.set(true);
     this.formError.set(null);
     const request = this.kind() === 'teacher' ? this.teachers.resetPassword(id, resetBody(password)) : this.students.resetPassword(id, resetBody(password));
     request.subscribe({
       next: (answer) => {
+        // A late answer after the drawer was closed (the browser's Back during a save) is not kept.
+        if (!this.open()) return;
         this.submitting.set(false);
         this.serverError.set(null);
-        this.done.set({ username, password, result: answer ?? null });
+        this.done.set({ username, password, accountDisabled, result: answer ?? null });
         this.focusDoneTitle();
       },
       error: (error: HttpErrorResponse) => this.failed(error),

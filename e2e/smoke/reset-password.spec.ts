@@ -317,10 +317,34 @@ for (const where of [LEARNER, TEACHER]) {
       await expect(page.getByTestId('disabled-note')).toHaveText("This account is disabled. It can't sign in until you enable it.");
       await saveNew(page);
       await expect(page.getByTestId('done-password')).toHaveText(NEW_PASSWORD);
+      await expect(page.getByTestId('done-outcome')).toHaveText(`${disabledWhere.username} can sign in with the new password once you enable the account. Anyone signed in with the old one has been signed out.`);
       expect(mock.requests).toEqual([{ method: 'PUT', path: disabledWhere.path, body: { password: NEW_PASSWORD } }]);
       await drawer(page).getByRole('button', { name: 'Done' }).click();
       await expect(drawer(page)).toBeHidden();
       await expect(row(page, disabledWhere.username).getByTestId('disabled-tag')).toHaveText('Disabled');
+    });
+
+    test('an answer that arrives after the drawer was closed and reopened is not shown or kept', async ({ context }) => {
+      const mock = newMock();
+      let release!: () => void;
+      mock.hold = new Promise<void>((resolve) => (release = resolve));
+      const page = await open(context, mock);
+      await openDrawer(page, where);
+      await saveNew(page);
+      await expect.poll(() => mock.requests.length).toBe(1);
+      // The browser's Back closes the drawer while the save is still running.
+      await page.evaluate(() => {
+        history.pushState({}, '', location.pathname + '?back=1');
+        history.back();
+      });
+      await expect(drawer(page)).toBeHidden();
+      await openDrawer(page, where);
+      await expect(passwordField(page)).toHaveValue('');
+      release();
+      await page.waitForTimeout(600);
+      await expect(page.getByTestId('reset-password-done'), 'the old answer does not turn the new drawer into a done panel').toHaveCount(0);
+      await expect(passwordField(page)).toHaveValue('');
+      expect(await page.locator('body').innerText(), 'the password is nowhere on the page').not.toContain(NEW_PASSWORD);
     });
 
     test('an enabled account shows no disabled note', async ({ context }) => {
@@ -400,9 +424,7 @@ for (const where of [LEARNER, TEACHER]) {
         await button.focus();
         await page.keyboard.press('Enter');
         await expect(button).toHaveAttribute('aria-expanded', 'true');
-        // Focus opens on Disable (as before); Reset password is the item above it.
-        await expect(menuItem(page, 'Disable')).toBeFocused();
-        await page.keyboard.press('Shift+Tab');
+        // Focus opens on the first item, Reset password.
         await expect(menuItem(page, 'Reset password')).toBeFocused();
         await page.keyboard.press('Enter');
       } else {
@@ -456,8 +478,6 @@ test.describe('Reset password: the Learners menu', () => {
     const page = await openLearners(context, newMock());
     await actions(page, 'dara1').focus();
     await page.keyboard.press('Enter');
-    await expect(menuItem(page, 'Disable')).toBeFocused();
-    await page.keyboard.press('Shift+Tab');
     await expect(menuItem(page, 'Reset password')).toBeFocused();
     await page.keyboard.press('Space');
     await expect(drawer(page).getByRole('heading', { name: 'Reset password', exact: true })).toBeVisible();
