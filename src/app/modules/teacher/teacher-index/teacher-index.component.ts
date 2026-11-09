@@ -277,7 +277,7 @@ export class TeacherIndexComponent implements OnInit {
   confirming: string | null = null;
   confirmKind: 'toggle' | 'delete' = 'toggle';
   confirmTitle = (row: any) => (this.confirmKind === 'delete' ? 'Sure to delete?' : disableConfirmText(row.schoolusername, !row.isdisabled));
-  okText = (row: any) => (this.confirmKind === 'delete' ? undefined : row.isdisabled ? 'Enable' : 'Disable');
+  okText = (row: any) => (this.confirmKind === 'delete' ? null : row.isdisabled ? 'Enable' : 'Disable');
   askToggle(row: any) {
     this.openConfirm(row, 'toggle');
   }

@@ -189,7 +189,7 @@ async function openLearners(context: BrowserContext, mock: Mock, permissions = W
 
 const row = (page: Page, text: string) => page.locator('tbody tr', { hasText: text });
 const toasts = (page: Page) => page.locator('.ant-notification-notice-description');
-const actions = (page: Page, username: string) => page.getByRole('button', { name: `Actions for ${username}` });
+const actions = (page: Page, username: string) => page.getByRole('button', { name: `Manage ${username}`, exact: true });
 const menuItem = (page: Page, name: string) => page.getByRole('menuitem', { name, exact: true });
 const drawer = (page: Page) => page.getByRole('dialog', { name: 'Edit details' });
 const first = (page: Page) => page.locator('#edit-learner-first');
@@ -286,7 +286,7 @@ test.describe('Edit details: opening and reading', () => {
     await expect(drawer(page).getByRole('button', { name: 'Close', exact: true }).last()).toBeFocused();
     await drawer(page).getByRole('button', { name: 'Close', exact: true }).last().click();
     await expect(drawer(page)).toBeHidden();
-    await expect.poll(() => focusedLabel(page)).toBe('Actions for dara1');
+    await expect.poll(() => focusedLabel(page)).toBe('Manage dara1');
   });
 
   test("a 400 on the read shows the API's sentence", async ({ context }) => {
@@ -312,7 +312,7 @@ test.describe('Edit details: opening and reading', () => {
 test.describe('Edit details: the entry point', () => {
   test('without the update permission there is no way to open it', async ({ context }) => {
     const page = await openLearners(context, newMock(), WITHOUT);
-    await expect(page.getByRole('button', { name: /^Actions for/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Manage / })).toHaveCount(0);
     await expect(page.getByRole('menuitem', { name: 'Edit details' })).toHaveCount(0);
     await expect(page.getByRole('dialog')).toHaveCount(0);
   });
@@ -368,7 +368,7 @@ test.describe('Edit details: the entry point', () => {
     ]);
     await expect(toasts(page)).toHaveText("Darah Rivers's details are saved.");
     await expect(row(page, 'dara1')).toContainText('Darah Rivers');
-    await expect.poll(() => focusedLabel(page)).toBe('Actions for dara1');
+    await expect.poll(() => focusedLabel(page)).toBe('Manage dara1');
   });
 });
 
@@ -408,7 +408,7 @@ test.describe('Edit details: Save', () => {
     await expect(row(page, 'dara1')).toContainText('Dari');
     await expect(row(page, 'dara1')).toContainText('Class 2A');
     expect(mock.listReads, 'the list page is read again').toBeGreaterThan(readsBefore);
-    await expect.poll(() => focusedLabel(page)).toBe('Actions for dara1');
+    await expect.poll(() => focusedLabel(page)).toBe('Manage dara1');
   });
 
   test('clearing the date of birth sends null; a curriculum can be removed', async ({ context }) => {
@@ -463,7 +463,7 @@ test.describe('Edit details: Save', () => {
       await save(page).click();
       await expect(drawer(page)).toBeHidden();
       await expect(toasts(page)).toHaveText(text);
-      await expect.poll(() => focusedLabel(page)).toBe('Actions for dara1');
+      await expect.poll(() => focusedLabel(page)).toBe('Manage dara1');
     });
   }
 
@@ -579,7 +579,7 @@ test.describe('Edit details: closing', () => {
     await drawer(page).getByRole('button', { name: 'Cancel' }).click();
     await expect(drawer(page)).toBeHidden();
     await expect(page.getByText('Discard your changes?')).toHaveCount(0);
-    await expect.poll(() => focusedLabel(page)).toBe('Actions for dara1');
+    await expect.poll(() => focusedLabel(page)).toBe('Manage dara1');
   });
 
   test('a change that was changed back closes without asking', async ({ context }) => {
@@ -608,7 +608,7 @@ test.describe('Edit details: closing', () => {
     await page.getByRole('button', { name: 'Discard' }).click();
     await expect(drawer(page)).toBeHidden();
     expect(mock.requests).toEqual([]);
-    await expect.poll(() => focusedLabel(page)).toBe('Actions for dara1');
+    await expect.poll(() => focusedLabel(page)).toBe('Manage dara1');
     // Opening again shows the server's values, not the discarded ones.
     await openEdit(page, 'dara1');
     await expect(first(page)).toHaveValue('Dara');

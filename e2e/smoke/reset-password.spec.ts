@@ -122,7 +122,7 @@ async function openTeachers(context: BrowserContext, mock: Mock, permissions = W
   const page = await context.newPage();
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/teacher/index');
-  await expect(page.getByRole('columnheader', { name: 'Tools' })).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'Actions' })).toBeVisible();
   await expect(page.locator('tbody tr', { hasText: 'teacher.one' })).toHaveCount(1);
   await settle(page);
   return page;
@@ -130,9 +130,8 @@ async function openTeachers(context: BrowserContext, mock: Mock, permissions = W
 
 const row = (page: Page, text: string) => page.locator('tbody tr', { hasText: text });
 const toasts = (page: Page) => page.locator('.ant-notification-notice-description');
-const actions = (page: Page, username: string) => page.getByRole('button', { name: `Actions for ${username}` });
+const actions = (page: Page, username: string) => page.getByRole('button', { name: `Manage ${username}`, exact: true });
 const menuItem = (page: Page, name: string) => page.getByRole('menuitem', { name, exact: true });
-const resetButton = (page: Page, username: string) => page.getByRole('button', { name: `Reset password for ${username}`, exact: true });
 const drawer = (page: Page) => page.getByRole('dialog', { name: /^(Reset password|Password changed)$/ });
 const passwordField = (page: Page) => drawer(page).locator('#reset-password-input');
 const save = (page: Page) => drawer(page).getByRole('button', { name: /^(Save|Saving…)$/ });
@@ -148,12 +147,8 @@ const TEACHER: Where = { kind: 'teacher', username: 'teacher.one', id: 'tu-1', p
 
 /** Opens the Reset password drawer for a row by mouse. */
 async function openDrawer(page: Page, where: Where): Promise<void> {
-  if (where.kind === 'learner') {
-    await actions(page, where.username).click();
-    await menuItem(page, 'Reset password').click();
-  } else {
-    await resetButton(page, where.username).click();
-  }
+  await actions(page, where.username).click();
+  await menuItem(page, 'Reset password').click();
   await expect(drawer(page).getByRole('heading', { name: 'Reset password', exact: true })).toBeVisible();
 }
 async function saveNew(page: Page, password = NEW_PASSWORD): Promise<void> {
@@ -164,7 +159,7 @@ async function saveNew(page: Page, password = NEW_PASSWORD): Promise<void> {
 for (const where of [LEARNER, TEACHER]) {
   const open = (context: BrowserContext, mock: Mock, permissions = WITH, clipboardWrite = true) =>
     where.kind === 'learner' ? openLearners(context, mock, permissions, clipboardWrite) : openTeachers(context, mock, permissions, clipboardWrite);
-  const control = (page: Page) => (where.kind === 'learner' ? actions(page, where.username) : resetButton(page, where.username));
+  const control = (page: Page) => actions(page, where.username);
   const syncWord = where.kind === 'learner' ? 'Sync Students' : 'Sync Teachers';
 
   test.describe(`Reset password: ${where.kind}`, () => {
@@ -455,7 +450,7 @@ for (const where of [LEARNER, TEACHER]) {
     });
 
     for (const how of ['Cancel', 'Escape', 'Done', 'Close'] as const) {
-      test(`focus returns to the row's ${where.kind === 'learner' ? 'Actions' : 'Reset password'} button after ${how}`, async ({ context }) => {
+      test(`focus returns to the row's Manage button after ${how}`, async ({ context }) => {
         const page = await open(context, newMock());
         await openDrawer(page, where);
         if (how === 'Done') await saveNew(page);
@@ -463,7 +458,7 @@ for (const where of [LEARNER, TEACHER]) {
         if (how === 'Escape') await page.keyboard.press('Escape');
         else await drawer(page).getByRole('button', { name: how === 'Close' ? 'Close' : how, exact: true }).click();
         await expect(drawer(page)).toBeHidden();
-        await expect.poll(() => focusedLabel(page)).toBe(where.kind === 'learner' ? `Actions for ${where.username}` : `Reset password for ${where.username}`);
+        await expect.poll(() => focusedLabel(page)).toBe(`Manage ${where.username}`);
       });
     }
 
@@ -479,20 +474,17 @@ for (const where of [LEARNER, TEACHER]) {
     test('keyboard only: from the row to Save and the once-shown password', async ({ context }) => {
       const mock = newMock();
       const page = await open(context, mock);
+      const button = actions(page, where.username);
+      await button.focus();
+      await page.keyboard.press('Enter');
+      await expect(button).toHaveAttribute('aria-expanded', 'true');
+      // Focus opens on the first item: Edit details for a learner (Reset password is the next), Reset password for a teacher.
       if (where.kind === 'learner') {
-        const button = actions(page, where.username);
-        await button.focus();
-        await page.keyboard.press('Enter');
-        await expect(button).toHaveAttribute('aria-expanded', 'true');
-        // Focus opens on the first item, Edit details; Reset password is the next.
         await expect(menuItem(page, 'Edit details')).toBeFocused();
         await page.keyboard.press('Tab');
-        await expect(menuItem(page, 'Reset password')).toBeFocused();
-        await page.keyboard.press('Enter');
-      } else {
-        await resetButton(page, where.username).focus();
-        await page.keyboard.press('Enter');
       }
+      await expect(menuItem(page, 'Reset password')).toBeFocused();
+      await page.keyboard.press('Enter');
       await expect(drawer(page).getByRole('heading', { name: 'Reset password', exact: true })).toBeVisible();
       await expect(passwordField(page)).toBeFocused();
       await page.keyboard.type(NEW_PASSWORD);
@@ -515,12 +507,12 @@ for (const where of [LEARNER, TEACHER]) {
       await expect(drawer(page).getByRole('button', { name: 'Done' })).toBeFocused();
       await page.keyboard.press('Enter');
       await expect(drawer(page)).toBeHidden();
-      await expect.poll(() => focusedLabel(page)).toBe(where.kind === 'learner' ? `Actions for ${where.username}` : `Reset password for ${where.username}`);
+      await expect.poll(() => focusedLabel(page)).toBe(`Manage ${where.username}`);
     });
 
     test('without the update permission there is no way to open it', async ({ context }) => {
       const page = await open(context, newMock(), WITHOUT);
-      await expect(page.getByRole('button', { name: /^(Actions for|Reset password)/ })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: /^Manage / })).toHaveCount(0);
       await expect(page.getByRole('dialog')).toHaveCount(0);
     });
   });
@@ -572,14 +564,18 @@ test.describe('Reset password: the Learners menu', () => {
   });
 });
 
-test.describe('Reset password: the Teachers tools', () => {
-  test('each Reset password button names its teacher, beside Disable or Enable and Delete', async ({ context }) => {
+test.describe('Reset password: the Teachers menu', () => {
+  test('each Manage button names its teacher, and its menu offers Reset password, Disable or Enable and Delete', async ({ context }) => {
     const page = await openTeachers(context, newMock());
-    await expect(resetButton(page, 'teacher.one')).toBeVisible();
-    await expect(resetButton(page, 'teacher.two')).toBeVisible();
-    await expect(row(page, 'teacher.one').getByRole('button', { name: 'Disable teacher.one', exact: true })).toBeVisible();
-    await expect(row(page, 'teacher.two').getByRole('button', { name: 'Enable teacher.two', exact: true })).toBeVisible();
-    await expect(row(page, 'teacher.one').getByText('Delete', { exact: true })).toBeVisible();
+    await expect(actions(page, 'teacher.one')).toBeVisible();
+    await expect(actions(page, 'teacher.two')).toBeVisible();
+    await actions(page, 'teacher.one').click();
+    await expect(menuItem(page, 'Reset password')).toBeVisible();
+    await expect(menuItem(page, 'Disable')).toBeVisible();
+    await expect(menuItem(page, 'Delete')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await actions(page, 'teacher.two').click();
+    await expect(menuItem(page, 'Enable')).toBeVisible();
   });
 });
 
