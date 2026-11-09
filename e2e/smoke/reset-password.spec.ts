@@ -100,6 +100,13 @@ async function answer(route: Route, mock: Mock): Promise<void> {
   return route.fulfill(json(200, { data: [] }));
 }
 
+/**
+ * A drawer that starts closed schedules a "restore focus" for 300 ms after the page loads (ng-zorro closes it once
+ * on creation). A drawer opened inside that window loses focus to its opener, which no person can do; waiting it out
+ * keeps these specs about the drawer and not about that timer.
+ */
+const settle = (page: Page) => page.waitForTimeout(600);
+
 async function openLearners(context: BrowserContext, mock: Mock, permissions = WITH, clipboardWrite = true): Promise<Page> {
   await signIn(context, mock, permissions, clipboardWrite);
   const page = await context.newPage();
@@ -107,6 +114,7 @@ async function openLearners(context: BrowserContext, mock: Mock, permissions = W
   await page.goto('/student/index');
   await expect(page.getByRole('columnheader', { name: 'Student Name' })).toBeVisible();
   await expect(page.locator('tbody tr', { hasText: 'dara1' })).toHaveCount(1);
+  await settle(page);
   return page;
 }
 async function openTeachers(context: BrowserContext, mock: Mock, permissions = WITH, clipboardWrite = true): Promise<Page> {
@@ -116,6 +124,7 @@ async function openTeachers(context: BrowserContext, mock: Mock, permissions = W
   await page.goto('/teacher/index');
   await expect(page.getByRole('columnheader', { name: 'Tools' })).toBeVisible();
   await expect(page.locator('tbody tr', { hasText: 'teacher.one' })).toHaveCount(1);
+  await settle(page);
   return page;
 }
 
