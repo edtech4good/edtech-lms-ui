@@ -4,7 +4,7 @@
  * `PUT teacher/:schooluserid/password` with `{ password }`. The password rule, its message and the generator are the
  * Add learner drawer's, imported as they are.
  */
-import { HttpFailure, PASSWORD_RULE_MESSAGE, PushStatus } from '../add-learner/add-learner-form';
+import { HttpFailure, PASSWORD_RULE_MESSAGE, PushStatus, pushMessageOf } from '../add-learner/add-learner-form';
 import type { AccountKind } from '../account-disable';
 
 export const RESET_NO_ACCESS_MESSAGE = "You don't have permission to reset passwords.";
@@ -39,7 +39,7 @@ export function resetDoneLine(kind: AccountKind, username: string, push?: ResetR
     case 'failed':
       return {
         tone: 'warn',
-        text: `The learning server did not answer, so the old password still works there. Run ${sync} for this school on the Schools screen.`,
+        text: (kind === 'learner' && pushMessageOf(push)) || `The learning server did not answer, so the old password still works there. Run ${sync} for this school on the Schools screen.`,
       };
     case 'skipped':
       return { tone: 'info', text: 'The learning server gets the new password at its next sync.' };

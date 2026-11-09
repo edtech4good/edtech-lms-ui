@@ -173,14 +173,29 @@ test.describe('what a failed save says', () => {
   });
 });
 
+
+/** Central's two real sentences for a push that failed: the learning server did not answer, or it lacks the class or curriculum. */
+const CENTRAL_SYNC_MESSAGE = "The account was saved, but the learning server did not answer. Run Sync Students for this school on the Schools screen.";
+const CENTRAL_MISSING_MESSAGE = "Saved, but the learning server doesn't have this class or curriculum yet. Run Sync Content, then Sync Students for this school.";
+
 test.describe('the line in the done panel', () => {
   const learner = { studentname: 'សុខា ចាន់' };
   test('says what the push means for signing in', () => {
     expect(signInLine({ ...learner, push: { status: 'pushed', message: '' } })).toEqual({ tone: 'ok', text: 'សុខា ចាន់ can sign in now with these details.' });
     expect(signInLine({ ...learner, push: { status: 'failed', message: 'The account was saved, but the learning server did not answer.' } })).toEqual({
       tone: 'warn',
-      text: "សុខា ចាន់ can't sign in yet: the learning server did not answer. Run Sync Students for this school on the Schools screen.",
+      text: "សុខា ចាន់ can't sign in yet: The account was saved, but the learning server did not answer.",
     });
+    // Central's own sentence follows the lead-in, whichever of its two it is; without one the fixed line is used.
+    for (const message of [CENTRAL_SYNC_MESSAGE, CENTRAL_MISSING_MESSAGE]) {
+      expect(signInLine({ ...learner, push: { status: 'failed', message: `  ${message}  ` } })).toEqual({ tone: 'warn', text: `សុខា ចាន់ can't sign in yet: ${message}` });
+    }
+    expect(signInLine({ ...learner, push: { status: 'failed', message: '   ' } }).text).toBe(
+      "សុខា ចាន់ can't sign in yet: the learning server did not answer. Run Sync Students for this school on the Schools screen.",
+    );
+    expect(signInLine({ ...learner, push: { status: 'failed' } }).text).toBe(
+      "សុខា ចាន់ can't sign in yet: the learning server did not answer. Run Sync Students for this school on the Schools screen.",
+    );
     expect(signInLine({ ...learner, push: { status: 'skipped', message: '' } })).toEqual({
       tone: 'info',
       text: 'សុខា ចាន់ can sign in once the learning server next syncs.',

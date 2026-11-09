@@ -19,6 +19,10 @@ import {
 } from '../../src/app/modules/student/edit-learner/edit-learner';
 
 /** The request body, the "changed" check, the toast lines and the "(no longer available)" rule of Edit details (edit-learner.ts), in Node. The drawer in a browser is edit-learner.spec.ts. */
+/** Central's two real sentences for a push that failed: the learning server did not answer, or it lacks the class or curriculum. */
+const CENTRAL_SYNC_MESSAGE = "The account was saved, but the learning server did not answer. Run Sync Students for this school on the Schools screen.";
+const CENTRAL_MISSING_MESSAGE = "Saved, but the learning server doesn't have this class or curriculum yet. Run Sync Content, then Sync Students for this school.";
+
 const details: LearnerDetails = {
   schooluserid: 'lu-1',
   schoolusername: 'dara1',
@@ -92,7 +96,13 @@ test.describe('the toast after a 200', () => {
   test('pushed', () => {
     expect(savedNotice({ studentname: 'Dara Rivers', push: { status: 'pushed' } })).toEqual({ type: 'success', title: 'Success', text: "Dara Rivers's details are saved." });
   });
-  test('failed', () => {
+  test("failed shows central's own sentence, trimmed, whichever of its two it is", () => {
+    for (const message of [CENTRAL_SYNC_MESSAGE, CENTRAL_MISSING_MESSAGE]) {
+      expect(savedNotice({ studentname: 'Dara Rivers', push: { status: 'failed', message: ` ${message} ` } })).toEqual({ type: 'warning', title: 'Saved', text: message });
+    }
+  });
+  test('failed with no sentence', () => {
+    expect(savedNotice({ studentname: 'Dara Rivers', push: { status: 'failed', message: ' ' } }).text).toContain('Run Sync Students');
     expect(savedNotice({ studentname: 'Dara Rivers', push: { status: 'failed' } })).toEqual({
       type: 'warning',
       title: 'Saved',
@@ -144,8 +154,8 @@ test.describe('"(no longer available)"', () => {
 
 test.describe('failures', () => {
   test('a 400 names its fields beside them in the API\'s own words', () => {
-    const got = editErrors({ status: 400, error: { fields: [{ field: 'studentfirstname', message: 'Enter a name of 2 to 45 characters.' }, { field: 'standard', message: 'Choose a class of this school.' }] } });
-    expect(got).toEqual({ fields: { studentfirstname: 'Enter a name of 2 to 45 characters.', standard: 'Choose a class of this school.' } });
+    const got = editErrors({ status: 400, error: { fields: [{ field: 'studentfirstname', message: 'Enter a name of 2 to 45 characters.' }, { field: 'standard', message: 'Choose a class for this student.' }] } });
+    expect(got).toEqual({ fields: { studentfirstname: 'Enter a name of 2 to 45 characters.', standard: 'Choose a class for this student.' } });
   });
   test('a 400 with no organisation chosen is one sentence for the form', () => {
     expect(editErrors({ status: 400, error: { fields: [{ field: 'schooluserid', message: 'Choose an organisation.' }] } })).toEqual({ fields: {}, form: 'Choose an organisation.' });
@@ -162,5 +172,8 @@ test.describe('failures', () => {
     expect(loadFailure({ status: 404 })).toBe(EDIT_NOT_FOUND_MESSAGE);
     expect(loadFailure({ status: 403 })).toBe(EDIT_NO_ACCESS_MESSAGE);
     expect(loadFailure({ status: 500 })).toBe(EDIT_LOAD_FAILED);
+    expect(loadFailure({ status: 400, error: { errormessage: 'Invalid input.', fields: [{ field: 'schooluserid', message: 'Choose an organisation.' }] } })).toBe('Choose an organisation.');
+    expect(loadFailure({ status: 400, error: { errormessage: 'Choose an organisation.' } })).toBe('Choose an organisation.');
+    expect(loadFailure({ status: 400, error: {} })).toBe(EDIT_LOAD_FAILED);
   });
 });

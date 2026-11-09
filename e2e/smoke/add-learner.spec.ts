@@ -171,6 +171,11 @@ async function fillRequired(page: Page, username = 'sokha1', password = 'riverla
   await page.getByRole('radio', { name: 'Female', exact: true }).check({ force: true });
 }
 
+
+/** Central's two real sentences for a push that failed: the learning server did not answer, or it lacks the class or curriculum. */
+const SYNC_MESSAGE = "The account was saved, but the learning server did not answer. Run Sync Students for this school on the Schools screen.";
+const MISSING_MESSAGE = "Saved, but the learning server doesn't have this class or curriculum yet. Run Sync Content, then Sync Students for this school.";
+
 test.describe('Add learner drawer', () => {
   test('opens from the Learners screen with the Account, Where and About fields and nothing for later slices', async ({ context }) => {
     const mock = newMock();
@@ -478,7 +483,7 @@ test.describe('Add learner drawer', () => {
 
   for (const [status, text, tone] of [
     ['pushed', `${FULL} can sign in now with these details.`, 'ok'],
-    ['failed', `${FULL} can't sign in yet: the learning server did not answer. Run Sync Students for this school on the Schools screen.`, 'warn'],
+    ['failed', `${FULL} can't sign in yet: ${SYNC_MESSAGE}`, 'warn'],
     ['skipped', `${FULL} can sign in once the learning server next syncs.`, 'info'],
   ] as const) {
     test(`the done panel for a push that ${status} says so, in the panel and not in a toast`, async ({ context }) => {
@@ -488,7 +493,7 @@ test.describe('Add learner drawer', () => {
           schooluserid: 'su-1',
           schoolusername: 'sokha1',
           studentname: FULL,
-          push: { status, message: 'The account was saved, but the learning server did not answer. Run Sync Students for this school on the Schools screen.' },
+          push: { status, message: SYNC_MESSAGE },
         });
       const page = await openLearners(context, mock);
       await openDrawer(page);
@@ -594,7 +599,17 @@ test.describe('Add learner drawer', () => {
     expect(await page.locator('#add-learner-first').inputValue()).toHaveLength(45);
     await page.locator('#add-learner-first').fill(FIRST);
     await page.getByRole('button', { name: 'Add learner', exact: true }).click();
-    await expect(page.getByTestId('done-outcome')).toHaveText(`${FULL} can't sign in yet: the learning server did not answer. Run Sync Students for this school on the Schools screen.`);
+    await expect(page.getByTestId('done-outcome')).toHaveText(`${FULL} can't sign in yet: x`);
+  });
+
+  test("a push that failed because the learning server lacks the class or curriculum shows central's own sentence", async ({ context }) => {
+    const mock = newMock();
+    mock.createAnswer = () => json(201, { schooluserid: 'su-1', schoolusername: 'sokha1', studentname: FULL, push: { status: 'failed', message: MISSING_MESSAGE } });
+    const page = await openLearners(context, mock);
+    await openDrawer(page);
+    await fillRequired(page);
+    await page.getByRole('button', { name: 'Add learner', exact: true }).click();
+    await expect(page.getByTestId('done-outcome')).toHaveText(`${FULL} can't sign in yet: ${MISSING_MESSAGE}`);
   });
 
   test('required fields are named before anything is sent, and the first empty one takes focus', async ({ context }) => {

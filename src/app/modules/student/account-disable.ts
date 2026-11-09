@@ -3,7 +3,7 @@
  * can be checked in plain Node. The request is `PUT student/:schooluserid/disabled` or `PUT teacher/:schooluserid/disabled`
  * with `{ disabled: boolean }`.
  */
-import type { PushStatus } from './add-learner/add-learner-form';
+import { pushMessageOf, type PushStatus } from './add-learner/add-learner-form';
 
 export type AccountKind = 'learner' | 'teacher';
 
@@ -37,7 +37,7 @@ export function disableNotice(kind: AccountKind, username: string, result: Pick<
       return {
         type: 'warning',
         title: 'Saved',
-        text: `${username} is ${word} on central, but the learning server did not answer. Run ${sync} for this school on the Schools screen.`,
+        text: (kind === 'learner' && pushMessageOf(result.push)) || `${username} is ${word} on central, but the learning server did not answer. Run ${sync} for this school on the Schools screen.`,
       };
     case 'skipped':
       return { type: 'info', title: 'Saved', text: `${username} is ${word}. The learning server gets the change at its next sync.` };

@@ -122,6 +122,11 @@ const menuItem = (page: Page, name: string) => page.getByRole('menuitem', { name
 const popconfirm = (page: Page) => page.locator('.ant-popover-inner');
 const SHOTS = process.env.E2E_SHOTS_DIR;
 
+
+/** Central's two real sentences for a push that failed: the learning server did not answer, or it lacks the class or curriculum. */
+const SYNC_MESSAGE = "The account was saved, but the learning server did not answer. Run Sync Students for this school on the Schools screen.";
+const MISSING_MESSAGE = "Saved, but the learning server doesn't have this class or curriculum yet. Run Sync Content, then Sync Students for this school.";
+
 test.describe('Learners list', () => {
   test('a disabled row carries a Disabled tag and stays in the list', async ({ context }) => {
     const page = await openLearners(context, newMock());
@@ -184,13 +189,26 @@ test.describe('Learners list', () => {
     await expect(row(page, 'dara1').getByTestId('disabled-tag')).toHaveCount(0);
   });
 
+  for (const message of [SYNC_MESSAGE, MISSING_MESSAGE]) {
+    test(`a failed push shows central's own sentence: ${message.slice(0, 40)}`, async ({ context }) => {
+      const mock = newMock();
+      mock.answer = (_k, id, disabled) => json(200, { schooluserid: id, disabled, push: { status: 'failed', message } });
+      const page = await openLearners(context, mock);
+      await actions(page, 'dara1').click();
+      await menuItem(page, 'Disable').click();
+      await popconfirm(page).getByRole('button', { name: 'Disable' }).click();
+      await expect(toasts(page)).toHaveText(message);
+      await expect(row(page, 'dara1').getByTestId('disabled-tag')).toHaveText('Disabled');
+    });
+  }
+
   for (const [status, expected] of [
     ['failed', 'dara1 is disabled on central, but the learning server did not answer. Run Sync Students for this school on the Schools screen.'],
     ['skipped', 'dara1 is disabled. The learning server gets the change at its next sync.'],
   ] as const) {
     test(`a ${status} push still tags the row and says what to do`, async ({ context }) => {
       const mock = newMock();
-      mock.answer = (_k, id, disabled) => json(200, { schooluserid: id, disabled, push: { status, message: 'm' } });
+      mock.answer = (_k, id, disabled) => json(200, { schooluserid: id, disabled, push: { status, ...(status === 'failed' ? {} : { message: 'm' }) } });
       const page = await openLearners(context, mock);
       await actions(page, 'dara1').click();
       await menuItem(page, 'Disable').click();

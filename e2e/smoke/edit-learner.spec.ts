@@ -35,6 +35,10 @@ const CURRICULA = [
   { curriculumid: 'cur-gone' } as { curriculumid: string; curriculumname?: string },
 ];
 
+/** Central's two real sentences for a push that failed: the learning server did not answer, or it lacks the class or curriculum. */
+const SYNC_MESSAGE = "The account was saved, but the learning server did not answer. Run Sync Students for this school on the Schools screen.";
+const MISSING_MESSAGE = "Saved, but the learning server doesn't have this class or curriculum yet. Run Sync Content, then Sync Students for this school.";
+
 interface Details {
   schooluserid: string;
   schoolusername: string;
@@ -285,6 +289,16 @@ test.describe('Edit details: opening and reading', () => {
     await expect.poll(() => focusedLabel(page)).toBe('Actions for dara1');
   });
 
+  test("a 400 on the read shows the API's sentence", async ({ context }) => {
+    const mock = newMock();
+    mock.get = () => json(400, { code: 'INVALID_INPUT', errormessage: 'Choose an organisation.', fields: [{ field: 'schooluserid', message: 'Choose an organisation.' }] });
+    const page = await openLearners(context, mock);
+    await actions(page, 'dara1').click();
+    await menuItem(page, 'Edit details').click();
+    await expect(page.getByTestId('edit-learner-load-error')).toContainText('Choose an organisation.');
+    await expect(page.getByTestId('edit-learner-load-error')).not.toContainText("couldn't be loaded");
+  });
+
   test('a learner that no longer exists says so', async ({ context }) => {
     const mock = newMock();
     mock.get = () => json(404, { code: 'NOT_FOUND', errormessage: 'No such learner.' });
@@ -432,7 +446,9 @@ test.describe('Edit details: Save', () => {
 
   const NOTICES: Array<[string, any, string]> = [
     ['pushed', { status: 'pushed', message: 'ok' }, "Dari Rivers's details are saved."],
-    ['failed', { status: 'failed', message: 'x' }, 'Saved, but the learning server did not answer. Run Sync Students for this school on the Schools screen.'],
+    ['failed with central\'s Sync Students sentence', { status: 'failed', message: SYNC_MESSAGE }, SYNC_MESSAGE],
+    ['failed with central\'s missing class or curriculum sentence', { status: 'failed', message: MISSING_MESSAGE }, MISSING_MESSAGE],
+    ['failed with no sentence', { status: 'failed' }, 'Saved, but the learning server did not answer. Run Sync Students for this school on the Schools screen.'],
     ['skipped', { status: 'skipped', message: 'x' }, 'Saved. The learning server gets the change at its next sync.'],
     ['an unknown status', { status: 'other', message: 'x' }, 'Dari Rivers was updated.'],
     ['no push at all', undefined, 'Dari Rivers was updated.'],
@@ -473,13 +489,13 @@ test.describe('Edit details: Save', () => {
 
   test('a 400 for the class and curriculum shows beside them', async ({ context }) => {
     const mock = newMock();
-    mock.put = () => json(400, { code: 'INVALID_INPUT', errormessage: 'Invalid input.', fields: [{ field: 'standard', message: 'Choose a class of this school.' }, { field: 'curriculumids', message: 'Choose at least one curriculum of this school.' }] });
+    mock.put = () => json(400, { code: 'INVALID_INPUT', errormessage: 'Invalid input.', fields: [{ field: 'standard', message: 'Choose a class for this student.' }, { field: 'curriculumids', message: 'Choose curricula that exist.' }] });
     const page = await openLearners(context, mock);
     await openEdit(page, 'dara1');
     await choose(page, 'class', 'Class 2A');
     await save(page).click();
-    await expect(errorOf(page, '#edit-learner-class')).toHaveText('Choose a class of this school.');
-    await expect(errorOf(page, '#edit-learner-curricula')).toHaveText('Choose at least one curriculum of this school.');
+    await expect(errorOf(page, '#edit-learner-class')).toHaveText('Choose a class for this student.');
+    await expect(errorOf(page, '#edit-learner-curricula')).toHaveText('Choose curricula that exist.');
     await expect(drawer(page)).toBeVisible();
   });
 

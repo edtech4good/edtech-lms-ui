@@ -4,7 +4,7 @@
  * `PUT student/:schooluserid/details` with the six keys of `EditLearnerBody`. The field rules and their messages are the
  * Add learner drawer's, imported as they are.
  */
-import { FIELD_ORDER, FieldKey, HttpFailure, PushStatus, serverFieldErrors } from '../add-learner/add-learner-form';
+import { FIELD_ORDER, FieldKey, HttpFailure, PushStatus, pushMessageOf, serverFieldErrors } from '../add-learner/add-learner-form';
 
 export const NO_LONGER_AVAILABLE = '(no longer available)';
 export const EDIT_NO_ACCESS_MESSAGE = "You don't have permission to edit learners.";
@@ -132,7 +132,7 @@ export function savedNotice(result: Pick<EditLearnerResult, 'studentname' | 'pus
       return {
         type: 'warning',
         title: 'Saved',
-        text: 'Saved, but the learning server did not answer. Run Sync Students for this school on the Schools screen.',
+        text: pushMessageOf(result.push) || 'Saved, but the learning server did not answer. Run Sync Students for this school on the Schools screen.',
       };
     case 'skipped':
       return { type: 'info', title: 'Saved', text: 'Saved. The learning server gets the change at its next sync.' };
@@ -161,5 +161,14 @@ export function editErrors(error: HttpFailure): { fields: Partial<Record<FieldKe
 export function loadFailure(error: HttpFailure): string {
   if (error.status === 404) return EDIT_NOT_FOUND_MESSAGE;
   if (error.status === 403) return EDIT_NO_ACCESS_MESSAGE;
+  if (error.status === 400) {
+    const body = (error.error && typeof error.error === 'object' ? error.error : {}) as {
+      errormessage?: unknown;
+      fields?: Array<{ message?: unknown }>;
+    };
+    const named = (Array.isArray(body.fields) ? body.fields : []).find((f) => typeof f?.message === 'string' && f.message.trim());
+    if (named) return (named.message as string).trim();
+    if (typeof body.errormessage === 'string' && body.errormessage.trim()) return body.errormessage.trim();
+  }
   return EDIT_LOAD_FAILED;
 }

@@ -138,6 +138,10 @@ const passwordField = (page: Page) => drawer(page).locator('#reset-password-inpu
 const save = (page: Page) => drawer(page).getByRole('button', { name: /^(Save|Saving…)$/ });
 const focusedLabel = (page: Page) => page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? document.activeElement?.tagName ?? '');
 
+/** Central's two real sentences for a push that failed: the learning server did not answer, or it lacks the class or curriculum. */
+const SYNC_MESSAGE = "The account was saved, but the learning server did not answer. Run Sync Students for this school on the Schools screen.";
+const MISSING_MESSAGE = "Saved, but the learning server doesn't have this class or curriculum yet. Run Sync Content, then Sync Students for this school.";
+
 type Where = { kind: 'learner' | 'teacher'; username: string; id: string; path: string };
 const LEARNER: Where = { kind: 'learner', username: 'dara1', id: 'lu-1', path: 'student/lu-1/password' };
 const TEACHER: Where = { kind: 'teacher', username: 'teacher.one', id: 'tu-1', path: 'teacher/tu-1/password' };
@@ -231,13 +235,27 @@ for (const where of [LEARNER, TEACHER]) {
       expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(where.username);
     });
 
+    if (where.kind === 'learner') {
+      for (const message of [SYNC_MESSAGE, MISSING_MESSAGE]) {
+        test(`a failed push shows central's own sentence: ${message.slice(0, 40)}`, async ({ context }) => {
+          const mock = newMock();
+          mock.answer = (_k, id) => json(200, { schooluserid: id, schoolusername: 'x', push: { status: 'failed', message } });
+          const page = await open(context, mock);
+          await openDrawer(page, where);
+          await saveNew(page);
+          await expect(page.getByTestId('done-outcome')).toHaveText(message);
+          await expect(page.getByTestId('done-password')).toHaveText(NEW_PASSWORD);
+        });
+      }
+    }
+
     for (const [status, line] of [
       ['failed', `The learning server did not answer, so the old password still works there. Run ${syncWord} for this school on the Schools screen.`],
       ['skipped', 'The learning server gets the new password at its next sync.'],
     ] as const) {
       test(`a ${status} push still shows the password once and says what to do`, async ({ context }) => {
         const mock = newMock();
-        mock.answer = (_k, id) => json(200, { schooluserid: id, schoolusername: 'x', push: { status, message: 'm' } });
+        mock.answer = (_k, id) => json(200, { schooluserid: id, schoolusername: 'x', push: { status, ...(status === 'failed' && where.kind === 'learner' ? {} : { message: 'm' }) } });
         const page = await open(context, mock);
         await openDrawer(page, where);
         await saveNew(page);
