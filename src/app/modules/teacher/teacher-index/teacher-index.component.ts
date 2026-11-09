@@ -7,7 +7,7 @@ import { NzTableQueryParams } from 'ng-zorro-antd/table';
 import { NzUploadChangeParam, NzUploadFile } from 'ng-zorro-antd/upload';
 import { Observable, of } from 'rxjs';
 import { catchError, finalize, first, map } from 'rxjs/operators';
-import { CONFIRM_OK_SELECTOR, disableConfirmText, disableNotice, focusSoon, restoreFocus, withDisabled } from '../../student/account-disable';
+import { CONFIRM_OK_SELECTOR, disableConfirmText, disableNotice, focusSoon, insideConfirmOrMenu, restoreFocus, rowControl, withDisabled } from '../../student/account-disable';
 import { restoreFocusAfterDrawer } from '../../student/reset-password/drawer-focus';
 import { IFilter } from 'src/app/models/IPaging';
 import { TeacherImport } from 'src/app/models/teacherimport';
@@ -252,6 +252,13 @@ export class TeacherIndexComponent implements OnInit {
     }
   };
 
+  /** The schooluserid whose Manage menu is open. */
+  menuOpen: string | null = null;
+  onMenuVisible(visible: boolean, row: any) {
+    this.menuOpen = visible ? row.schooluserid : this.menuOpen === row.schooluserid ? null : this.menuOpen;
+    if (visible) focusSoon('.ant-dropdown [data-menu-action]');
+    else if (!this.confirming && this.resetFor === null) restoreFocus(row.schooluserid);
+  }
   /** The schooluserid whose Reset password drawer is open, and its row (kept while the drawer slides away). */
   resetFor: string | null = null;
   resetRow: any = null;
@@ -262,26 +269,45 @@ export class TeacherIndexComponent implements OnInit {
   closeReset() {
     const id = this.resetFor;
     this.resetFor = null;
-    if (id) restoreFocusAfterDrawer(`[data-reset-control="${id.replace(/["\\]/g, '')}"]`);
+    if (id) restoreFocusAfterDrawer(rowControl(id));
   }
   private readonly changing = new Set<string>();
   isChanging = (row: any) => this.changing.has(row.schooluserid);
-  confirmText = (row: any) => disableConfirmText(row.schoolusername, !row.isdisabled);
-  /** The schooluserid whose Disable / Enable confirm is open. */
+  /** The schooluserid whose Disable / Enable or Delete confirm is open, and which of the two it is. */
   confirming: string | null = null;
+  confirmKind: 'toggle' | 'delete' = 'toggle';
+  confirmTitle = (row: any) => (this.confirmKind === 'delete' ? 'Sure to delete?' : disableConfirmText(row.schoolusername, !row.isdisabled));
+  okText = (row: any) => (this.confirmKind === 'delete' ? undefined : row.isdisabled ? 'Enable' : 'Disable');
   askToggle(row: any) {
+    this.openConfirm(row, 'toggle');
+  }
+  askDelete(row: any) {
+    this.openConfirm(row, 'delete');
+  }
+  private openConfirm(row: any, kind: 'toggle' | 'delete') {
     if (this.changing.has(row.schooluserid)) return;
+    this.confirmKind = kind;
     this.confirming = row.schooluserid;
     focusSoon(CONFIRM_OK_SELECTOR);
   }
-  /** The confirm opened (the button was clicked) or closed without a change (Cancel, Escape, a click outside). */
+  onConfirm(row: any) {
+    if (this.confirmKind === 'delete') void this.deleteTeacher(row.schooluserid);
+    else this.toggleDisabled(row);
+  }
+  /** The confirm closed without a change (Cancel, Escape, a click outside): focus goes back to the Manage button. */
   closeConfirm(visible: boolean, row: any) {
-    if (visible) {
-      this.askToggle(row);
-    } else if (this.confirming === row.schooluserid) {
+    if (!visible && this.confirming === row.schooluserid) {
       this.confirming = null;
       restoreFocus(row.schooluserid);
     }
+  }
+  /** A click outside the open confirm and the Manage menu closes the confirm; the click itself carries on. */
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    const id = this.confirming;
+    if (!id || insideConfirmOrMenu(event.target)) return;
+    this.confirming = null;
+    restoreFocus(id);
   }
   @HostListener('document:keydown.escape')
   onEscape() {
@@ -318,15 +344,23 @@ export class TeacherIndexComponent implements OnInit {
   }
 
   deleteTeacher = async (schooluserid: string) => {
-    await this.teacherService
-      .deleteTeacher(schooluserid)
-      .pipe(first())
-      .toPromise();
-    await this.loadDataFromServer();
-    this.notification.create(
-      'success',
-      'Success',
-      'Teacher deleted sucessfully'
-    );
+    this.confirming = null;
+    if (this.changing.has(schooluserid)) return;
+    this.changing.add(schooluserid);
+    try {
+      await this.teacherService
+        .deleteTeacher(schooluserid)
+        .pipe(first())
+        .toPromise();
+      await this.loadDataFromServer();
+      this.notification.create(
+        'success',
+        'Success',
+        'Teacher deleted sucessfully'
+      );
+    } finally {
+      this.changing.delete(schooluserid);
+      restoreFocus(schooluserid);
+    }
   };
 }

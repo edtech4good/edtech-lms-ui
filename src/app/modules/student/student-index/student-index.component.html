@@ -134,7 +134,7 @@
                   <button
                     type="button"
                     nz-button
-                    nzType="text"
+                    nzType="default"
                     nzSize="small"
                     nz-dropdown
                     nzTrigger="click"
@@ -152,10 +152,11 @@
                     [nzOkText]="data.isdisabled ? 'Enable' : 'Disable'"
                     nzCancelText="Cancel"
                     (nzOnConfirm)="toggleDisabled(data)"
-                    [attr.aria-label]="'Actions for ' + data['schooluser.schoolusername']"
+                    [attr.aria-label]="'Manage ' + data['schooluser.schoolusername']"
                     data-testid="row-actions"
                   >
-                    <span aria-hidden="true">&#8943;</span>
+                    Manage
+                    <span nz-icon nzType="down" aria-hidden="true"></span>
                   </button>
                   <nz-dropdown-menu #rowMenu="nzDropdownMenu">
                     <ul nz-menu role="menu">
