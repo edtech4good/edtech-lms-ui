@@ -5,6 +5,7 @@ import { FAILURES_SHOWN_BY_CALLER, FIELD_ERRORS_INLINE } from 'src/app/intercept
 import { CoreService } from 'src/app/services/core.service';
 import { AddLearnerBody, CreatedLearner } from '../modules/student/add-learner/add-learner-form';
 import { DisabledResult } from '../modules/student/account-disable';
+import { ResetPasswordBody, ResetResult } from '../modules/student/reset-password/reset-password';
 import { StudentEditedImportBody, StudentImportBody } from '../models/studentimport';
 
 @Injectable({
@@ -72,6 +73,13 @@ export class StudentService {
       { disabled },
       this.coreService.jsonhttpOptions
     );
+  }
+  /** Sets a new password for one learner. A 400 names its field; the drawer shows it beside the form. */
+  resetPassword(schooluserid: string, body: ResetPasswordBody) {
+    return this.http.put<ResetResult>(`${this.coreService.CORE_API()}student/${schooluserid}/password`, body, {
+      ...this.coreService.jsonhttpOptions,
+      context: new HttpContext().set(FIELD_ERRORS_INLINE, true),
+    });
   }
   deleteStudent(schooluserid: string) {
     return this.http.delete(

@@ -65,6 +65,19 @@
                 nz-button
                 nzSize="small"
                 style="margin-right: 20px"
+                [attr.aria-label]="'Reset password for ' + data.schoolusername"
+                [attr.data-reset-control]="data.schooluserid"
+                data-testid="reset-password-button"
+                (click)="openReset(data)"
+              >
+                Reset password
+              </button>
+              <button
+                *ngxPermissionsOnly="['update_teacher', 'superadmin']"
+                type="button"
+                nz-button
+                nzSize="small"
+                style="margin-right: 20px"
                 nz-popconfirm
                 [nzPopconfirmVisible]="confirming === data.schooluserid"
                 (nzPopconfirmVisibleChange)="closeConfirm($event, data)"
@@ -217,3 +230,11 @@
   (added)="onTeacherAdded()"
   (closed)="closeAddTeacher()"
 ></app-add-teacher-drawer>
+<app-reset-password-drawer
+  [open]="resetFor !== null"
+  kind="teacher"
+  [schooluserid]="resetRow?.schooluserid ?? ''"
+  [username]="resetRow?.schoolusername ?? ''"
+  [accountDisabled]="!!resetRow?.isdisabled"
+  (closed)="closeReset()"
+></app-reset-password-drawer>

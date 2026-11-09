@@ -162,6 +162,17 @@
                       <li
                         nz-menu-item
                         role="menuitem"
+                        tabindex="0"
+                        data-testid="reset-password-item"
+                        (click)="openReset(data)"
+                        (keydown.enter)="$any($event.currentTarget).click()"
+                        (keydown.space)="$event.preventDefault(); $any($event.currentTarget).click()"
+                      >
+                        Reset password
+                      </li>
+                      <li
+                        nz-menu-item
+                        role="menuitem"
                         data-menu-action
                         [attr.tabindex]="isChanging(data) ? -1 : 0"
                         [nzDisabled]="isChanging(data)"
@@ -468,3 +479,11 @@
   (added)="onLearnerAdded()"
   (closed)="closeAddLearner()"
 ></app-add-learner-drawer>
+<app-reset-password-drawer
+  [open]="resetFor !== null"
+  kind="learner"
+  [schooluserid]="resetRow?.schooluserid ?? ''"
+  [username]="resetRow ? username(resetRow) : ''"
+  [accountDisabled]="!!resetRow?.isdisabled"
+  (closed)="closeReset()"
+></app-reset-password-drawer>
