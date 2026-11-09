@@ -57,8 +57,8 @@ function newMock(): Mock {
   };
 }
 
-async function signIn(context: BrowserContext, mock: Mock, claims: object, permissions?: string[]): Promise<void> {
-  await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(BASE_URL).origin }).catch(() => undefined);
+async function signIn(context: BrowserContext, mock: Mock, claims: object, permissions?: string[], clipboardWrite = true): Promise<void> {
+  await context.grantPermissions(clipboardWrite ? ['clipboard-read', 'clipboard-write'] : ['clipboard-read'], { origin: new URL(BASE_URL).origin }).catch(() => undefined);
   await context.addInitScript(
     ({ keys, token }) => {
       const [alg, payload, hash] = token.split('.');
@@ -83,8 +83,9 @@ async function openTeachers(
   context: BrowserContext,
   mock: Mock,
   claims: object = { isplatform: false, organisationid: 'org-1' },
+  clipboardWrite = true,
 ): Promise<Page> {
-  await signIn(context, mock, claims);
+  await signIn(context, mock, claims, undefined, clipboardWrite);
   const page = await context.newPage();
   await page.goto('/teacher/index');
   await expect(page.getByRole('button', { name: 'Upload Teachers' })).toBeVisible();
@@ -323,15 +324,90 @@ test.describe('Add teacher drawer', () => {
     await expect(errorOf(page, '#add-teacher-school')).toHaveText('Choose an organisation.');
   });
 
-  test('a 400 that names no field (no organisation chosen) is said once at the top of the form', async ({ context }) => {
+  test('a generic 400 that names no field is said once at the top of the form (central names School for a missing organisation)', async ({ context }) => {
     const mock = newMock();
-    mock.createAnswer = () => json(400, { error: true, code: 'INVALID_INPUT', errormessage: 'Choose an organisation.' });
+    mock.createAnswer = () => json(400, { error: true, code: 'INVALID_INPUT', errormessage: 'The request is not valid.' });
     const page = await openTeachers(context, mock);
     await openDrawer(page);
     await fillRequired(page);
     await save(page).click();
-    await expect(drawer(page).locator('.form-error')).toHaveText('Choose an organisation.');
+    await expect(drawer(page).locator('.form-error')).toHaveText('The request is not valid.');
     expect(await toasts(page).count()).toBe(0);
+  });
+
+  /** Opens the done panel for dara1 / riverlamp47. `stubs` runs in the page before the app, to refuse a copy route. */
+  async function openDonePanel(context: BrowserContext, stubs?: () => void): Promise<Page> {
+    if (stubs) await context.addInitScript(stubs);
+    // A refusal test holds only clipboard-read, so the permission state matches the real failure ("denied").
+    const page = await openTeachers(context, newMock(), undefined, !stubs);
+    await openDrawer(page);
+    await fillRequired(page);
+    await save(page).click();
+    await expect(page.getByTestId('done-username')).toHaveText('dara1');
+    return page;
+  }
+  const refuseClipboardApi = () => {
+    (window as unknown as { __realWriteText: (t: string) => Promise<void> }).__realWriteText = navigator.clipboard.writeText.bind(navigator.clipboard);
+    Object.defineProperty(navigator.clipboard, 'writeText', {
+      configurable: true,
+      value: () => Promise.reject(new DOMException('Write permission denied.', 'NotAllowedError')),
+    });
+  };
+  // (Each stub is serialised into the page on its own, so it cannot call the other.)
+  const refuseBoth = () => {
+    (window as unknown as { __realWriteText: (t: string) => Promise<void> }).__realWriteText = navigator.clipboard.writeText.bind(navigator.clipboard);
+    Object.defineProperty(navigator.clipboard, 'writeText', {
+      configurable: true,
+      value: () => Promise.reject(new DOMException('Write permission denied.', 'NotAllowedError')),
+    });
+    document.execCommand = () => false;
+  };
+  const clipboardText = (page: Page) => page.evaluate(() => navigator.clipboard.readText());
+  /** Writes a random sentinel to the shared headless clipboard first, so a read-back cannot pass on an old value. */
+  async function seedClipboard(page: Page, context: BrowserContext, refusing: boolean): Promise<string> {
+    const sentinel = `sentinel-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+    const origin = new URL(BASE_URL).origin;
+    await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin });
+    await page.evaluate(
+      (value) => {
+        const real = (window as unknown as { __realWriteText?: (t: string) => Promise<void> }).__realWriteText;
+        return (real ?? navigator.clipboard.writeText.bind(navigator.clipboard))(value);
+      },
+      sentinel,
+    );
+    if (refusing) {
+      await context.clearPermissions();
+      await context.grantPermissions(['clipboard-read'], { origin });
+    }
+    expect(await clipboardText(page), 'the sentinel is on the clipboard').toBe(sentinel);
+    return sentinel;
+  }
+
+  test('Copy still works when the Clipboard API refuses the write: the password and the username reach the clipboard', async ({ context }) => {
+    const page = await openDonePanel(context, refuseClipboardApi);
+    await seedClipboard(page, context, true);
+    await page.getByRole('button', { name: 'Copy password' }).click();
+    await expect(page.getByRole('button', { name: 'Copied password' })).toBeVisible();
+    await expect(page.getByText("The copy didn't work")).toHaveCount(0);
+    expect(await clipboardText(page)).toBe('riverlamp47');
+    await seedClipboard(page, context, true);
+    await page.getByRole('button', { name: 'Copy username' }).click();
+    await expect(page.getByRole('button', { name: 'Copied username' })).toBeVisible();
+    expect(await clipboardText(page)).toBe('dara1');
+    await expect(page.locator('textarea')).toHaveCount(0);
+  });
+
+  test('Copy says it did not work, and stays Copy, only when both copy routes fail', async ({ context }) => {
+    const page = await openDonePanel(context, refuseBoth);
+    const sentinel = await seedClipboard(page, context, true);
+    await page.getByRole('button', { name: 'Copy password' }).click();
+    await expect(page.getByText("The copy didn't work. Select the password and copy it by hand.")).toBeVisible();
+    expect(await clipboardText(page), 'nothing was copied').toBe(sentinel);
+    await expect(page.getByRole('button', { name: 'Copied password' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Copy username' }).click();
+    await expect(page.getByText("The copy didn't work. Select the username and copy it by hand.")).toBeVisible();
+    expect(await clipboardText(page), 'nothing was copied').toBe(sentinel);
+    await expect(page.locator('textarea')).toHaveCount(0);
   });
 
   test('a 403 is said at the top of the form in the teacher’s words, not the learner’s', async ({ context }) => {
