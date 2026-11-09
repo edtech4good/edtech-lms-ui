@@ -297,6 +297,61 @@ test.describe('Learners list: keyboard and focus', () => {
     });
   }
 
+  test('a click outside the confirm closes it, sends nothing and returns focus to the Actions button', async ({ context }) => {
+    const mock = newMock();
+    const page = await openLearners(context, mock);
+    await actions(page, 'dara1').click();
+    await menuItem(page, 'Disable').click();
+    await expect(popconfirm(page)).toBeVisible();
+    await page.locator('.ant-card-head-title').click();
+    await expect(popconfirm(page)).toHaveCount(0);
+    expect(mock.requests).toEqual([]);
+    await expect.poll(() => focusedLabel(page)).toBe('Actions for dara1');
+  });
+
+  test('an outside click on another control still works, and takes the focus it clicked', async ({ context }) => {
+    const mock = newMock();
+    const page = await openLearners(context, mock);
+    await actions(page, 'dara1').click();
+    await menuItem(page, 'Disable').click();
+    await expect(popconfirm(page)).toBeVisible();
+    await actions(page, 'maly3').click();
+    await expect(popconfirm(page)).toHaveCount(0);
+    await expect(menuItem(page, 'Disable')).toBeVisible();
+    expect(mock.requests).toEqual([]);
+    await expect(menuItem(page, 'Disable')).toBeFocused();
+  });
+
+  test('when the request ends, focus is not pulled back if the user has moved on', async ({ context }) => {
+    const mock = newMock();
+    let release!: () => void;
+    mock.hold = new Promise<void>((resolve) => (release = resolve));
+    const page = await openLearners(context, mock);
+    await actions(page, 'dara1').click();
+    await menuItem(page, 'Disable').click();
+    await popconfirm(page).getByRole('button', { name: 'Disable' }).click();
+    await expect.poll(() => mock.requests.length).toBe(1);
+    await actions(page, 'maly3').focus();
+    release();
+    await expect(row(page, 'dara1').getByTestId('disabled-tag')).toHaveText('Disabled');
+    await page.waitForTimeout(300);
+    expect(await focusedLabel(page)).toBe('Actions for maly3');
+  });
+
+  test('when the request ends with focus lost, it returns to the Actions button', async ({ context }) => {
+    const mock = newMock();
+    let release!: () => void;
+    mock.hold = new Promise<void>((resolve) => (release = resolve));
+    const page = await openLearners(context, mock);
+    await actions(page, 'dara1').click();
+    await menuItem(page, 'Disable').click();
+    await popconfirm(page).getByRole('button', { name: 'Disable' }).click();
+    await expect.poll(() => mock.requests.length).toBe(1);
+    release();
+    await expect(row(page, 'dara1').getByTestId('disabled-tag')).toHaveText('Disabled');
+    await expect.poll(() => focusedLabel(page)).toBe('Actions for dara1');
+  });
+
   test('focus returns to the Actions button after the menu is closed with Escape', async ({ context }) => {
     const page = await openLearners(context, newMock());
     await actions(page, 'dara1').focus();
@@ -327,6 +382,32 @@ test.describe('Teachers list: accessible names and focus', () => {
     await page.keyboard.press('Enter');
     await expect(row(page, 'teacher.one').getByTestId('disabled-tag')).toHaveText('Disabled');
     expect(mock.requests).toEqual([{ method: 'PUT', path: 'teacher/tu-1/disabled', body: { disabled: true } }]);
+  });
+
+  test('a click outside the confirm closes it, sends nothing and returns focus to the row\'s button', async ({ context }) => {
+    const mock = newMock();
+    const page = await openTeachers(context, mock);
+    await page.getByRole('button', { name: 'Disable teacher.one', exact: true }).click();
+    await expect(popconfirm(page)).toBeVisible();
+    await page.mouse.click(700, 700); // empty page area below the card (the confirm covers the card title)
+    await expect(popconfirm(page)).toHaveCount(0);
+    expect(mock.requests).toEqual([]);
+    await expect.poll(() => focusedLabel(page)).toBe('Disable teacher.one');
+  });
+
+  test('when the request ends, focus is not pulled back if the user has moved on', async ({ context }) => {
+    const mock = newMock();
+    let release!: () => void;
+    mock.hold = new Promise<void>((resolve) => (release = resolve));
+    const page = await openTeachers(context, mock);
+    await page.getByRole('button', { name: 'Disable teacher.one', exact: true }).click();
+    await popconfirm(page).getByRole('button', { name: 'Disable' }).click();
+    await expect.poll(() => mock.requests.length).toBe(1);
+    await page.getByRole('button', { name: 'Enable teacher.two', exact: true }).focus();
+    release();
+    await expect(row(page, 'teacher.one').getByTestId('disabled-tag')).toHaveText('Disabled');
+    await page.waitForTimeout(300);
+    expect(await focusedLabel(page)).toBe('Enable teacher.two');
   });
 
   for (const how of ['Confirm', 'Cancel', 'Escape'] as const) {

@@ -66,10 +66,8 @@
                 nzSize="small"
                 style="margin-right: 20px"
                 nz-popconfirm
-                [nzPopconfirmTrigger]="null"
                 [nzPopconfirmVisible]="confirming === data.schooluserid"
                 (nzPopconfirmVisibleChange)="closeConfirm($event, data)"
-                (click)="askToggle(data)"
                 [attr.aria-label]="(data.isdisabled ? 'Enable ' : 'Disable ') + data.schoolusername"
                 [attr.data-row-control]="data.schooluserid"
                 [nzPopconfirmTitle]="confirmText(data)"

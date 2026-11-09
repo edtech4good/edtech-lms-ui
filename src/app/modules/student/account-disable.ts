@@ -53,6 +53,27 @@ export function focusSoon(selector: string): void {
   setTimeout(() => (document.querySelector(selector) as HTMLElement | null)?.focus(), 0);
 }
 
+/**
+ * Returns focus to a row's control, unless the user has already moved on: only when focus is on the page body or a
+ * plain container, or inside a confirm or menu that is closing.
+ */
+export function restoreFocus(id: string): void {
+  setTimeout(() => {
+    const active = document.activeElement as HTMLElement | null;
+    const onControl = !!active?.matches?.('a[href], button, input, select, textarea, [contenteditable], [role="menuitem"], [role="tab"]');
+    // A click on plain page area focuses its nearest focusable container (the tab panel, the main region): that is focus lost, too.
+    const lost = !active || active === document.body || !onControl || !!active.closest('.ant-popover, .ant-dropdown');
+    const control = document.querySelector(rowControl(id)) as HTMLElement | null;
+    if (control && lost) control.focus();
+  }, 0);
+}
+
+/** Whether a click landed inside a confirm or an Actions menu (so it is not an outside click). */
+export function insideConfirmOrMenu(target: EventTarget | null): boolean {
+  const el = target as Element | null;
+  return !!el && (!el.isConnected || !!el.closest?.('.ant-popover, .ant-dropdown'));
+}
+
 /** The confirm button of the open popconfirm, so a keyboard user can reach it (the overlay sits at the end of the page). */
 export const CONFIRM_OK_SELECTOR = '.ant-popover .ant-btn-primary';
 
