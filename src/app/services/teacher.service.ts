@@ -6,6 +6,7 @@ import { CoreService } from 'src/app/services/core.service';
 import { TeacherImportBody } from '../models/teacherimport';
 import { AddTeacherBody, CreatedTeacher } from '../modules/teacher/add-teacher/add-teacher-form';
 import { DisabledResult } from '../modules/student/account-disable';
+import { ResetPasswordBody, ResetResult } from '../modules/student/reset-password/reset-password';
 
 @Injectable({
   providedIn: 'root',
@@ -57,6 +58,13 @@ export class TeacherService {
       { disabled },
       this.coreService.jsonhttpOptions
     );
+  }
+  /** Sets a new password for one teacher. A 400 names its field; the drawer shows it beside the form. */
+  resetPassword(schooluserid: string, body: ResetPasswordBody) {
+    return this.http.put<ResetResult>(`${this.coreService.CORE_API()}teacher/${schooluserid}/password`, body, {
+      ...this.coreService.jsonhttpOptions,
+      context: new HttpContext().set(FIELD_ERRORS_INLINE, true),
+    });
   }
   deleteTeacher(schooluserid: string) {
     return this.http.delete(

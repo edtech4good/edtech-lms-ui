@@ -8,7 +8,8 @@ import { NzTableQueryParams } from 'ng-zorro-antd/table';
 import { NzUploadChangeParam, NzUploadFile } from 'ng-zorro-antd/upload';
 import { BehaviorSubject, EMPTY, Observable, of, Subscription } from 'rxjs';
 import { catchError, debounceTime, filter, finalize, first, map, switchMap } from 'rxjs/operators';
-import { CONFIRM_OK_SELECTOR, disableConfirmText, disableNotice, focusSoon, insideConfirmOrMenu, restoreFocus, withDisabled } from '../account-disable';
+import { CONFIRM_OK_SELECTOR, disableConfirmText, disableNotice, focusSoon, insideConfirmOrMenu, restoreFocus, rowControl, withDisabled } from '../account-disable';
+import { restoreFocusAfterDrawer } from '../reset-password/drawer-focus';
 import { IFilter } from 'src/app/models/IPaging';
 import { StudentImport, StudentImportForEdit } from 'src/app/models/studentimport';
 import { CoreService } from 'src/app/services/core.service';
@@ -319,7 +320,19 @@ export class StudentIndexComponent implements OnInit {
   onMenuVisible(visible: boolean, row: any) {
     this.menuOpen = visible ? row.schooluserid : this.menuOpen === row.schooluserid ? null : this.menuOpen;
     if (visible) focusSoon('.ant-dropdown [data-menu-action]');
-    else if (!this.confirming) restoreFocus(row.schooluserid);
+    else if (!this.confirming && this.resetFor === null) restoreFocus(row.schooluserid);
+  }
+  /** The schooluserid whose Reset password drawer is open, and its row (kept while the drawer slides away). */
+  resetFor: string | null = null;
+  resetRow: any = null;
+  openReset(row: any) {
+    this.resetRow = row;
+    this.resetFor = row.schooluserid;
+  }
+  closeReset() {
+    const id = this.resetFor;
+    this.resetFor = null;
+    if (id) restoreFocusAfterDrawer(rowControl(id));
   }
   askToggle(row: any) {
     if (this.changing.has(row.schooluserid)) return;

@@ -8,6 +8,7 @@ import { NzUploadChangeParam, NzUploadFile } from 'ng-zorro-antd/upload';
 import { Observable, of } from 'rxjs';
 import { catchError, finalize, first, map } from 'rxjs/operators';
 import { CONFIRM_OK_SELECTOR, disableConfirmText, disableNotice, focusSoon, restoreFocus, withDisabled } from '../../student/account-disable';
+import { restoreFocusAfterDrawer } from '../../student/reset-password/drawer-focus';
 import { IFilter } from 'src/app/models/IPaging';
 import { TeacherImport } from 'src/app/models/teacherimport';
 import { CoreService } from 'src/app/services/core.service';
@@ -251,6 +252,18 @@ export class TeacherIndexComponent implements OnInit {
     }
   };
 
+  /** The schooluserid whose Reset password drawer is open, and its row (kept while the drawer slides away). */
+  resetFor: string | null = null;
+  resetRow: any = null;
+  openReset(row: any) {
+    this.resetRow = row;
+    this.resetFor = row.schooluserid;
+  }
+  closeReset() {
+    const id = this.resetFor;
+    this.resetFor = null;
+    if (id) restoreFocusAfterDrawer(`[data-reset-control="${id.replace(/["\\]/g, '')}"]`);
+  }
   private readonly changing = new Set<string>();
   isChanging = (row: any) => this.changing.has(row.schooluserid);
   confirmText = (row: any) => disableConfirmText(row.schoolusername, !row.isdisabled);
