@@ -141,7 +141,7 @@
                     nzPlacement="bottomRight"
                     [nzDropdownMenu]="rowMenu"
                     nz-popconfirm
-                    nzPopconfirmTrigger="null"
+                    [nzPopconfirmTrigger]="null"
                     [nzPopconfirmVisible]="confirming === data.schooluserid"
                     (nzPopconfirmVisibleChange)="closeConfirm($event, data)"
                     [nzPopconfirmTitle]="confirmText(data)"
@@ -154,8 +154,8 @@
                     <span aria-hidden="true">&#8943;</span>
                   </button>
                   <nz-dropdown-menu #rowMenu="nzDropdownMenu">
-                    <ul nz-menu>
-                      <li nz-menu-item [nzDisabled]="isChanging(data)" (click)="askToggle(data)">
+                    <ul nz-menu role="menu">
+                      <li nz-menu-item role="menuitem" [nzDisabled]="isChanging(data)" [attr.aria-disabled]="isChanging(data)" (click)="askToggle(data)">
                         {{ data.isdisabled ? "Enable" : "Disable" }}
                       </li>
                     </ul>
