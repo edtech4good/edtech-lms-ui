@@ -146,11 +146,17 @@ export class ResetPasswordDrawerComponent {
     else this.focusSubmitWhenEnabled();
   }
 
-  /** The panel's heading takes focus, so a screen reader announces it (and the line it is described by). */
+  /**
+   * The panel's heading takes focus, so a screen reader announces it (and the line it is described by). The Save button
+   * that held focus leaves the page when the panel is drawn, and the browser then drops focus to the body; so focus is
+   * set after the panel is drawn, and set again if it was lost.
+   */
   private focusDoneTitle(attempt = 0): void {
-    const title = this.doneTitle()?.nativeElement;
-    if (title) title.focus({ preventScroll: true });
-    else if (attempt < 20) setTimeout(() => this.focusDoneTitle(attempt + 1), 25);
+    setTimeout(() => {
+      const title = this.doneTitle()?.nativeElement;
+      if (title && document.activeElement !== title) title.focus({ preventScroll: true });
+      if ((!title || document.activeElement !== title) && attempt < 20) this.focusDoneTitle(attempt + 1);
+    }, attempt === 0 ? 0 : 25);
   }
 
   private focusPassword(): void {
