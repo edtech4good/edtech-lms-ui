@@ -5,6 +5,7 @@ import { FIELD_ERRORS_INLINE } from 'src/app/interceptors/error-context';
 import { CoreService } from 'src/app/services/core.service';
 import { TeacherImportBody } from '../models/teacherimport';
 import { AddTeacherBody, CreatedTeacher } from '../modules/teacher/add-teacher/add-teacher-form';
+import { DisabledResult } from '../modules/student/account-disable';
 
 @Injectable({
   providedIn: 'root',
@@ -46,6 +47,14 @@ export class TeacherService {
   synccloudTeacher(schoolname: string) {
     return this.http.post(
       `${this.coreService.CORE_API()}sync/cloud/${schoolname}/teachers`,
+      this.coreService.jsonhttpOptions
+    );
+  }
+  /** Stops or allows a teacher's sign-in. */
+  setDisabled(schooluserid: string, disabled: boolean) {
+    return this.http.put<DisabledResult>(
+      `${this.coreService.CORE_API()}teacher/${schooluserid}/disabled`,
+      { disabled },
       this.coreService.jsonhttpOptions
     );
   }

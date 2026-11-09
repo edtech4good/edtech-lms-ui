@@ -52,10 +52,27 @@
         </thead>
         <tbody>
           <tr *ngFor="let data of data">
-            <td>{{ data["schoolusername"] }}</td>
+            <td>
+              {{ data["schoolusername"] }}
+              <nz-tag *ngIf="data.isdisabled" nzColor="warning" data-testid="disabled-tag">Disabled</nz-tag>
+            </td>
             <td *ngIf="owner.active()"><app-owner-name [id]="data.organisationid"></app-owner-name></td>
             <td>{{ data.schoolname }}</td>
             <td>
+              <button
+                *ngxPermissionsOnly="['update_teacher', 'superadmin']"
+                type="button"
+                nz-button
+                nzSize="small"
+                style="margin-right: 20px"
+                nz-popconfirm
+                [nzPopconfirmTitle]="confirmText(data)"
+                [nzOkText]="data.isdisabled ? 'Enable' : 'Disable'"
+                [disabled]="isChanging(data)"
+                (nzOnConfirm)="toggleDisabled(data)"
+              >
+                {{ data.isdisabled ? "Enable" : "Disable" }}
+              </button>
               <a
                 *ngxPermissionsOnly="['zr5ER4QD', 'Mapyr2Pw', 'delete_teacher', 'superadmin']"
                 nz-button
