@@ -39,7 +39,7 @@ export function resetDoneLine(kind: AccountKind, username: string, push?: ResetR
     case 'failed':
       return {
         tone: 'warn',
-        text: (kind === 'learner' && pushMessageOf(push)) || `The learning server did not answer, so the old password still works there. Run ${sync} for this school on the Schools screen.`,
+        text: (kind === 'learner' && pushMessageOf(push) && `The old password still works on the learning server. ${pushMessageOf(push)}`) || `The learning server did not answer, so the old password still works there. Run ${sync} for this school on the Schools screen.`,
       };
     case 'skipped':
       return { tone: 'info', text: 'The learning server gets the new password at its next sync.' };

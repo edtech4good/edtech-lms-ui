@@ -483,7 +483,7 @@ test.describe('Add learner drawer', () => {
 
   for (const [status, text, tone] of [
     ['pushed', `${FULL} can sign in now with these details.`, 'ok'],
-    ['failed', `${FULL} can't sign in yet: ${SYNC_MESSAGE}`, 'warn'],
+    ['failed', `${FULL} can't sign in yet. ${SYNC_MESSAGE}`, 'warn'],
     ['skipped', `${FULL} can sign in once the learning server next syncs.`, 'info'],
   ] as const) {
     test(`the done panel for a push that ${status} says so, in the panel and not in a toast`, async ({ context }) => {
@@ -599,7 +599,7 @@ test.describe('Add learner drawer', () => {
     expect(await page.locator('#add-learner-first').inputValue()).toHaveLength(45);
     await page.locator('#add-learner-first').fill(FIRST);
     await page.getByRole('button', { name: 'Add learner', exact: true }).click();
-    await expect(page.getByTestId('done-outcome')).toHaveText(`${FULL} can't sign in yet: x`);
+    await expect(page.getByTestId('done-outcome')).toHaveText(`${FULL} can't sign in yet. x`);
   });
 
   test("a push that failed because the learning server lacks the class or curriculum shows central's own sentence", async ({ context }) => {
@@ -609,7 +609,7 @@ test.describe('Add learner drawer', () => {
     await openDrawer(page);
     await fillRequired(page);
     await page.getByRole('button', { name: 'Add learner', exact: true }).click();
-    await expect(page.getByTestId('done-outcome')).toHaveText(`${FULL} can't sign in yet: ${MISSING_MESSAGE}`);
+    await expect(page.getByTestId('done-outcome')).toHaveText(`${FULL} can't sign in yet. ${MISSING_MESSAGE}`);
   });
 
   test('required fields are named before anything is sent, and the first empty one takes focus', async ({ context }) => {

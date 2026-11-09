@@ -139,7 +139,7 @@ const save = (page: Page) => drawer(page).getByRole('button', { name: /^(Save|Sa
 const focusedLabel = (page: Page) => page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? document.activeElement?.tagName ?? '');
 
 /** Central's two real sentences for a push that failed: the learning server did not answer, or it lacks the class or curriculum. */
-const SYNC_MESSAGE = "The account was saved, but the learning server did not answer. Run Sync Students for this school on the Schools screen.";
+const SYNC_MESSAGE = "The password was saved, but the learning server did not answer. Run Sync Students for this school on the Schools screen.";
 const MISSING_MESSAGE = "Saved, but the learning server doesn't have this class or curriculum yet. Run Sync Content, then Sync Students for this school.";
 
 type Where = { kind: 'learner' | 'teacher'; username: string; id: string; path: string };
@@ -243,7 +243,7 @@ for (const where of [LEARNER, TEACHER]) {
           const page = await open(context, mock);
           await openDrawer(page, where);
           await saveNew(page);
-          await expect(page.getByTestId('done-outcome')).toHaveText(message);
+          await expect(page.getByTestId('done-outcome')).toHaveText(`The old password still works on the learning server. ${message}`);
           await expect(page.getByTestId('done-password')).toHaveText(NEW_PASSWORD);
         });
       }

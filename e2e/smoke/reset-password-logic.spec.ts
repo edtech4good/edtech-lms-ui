@@ -14,7 +14,7 @@ import {
 /** The request body, the wording and the reading of failures of Reset password (reset-password.ts), in Node. The drawer in a browser is reset-password.spec.ts. */
 
 /** Central's two real sentences for a push that failed: the learning server did not answer, or it lacks the class or curriculum. */
-const CENTRAL_SYNC_MESSAGE = "The account was saved, but the learning server did not answer. Run Sync Students for this school on the Schools screen.";
+const CENTRAL_SYNC_MESSAGE = "The password was saved, but the learning server did not answer. Run Sync Students for this school on the Schools screen.";
 const CENTRAL_MISSING_MESSAGE = "Saved, but the learning server doesn't have this class or curriculum yet. Run Sync Content, then Sync Students for this school.";
 
 test.describe('the request body', () => {
@@ -63,7 +63,7 @@ test.describe('the line after a 200', () => {
   test("a learner's failed push shows central's own sentence, trimmed, for an enabled or disabled account; a teacher's is unchanged", () => {
     for (const message of [CENTRAL_SYNC_MESSAGE, CENTRAL_MISSING_MESSAGE]) {
       for (const disabled of [true, false]) {
-        expect(resetDoneLine('learner', 'dara1', { status: 'failed', message: ` ${message} ` }, disabled)).toEqual({ tone: 'warn', text: message });
+        expect(resetDoneLine('learner', 'dara1', { status: 'failed', message: ` ${message} ` }, disabled)).toEqual({ tone: 'warn', text: `The old password still works on the learning server. ${message}` });
       }
     }
     expect(resetDoneLine('learner', 'dara1', { status: 'failed', message: '' }).text).toContain('Run Sync Students for this school');

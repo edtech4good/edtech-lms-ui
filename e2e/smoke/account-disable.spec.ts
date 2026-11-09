@@ -124,7 +124,7 @@ const SHOTS = process.env.E2E_SHOTS_DIR;
 
 
 /** Central's two real sentences for a push that failed: the learning server did not answer, or it lacks the class or curriculum. */
-const SYNC_MESSAGE = "The account was saved, but the learning server did not answer. Run Sync Students for this school on the Schools screen.";
+const SYNC_MESSAGE = "The change was saved, but the learning server did not answer. Run Sync Students for this school on the Schools screen.";
 const MISSING_MESSAGE = "Saved, but the learning server doesn't have this class or curriculum yet. Run Sync Content, then Sync Students for this school.";
 
 test.describe('Learners list', () => {
@@ -197,7 +197,7 @@ test.describe('Learners list', () => {
       await actions(page, 'dara1').click();
       await menuItem(page, 'Disable').click();
       await popconfirm(page).getByRole('button', { name: 'Disable' }).click();
-      await expect(toasts(page)).toHaveText(message);
+      await expect(toasts(page)).toHaveText(`dara1 is disabled on central. ${message}`);
       await expect(row(page, 'dara1').getByTestId('disabled-tag')).toHaveText('Disabled');
     });
   }

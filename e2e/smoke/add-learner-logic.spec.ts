@@ -184,11 +184,11 @@ test.describe('the line in the done panel', () => {
     expect(signInLine({ ...learner, push: { status: 'pushed', message: '' } })).toEqual({ tone: 'ok', text: 'សុខា ចាន់ can sign in now with these details.' });
     expect(signInLine({ ...learner, push: { status: 'failed', message: 'The account was saved, but the learning server did not answer.' } })).toEqual({
       tone: 'warn',
-      text: "សុខា ចាន់ can't sign in yet: The account was saved, but the learning server did not answer.",
+      text: "សុខា ចាន់ can't sign in yet. The account was saved, but the learning server did not answer.",
     });
     // Central's own sentence follows the lead-in, whichever of its two it is; without one the fixed line is used.
     for (const message of [CENTRAL_SYNC_MESSAGE, CENTRAL_MISSING_MESSAGE]) {
-      expect(signInLine({ ...learner, push: { status: 'failed', message: `  ${message}  ` } })).toEqual({ tone: 'warn', text: `សុខា ចាន់ can't sign in yet: ${message}` });
+      expect(signInLine({ ...learner, push: { status: 'failed', message: `  ${message}  ` } })).toEqual({ tone: 'warn', text: `សុខា ចាន់ can't sign in yet. ${message}` });
     }
     expect(signInLine({ ...learner, push: { status: 'failed', message: '   ' } }).text).toBe(
       "សុខា ចាន់ can't sign in yet: the learning server did not answer. Run Sync Students for this school on the Schools screen.",

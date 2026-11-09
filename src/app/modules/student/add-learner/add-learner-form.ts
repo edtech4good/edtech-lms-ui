@@ -252,7 +252,9 @@ export function signInLine(result: Pick<CreatedLearner, 'studentname' | 'push'>)
     case 'failed':
       return {
         tone: 'warn',
-        text: `${name} can't sign in yet: ${pushMessageOf(result.push) || 'the learning server did not answer. Run Sync Students for this school on the Schools screen.'}`,
+        text: pushMessageOf(result.push)
+          ? `${name} can't sign in yet. ${pushMessageOf(result.push)}`
+          : `${name} can't sign in yet: the learning server did not answer. Run Sync Students for this school on the Schools screen.`,
       };
     case 'skipped':
       return { tone: 'info', text: `${name} can sign in once the learning server next syncs.` };

@@ -37,7 +37,7 @@ export function disableNotice(kind: AccountKind, username: string, result: Pick<
       return {
         type: 'warning',
         title: 'Saved',
-        text: (kind === 'learner' && pushMessageOf(result.push)) || `${username} is ${word} on central, but the learning server did not answer. Run ${sync} for this school on the Schools screen.`,
+        text: (kind === 'learner' && pushMessageOf(result.push) && `${username} is ${word} on central. ${pushMessageOf(result.push)}`) || `${username} is ${word} on central, but the learning server did not answer. Run ${sync} for this school on the Schools screen.`,
       };
     case 'skipped':
       return { type: 'info', title: 'Saved', text: `${username} is ${word}. The learning server gets the change at its next sync.` };
