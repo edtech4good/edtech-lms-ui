@@ -314,7 +314,7 @@ test.describe('Learners list: keyboard and focus', () => {
   });
 
   for (const how of ['Confirm', 'Cancel', 'Escape'] as const) {
-    test(`focus returns to the Actions button after ${how}`, async ({ context }) => {
+    test(`focus returns to the Manage button after ${how}`, async ({ context }) => {
       const mock = newMock();
       const page = await openLearners(context, mock);
       await actions(page, 'dara1').focus();
@@ -334,7 +334,7 @@ test.describe('Learners list: keyboard and focus', () => {
     });
   }
 
-  test('a click outside the confirm closes it, sends nothing and returns focus to the Actions button', async ({ context }) => {
+  test('a click outside the confirm closes it, sends nothing and returns focus to the Manage button', async ({ context }) => {
     const mock = newMock();
     const page = await openLearners(context, mock);
     await actions(page, 'dara1').click();
@@ -375,7 +375,7 @@ test.describe('Learners list: keyboard and focus', () => {
     expect(await focusedLabel(page)).toBe('Manage maly3');
   });
 
-  test('when the request ends with focus lost, it returns to the Actions button', async ({ context }) => {
+  test('when the request ends with focus lost, it returns to the Manage button', async ({ context }) => {
     const mock = newMock();
     let release!: () => void;
     mock.hold = new Promise<void>((resolve) => (release = resolve));
@@ -389,7 +389,7 @@ test.describe('Learners list: keyboard and focus', () => {
     await expect.poll(() => focusedLabel(page)).toBe('Manage dara1');
   });
 
-  test('focus returns to the Actions button after the menu is closed with Escape', async ({ context }) => {
+  test('focus returns to the Manage button after the menu is closed with Escape', async ({ context }) => {
     const page = await openLearners(context, newMock());
     await actions(page, 'dara1').focus();
     await page.keyboard.press('Enter');
@@ -471,6 +471,7 @@ test.describe('Teachers list: accessible names and focus', () => {
       const page = await openTeachers(context, mock);
       await manage(page, 'teacher.one').focus();
       await page.keyboard.press('Enter');
+      await expect(menuItem(page, 'Reset password')).toBeFocused();
       await page.keyboard.press('Tab');
       await expect(menuItem(page, 'Disable')).toBeFocused();
       await page.keyboard.press('Enter');
@@ -643,7 +644,9 @@ test.describe('Manage menu: keyboard only, every action', () => {
     const page = await openLearners(context, newMock());
     await actions(page, 'dara1').focus();
     await page.keyboard.press('Enter');
+    await expect(menuItem(page, 'Edit details')).toBeFocused();
     await page.keyboard.press('Tab');
+    await expect(menuItem(page, 'Reset password')).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(menuItem(page, 'Disable')).toBeFocused();
     await page.keyboard.press('Enter');
@@ -663,6 +666,7 @@ test.describe('Manage menu: keyboard only, every action', () => {
     const page = await openTeachers(context, newMock());
     await manage(page, 'teacher.one').focus();
     await page.keyboard.press('Enter');
+    await expect(menuItem(page, 'Reset password')).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(menuItem(page, 'Disable')).toBeFocused();
     await page.keyboard.press('Space');
@@ -674,7 +678,9 @@ test.describe('Manage menu: keyboard only, every action', () => {
     const page = await openTeachers(context, mock);
     await manage(page, 'teacher.one').focus();
     await page.keyboard.press('Enter');
+    await expect(menuItem(page, 'Reset password')).toBeFocused();
     await page.keyboard.press('Tab');
+    await expect(menuItem(page, 'Disable')).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(menuItem(page, 'Delete')).toBeFocused();
     await page.keyboard.press('Enter');
