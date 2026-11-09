@@ -89,6 +89,13 @@ async function answer(route: Route, mock: Mock): Promise<void> {
     if (mock.hold) await mock.hold;
     return route.fulfill(mock.answer(disabledPath[1] as 'student' | 'teacher', disabledPath[2], body.disabled));
   }
+  const deletePath = /^teacher\/([^/]+)$/.exec(path);
+  if (method === 'DELETE' && deletePath) {
+    mock.requests.push({ method, path, body: null });
+    if (mock.hold) await mock.hold;
+    mock.teachers = mock.teachers.filter((t) => t.schooluserid !== deletePath[1]);
+    return route.fulfill(json(200, { data: {} }));
+  }
   if (method === 'POST' && path === 'student') return route.fulfill(json(200, { data: { data: mock.learners, total: mock.learners.length } }));
   if (method === 'POST' && path === 'teacher') return route.fulfill(json(200, { data: { data: mock.teachers, total: mock.teachers.length } }));
   if (method === 'POST' && path === 'school') return route.fulfill(json(200, { data: { data: [], total: 0 } }));
@@ -110,14 +117,14 @@ async function openTeachers(context: BrowserContext, mock: Mock, permissions = W
   const page = await context.newPage();
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/teacher/index');
-  await expect(page.getByRole('columnheader', { name: 'Tools' })).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'Teacher User Name' })).toBeVisible();
   await expect(page.locator('tbody tr', { hasText: 'teacher.one' })).toHaveCount(1);
   return page;
 }
 
 const row = (page: Page, text: string) => page.locator('tbody tr', { hasText: text });
 const toasts = (page: Page) => page.locator('.ant-notification-notice-description');
-const actions = (page: Page, username: string) => page.getByRole('button', { name: `Actions for ${username}` });
+const actions = (page: Page, username: string) => page.getByRole('button', { name: `Manage ${username}`, exact: true });
 const menuItem = (page: Page, name: string) => page.getByRole('menuitem', { name, exact: true });
 const popconfirm = (page: Page) => page.locator('.ant-popover-inner');
 const SHOTS = process.env.E2E_SHOTS_DIR;
@@ -135,7 +142,7 @@ test.describe('Learners list', () => {
     await expect(row(page, 'dara1').getByTestId('disabled-tag')).toHaveCount(0);
   });
 
-  test('the Actions menu offers Disable on an enabled row and Enable on a disabled one, with a named button', async ({ context }) => {
+  test('the Manage menu offers Disable on an enabled row and Enable on a disabled one, with a named button', async ({ context }) => {
     const page = await openLearners(context, newMock());
     await expect(page.getByRole('columnheader', { name: 'Actions' })).toBeVisible();
     await actions(page, 'dara1').click();
@@ -254,7 +261,7 @@ test.describe('Learners list', () => {
   test('without update_student there is no Actions column and no menu', async ({ context }) => {
     const page = await openLearners(context, newMock(), WITHOUT);
     await expect(page.getByRole('columnheader', { name: 'Actions' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: /^Actions for/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Manage / })).toHaveCount(0);
     await expect(row(page, 'sokha2').getByTestId('disabled-tag'), 'the tag is still shown').toHaveText('Disabled');
   });
 
@@ -271,7 +278,7 @@ test.describe('Learners list', () => {
 const focusedLabel = (page: Page) => page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? document.activeElement?.tagName ?? '');
 
 test.describe('Learners list: keyboard and focus', () => {
-  test('keyboard only: the Actions button opens the menu, focus lands on the item, Enter opens the confirm, Enter confirms', async ({ context }) => {
+  test('keyboard only: the Manage button opens the menu, focus lands on the item, Enter opens the confirm, Enter confirms', async ({ context }) => {
     const mock = newMock();
     const page = await openLearners(context, mock);
     const button = actions(page, 'dara1');
@@ -307,7 +314,7 @@ test.describe('Learners list: keyboard and focus', () => {
   });
 
   for (const how of ['Confirm', 'Cancel', 'Escape'] as const) {
-    test(`focus returns to the Actions button after ${how}`, async ({ context }) => {
+    test(`focus returns to the Manage button after ${how}`, async ({ context }) => {
       const mock = newMock();
       const page = await openLearners(context, mock);
       await actions(page, 'dara1').focus();
@@ -322,12 +329,12 @@ test.describe('Learners list: keyboard and focus', () => {
       if (how === 'Escape') await page.keyboard.press('Escape');
       else await popconfirm(page).getByRole('button', { name: how === 'Confirm' ? 'Disable' : 'Cancel' }).click();
       await expect(popconfirm(page)).toHaveCount(0);
-      await expect.poll(() => focusedLabel(page)).toBe('Actions for dara1');
+      await expect.poll(() => focusedLabel(page)).toBe('Manage dara1');
       expect(mock.requests).toHaveLength(how === 'Confirm' ? 1 : 0);
     });
   }
 
-  test('a click outside the confirm closes it, sends nothing and returns focus to the Actions button', async ({ context }) => {
+  test('a click outside the confirm closes it, sends nothing and returns focus to the Manage button', async ({ context }) => {
     const mock = newMock();
     const page = await openLearners(context, mock);
     await actions(page, 'dara1').click();
@@ -336,7 +343,7 @@ test.describe('Learners list: keyboard and focus', () => {
     await page.locator('.ant-card-head-title').click();
     await expect(popconfirm(page)).toHaveCount(0);
     expect(mock.requests).toEqual([]);
-    await expect.poll(() => focusedLabel(page)).toBe('Actions for dara1');
+    await expect.poll(() => focusedLabel(page)).toBe('Manage dara1');
   });
 
   test('an outside click on another control still works, and takes the focus it clicked', async ({ context }) => {
@@ -365,10 +372,10 @@ test.describe('Learners list: keyboard and focus', () => {
     release();
     await expect(row(page, 'dara1').getByTestId('disabled-tag')).toHaveText('Disabled');
     await page.waitForTimeout(300);
-    expect(await focusedLabel(page)).toBe('Actions for maly3');
+    expect(await focusedLabel(page)).toBe('Manage maly3');
   });
 
-  test('when the request ends with focus lost, it returns to the Actions button', async ({ context }) => {
+  test('when the request ends with focus lost, it returns to the Manage button', async ({ context }) => {
     const mock = newMock();
     let release!: () => void;
     mock.hold = new Promise<void>((resolve) => (release = resolve));
@@ -379,33 +386,51 @@ test.describe('Learners list: keyboard and focus', () => {
     await expect.poll(() => mock.requests.length).toBe(1);
     release();
     await expect(row(page, 'dara1').getByTestId('disabled-tag')).toHaveText('Disabled');
-    await expect.poll(() => focusedLabel(page)).toBe('Actions for dara1');
+    await expect.poll(() => focusedLabel(page)).toBe('Manage dara1');
   });
 
-  test('focus returns to the Actions button after the menu is closed with Escape', async ({ context }) => {
+  test('focus returns to the Manage button after the menu is closed with Escape', async ({ context }) => {
     const page = await openLearners(context, newMock());
     await actions(page, 'dara1').focus();
     await page.keyboard.press('Enter');
     await expect(menuItem(page, 'Edit details')).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(menuItem(page, 'Disable')).toHaveCount(0);
-    await expect.poll(() => focusedLabel(page)).toBe('Actions for dara1');
+    await expect.poll(() => focusedLabel(page)).toBe('Manage dara1');
   });
 });
 
+const manage = (page: Page, username: string) => page.getByRole('button', { name: `Manage ${username}`, exact: true });
+/** Opens a teacher's Manage menu with the mouse and chooses an item. */
+async function chooseTeacherItem(page: Page, username: string, item: string): Promise<void> {
+  await manage(page, username).click();
+  await menuItem(page, item).click();
+}
+
 test.describe('Teachers list: accessible names and focus', () => {
-  test('each Disable or Enable button names its teacher; Delete keeps its own name', async ({ context }) => {
+  test('each Manage button names its teacher; the menu offers Disable or Enable, and Delete', async ({ context }) => {
     const page = await openTeachers(context, newMock());
-    await expect(page.getByRole('button', { name: 'Disable teacher.one', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Enable teacher.two', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Disable teacher.two' })).toHaveCount(0);
-    await expect(row(page, 'teacher.one').getByText('Delete', { exact: true })).toBeVisible();
+    await expect(manage(page, 'teacher.one')).toBeVisible();
+    await expect(manage(page, 'teacher.two')).toBeVisible();
+    await manage(page, 'teacher.one').click();
+    await expect(menuItem(page, 'Disable')).toBeVisible();
+    await expect(menuItem(page, 'Enable')).toHaveCount(0);
+    await expect(menuItem(page, 'Delete')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await manage(page, 'teacher.two').click();
+    await expect(menuItem(page, 'Enable')).toBeVisible();
+    await expect(menuItem(page, 'Disable')).toHaveCount(0);
+    await expect(menuItem(page, 'Delete')).toBeVisible();
   });
 
-  test('keyboard only: Enter opens the confirm with focus on its button, Enter confirms', async ({ context }) => {
+  test('keyboard only: Enter opens the menu, Tab reaches Disable, Enter opens the confirm with focus on its button, Enter confirms', async ({ context }) => {
     const mock = newMock();
     const page = await openTeachers(context, mock);
-    await page.getByRole('button', { name: 'Disable teacher.one', exact: true }).focus();
+    await manage(page, 'teacher.one').focus();
+    await page.keyboard.press('Enter');
+    await expect(menuItem(page, 'Reset password')).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(menuItem(page, 'Disable')).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(popconfirm(page)).toContainText('Disable teacher.one?');
     await expect(popconfirm(page).getByRole('button', { name: 'Disable' })).toBeFocused();
@@ -417,12 +442,12 @@ test.describe('Teachers list: accessible names and focus', () => {
   test('a click outside the confirm closes it, sends nothing and returns focus to the row\'s button', async ({ context }) => {
     const mock = newMock();
     const page = await openTeachers(context, mock);
-    await page.getByRole('button', { name: 'Disable teacher.one', exact: true }).click();
+    await chooseTeacherItem(page, 'teacher.one', 'Disable');
     await expect(popconfirm(page)).toBeVisible();
     await page.mouse.click(700, 700); // empty page area below the card (the confirm covers the card title)
     await expect(popconfirm(page)).toHaveCount(0);
     expect(mock.requests).toEqual([]);
-    await expect.poll(() => focusedLabel(page)).toBe('Disable teacher.one');
+    await expect.poll(() => focusedLabel(page)).toBe('Manage teacher.one');
   });
 
   test('when the request ends, focus is not pulled back if the user has moved on', async ({ context }) => {
@@ -430,57 +455,63 @@ test.describe('Teachers list: accessible names and focus', () => {
     let release!: () => void;
     mock.hold = new Promise<void>((resolve) => (release = resolve));
     const page = await openTeachers(context, mock);
-    await page.getByRole('button', { name: 'Disable teacher.one', exact: true }).click();
+    await chooseTeacherItem(page, 'teacher.one', 'Disable');
     await popconfirm(page).getByRole('button', { name: 'Disable' }).click();
     await expect.poll(() => mock.requests.length).toBe(1);
-    await page.getByRole('button', { name: 'Enable teacher.two', exact: true }).focus();
+    await manage(page, 'teacher.two').focus();
     release();
     await expect(row(page, 'teacher.one').getByTestId('disabled-tag')).toHaveText('Disabled');
     await page.waitForTimeout(300);
-    expect(await focusedLabel(page)).toBe('Enable teacher.two');
+    expect(await focusedLabel(page)).toBe('Manage teacher.two');
   });
 
   for (const how of ['Confirm', 'Cancel', 'Escape'] as const) {
-    test(`focus returns to the row's button after ${how}`, async ({ context }) => {
+    test(`focus returns to the row's Manage button after ${how}`, async ({ context }) => {
       const mock = newMock();
       const page = await openTeachers(context, mock);
-      await page.getByRole('button', { name: 'Disable teacher.one', exact: true }).focus();
+      await manage(page, 'teacher.one').focus();
+      await page.keyboard.press('Enter');
+      await expect(menuItem(page, 'Reset password')).toBeFocused();
+      await page.keyboard.press('Tab');
+      await expect(menuItem(page, 'Disable')).toBeFocused();
       await page.keyboard.press('Enter');
       await expect(popconfirm(page)).toBeVisible();
       if (how === 'Escape') await page.keyboard.press('Escape');
       else await popconfirm(page).getByRole('button', { name: how === 'Confirm' ? 'Disable' : 'Cancel' }).click();
       await expect(popconfirm(page)).toHaveCount(0);
-      const after = how === 'Confirm' ? 'Enable teacher.one' : 'Disable teacher.one';
-      await expect.poll(() => focusedLabel(page)).toBe(after);
+      await expect.poll(() => focusedLabel(page)).toBe('Manage teacher.one');
       expect(mock.requests).toHaveLength(how === 'Confirm' ? 1 : 0);
     });
   }
 });
 
 test.describe('Teachers list', () => {
-  test('a disabled row carries a Disabled tag, and Delete stays beside Disable and Enable', async ({ context }) => {
+  test('a disabled row carries a Disabled tag, and Delete is in the menu beside Disable and Enable', async ({ context }) => {
     const page = await openTeachers(context, newMock());
     await expect(row(page, 'teacher.two').getByTestId('disabled-tag')).toHaveText('Disabled');
     await expect(row(page, 'teacher.one').getByTestId('disabled-tag')).toHaveCount(0);
-    await expect(row(page, 'teacher.one').getByRole('button', { name: 'Disable' })).toBeVisible();
-    await expect(row(page, 'teacher.two').getByRole('button', { name: 'Enable' })).toBeVisible();
-    await expect(row(page, 'teacher.one').getByText('Delete', { exact: true })).toBeVisible();
-    await expect(row(page, 'teacher.two').getByText('Delete', { exact: true })).toBeVisible();
+    await manage(page, 'teacher.one').click();
+    await expect(menuItem(page, 'Disable')).toBeVisible();
+    await expect(menuItem(page, 'Delete')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await manage(page, 'teacher.two').click();
+    await expect(menuItem(page, 'Enable')).toBeVisible();
+    await expect(menuItem(page, 'Delete')).toBeVisible();
   });
 
   test('Disable asks first, sends the exact request, tags the row and says so; Enable undoes it', async ({ context }) => {
     const mock = newMock();
     const page = await openTeachers(context, mock);
-    await row(page, 'teacher.one').getByRole('button', { name: 'Disable' }).click();
+    await chooseTeacherItem(page, 'teacher.one', 'Disable');
     await expect(popconfirm(page)).toContainText("Disable teacher.one? They won't be able to sign in. Their progress is kept.");
     expect(mock.requests).toEqual([]);
     await popconfirm(page).getByRole('button', { name: 'Disable' }).click();
     await expect(row(page, 'teacher.one').getByTestId('disabled-tag')).toHaveText('Disabled');
     expect(mock.requests).toEqual([{ method: 'PUT', path: 'teacher/tu-1/disabled', body: { disabled: true } }]);
     await expect(toasts(page)).toHaveText('teacher.one is disabled.');
-    await expect(row(page, 'teacher.one').getByRole('button', { name: 'Enable' })).toBeVisible();
-
-    await row(page, 'teacher.one').getByRole('button', { name: 'Enable' }).click();
+    await manage(page, 'teacher.one').click();
+    await expect(menuItem(page, 'Enable')).toBeVisible();
+    await menuItem(page, 'Enable').click();
     await expect(popconfirm(page)).toContainText('Enable teacher.one? They can sign in again.');
     await popconfirm(page).getByRole('button', { name: 'Enable' }).click();
     await expect(row(page, 'teacher.one').getByTestId('disabled-tag')).toHaveCount(0);
@@ -495,7 +526,7 @@ test.describe('Teachers list', () => {
       const mock = newMock();
       mock.answer = (_k, id, disabled) => json(200, { schooluserid: id, disabled, push: { status, message: 'm' } });
       const page = await openTeachers(context, mock);
-      await row(page, 'teacher.one').getByRole('button', { name: 'Disable' }).click();
+      await chooseTeacherItem(page, 'teacher.one', 'Disable');
       await popconfirm(page).getByRole('button', { name: 'Disable' }).click();
       await expect(toasts(page)).toHaveText(expected);
     });
@@ -505,39 +536,316 @@ test.describe('Teachers list', () => {
     const mock = newMock();
     mock.answer = () => json(404, { error: true, errormessage: 'Not found' });
     const page = await openTeachers(context, mock);
-    await row(page, 'teacher.one').getByRole('button', { name: 'Disable' }).click();
+    await chooseTeacherItem(page, 'teacher.one', 'Disable');
     await popconfirm(page).getByRole('button', { name: 'Disable' }).click();
     await expect.poll(() => mock.requests.length).toBe(1);
     await expect(row(page, 'teacher.one').getByTestId('disabled-tag')).toHaveCount(0);
-    await expect(row(page, 'teacher.one').getByRole('button', { name: 'Disable' })).toBeEnabled();
+    await manage(page, 'teacher.one').click();
+    await expect(menuItem(page, 'Disable')).toBeEnabled();
   });
 
-  test('the button is disabled while the request runs', async ({ context }) => {
+  test('the menu item is disabled while the request runs, and a second click sends nothing', async ({ context }) => {
     const mock = newMock();
     let release!: () => void;
     mock.hold = new Promise<void>((resolve) => (release = resolve));
     const page = await openTeachers(context, mock);
-    await row(page, 'teacher.one').getByRole('button', { name: 'Disable' }).click();
+    await chooseTeacherItem(page, 'teacher.one', 'Disable');
     await popconfirm(page).getByRole('button', { name: 'Disable' }).click();
     await expect.poll(() => mock.requests.length).toBe(1);
-    await expect(row(page, 'teacher.one').getByRole('button', { name: 'Disable' })).toBeDisabled();
+    await manage(page, 'teacher.one').click();
+    await expect(menuItem(page, 'Disable')).toHaveAttribute('aria-disabled', 'true');
+    await menuItem(page, 'Disable').click({ force: true });
+    await page.waitForTimeout(300);
+    expect(mock.requests, 'one request only').toHaveLength(1);
+    await expect(popconfirm(page)).toHaveCount(0);
     release();
     await expect(row(page, 'teacher.one').getByTestId('disabled-tag')).toHaveText('Disabled');
   });
 
   test('without update_teacher there is no Disable or Enable, and Delete stays', async ({ context }) => {
     const page = await openTeachers(context, newMock(), WITHOUT);
-    await expect(page.getByRole('button', { name: /^(Disable|Enable) / })).toHaveCount(0);
-    await expect(row(page, 'teacher.one').getByText('Delete', { exact: true })).toBeVisible();
+    await manage(page, 'teacher.one').click();
+    await expect(menuItem(page, 'Disable')).toHaveCount(0);
+    await expect(menuItem(page, 'Enable')).toHaveCount(0);
+    await expect(menuItem(page, 'Delete')).toBeVisible();
   });
 
   test('screenshot: the confirm open', async ({ context }) => {
     test.skip(!SHOTS, 'E2E_SHOTS_DIR not set');
     const page = await openTeachers(context, newMock());
-    await row(page, 'teacher.one').getByRole('button', { name: 'Disable' }).click();
+    await chooseTeacherItem(page, 'teacher.one', 'Disable');
     await expect(popconfirm(page)).toBeVisible();
     await expect(page.locator('.ant-spin-blur')).toHaveCount(0);
     await page.waitForTimeout(600);
     await page.screenshot({ path: `${SHOTS}/disable-teachers.png` });
+  });
+});
+
+const dialogNamed = (page: Page, name: string) => page.getByRole('dialog', { name, exact: true });
+
+test.describe('Manage menu: the button', () => {
+  test('the Learners list shows a Manage button with its text and an arrow on every row', async ({ context }) => {
+    const page = await openLearners(context, newMock());
+    for (const username of ['dara1', 'sokha2', 'maly3']) {
+      const button = actions(page, username);
+      await expect(button).toBeVisible();
+      await expect(button).toHaveText(/Manage/);
+      await expect(button.locator('.anticon-down')).toBeVisible();
+    }
+  });
+
+  test('the Teachers list shows a Manage button with its text and an arrow on every row', async ({ context }) => {
+    const page = await openTeachers(context, newMock());
+    for (const username of ['teacher.one', 'teacher.two']) {
+      const button = manage(page, username);
+      await expect(button).toBeVisible();
+      await expect(button).toHaveText(/Manage/);
+      await expect(button.locator('.anticon-down')).toBeVisible();
+    }
+    await expect(page.getByRole('button', { name: /^(Reset password|Disable|Enable) / })).toHaveCount(0);
+  });
+
+  test('the menus list their items in order, and the Teachers menu puts Delete after a divider', async ({ context }) => {
+    const page = await openLearners(context, newMock());
+    await actions(page, 'dara1').click();
+    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Reset password', 'Disable']);
+    await expect(page.locator('.ant-dropdown-menu-item-divider')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    const teachers = await openTeachers(context, newMock());
+    await manage(teachers, 'teacher.one').click();
+    await expect(teachers.getByRole('menuitem')).toHaveText(['Reset password', 'Disable', 'Delete']);
+    await expect(teachers.locator('.ant-dropdown-menu-item-divider')).toHaveCount(1);
+    await expect(menuItem(teachers, 'Delete')).toHaveClass(/ant-dropdown-menu-item-danger/);
+  });
+});
+
+test.describe('Manage menu: keyboard only, every action', () => {
+  test('Learners: Edit details opens its drawer', async ({ context }) => {
+    const page = await openLearners(context, newMock());
+    await actions(page, 'dara1').focus();
+    await page.keyboard.press('Enter');
+    await expect(menuItem(page, 'Edit details')).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(dialogNamed(page, 'Edit details')).toBeVisible();
+  });
+
+  test('Learners: Reset password opens its drawer', async ({ context }) => {
+    const page = await openLearners(context, newMock());
+    await actions(page, 'dara1').focus();
+    await page.keyboard.press('Enter');
+    await expect(menuItem(page, 'Edit details')).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(menuItem(page, 'Reset password')).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(dialogNamed(page, 'Reset password')).toBeVisible();
+  });
+
+  test('Learners: Disable opens its confirm', async ({ context }) => {
+    const page = await openLearners(context, newMock());
+    await actions(page, 'dara1').focus();
+    await page.keyboard.press('Enter');
+    await expect(menuItem(page, 'Edit details')).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(menuItem(page, 'Reset password')).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(menuItem(page, 'Disable')).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(popconfirm(page)).toContainText('Disable dara1?');
+  });
+
+  test('Teachers: Reset password opens its drawer from the first item', async ({ context }) => {
+    const page = await openTeachers(context, newMock());
+    await manage(page, 'teacher.one').focus();
+    await page.keyboard.press('Enter');
+    await expect(menuItem(page, 'Reset password')).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(dialogNamed(page, 'Reset password')).toBeVisible();
+  });
+
+  test('Teachers: Disable opens its confirm', async ({ context }) => {
+    const page = await openTeachers(context, newMock());
+    await manage(page, 'teacher.one').focus();
+    await page.keyboard.press('Enter');
+    await expect(menuItem(page, 'Reset password')).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(menuItem(page, 'Disable')).toBeFocused();
+    await page.keyboard.press('Space');
+    await expect(popconfirm(page)).toContainText('Disable teacher.one?');
+  });
+
+  test('Teachers: Delete is reachable, asks first, and deletes on Enter', async ({ context }) => {
+    const mock = newMock();
+    const page = await openTeachers(context, mock);
+    await manage(page, 'teacher.one').focus();
+    await page.keyboard.press('Enter');
+    await expect(menuItem(page, 'Reset password')).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(menuItem(page, 'Disable')).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(menuItem(page, 'Delete')).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(popconfirm(page)).toContainText('Sure to delete?');
+    expect(mock.requests, 'nothing is sent before the confirm').toEqual([]);
+    await expect(popconfirm(page).locator('.ant-btn-primary')).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(row(page, 'teacher.one')).toHaveCount(0);
+    expect(mock.requests).toEqual([{ method: 'DELETE', path: 'teacher/tu-1', body: null }]);
+    await expect(toasts(page)).toHaveText('Teacher deleted sucessfully');
+  });
+});
+
+test.describe('Manage menu: Teachers Delete', () => {
+  test('Cancel sends nothing and keeps the row; focus returns to Manage', async ({ context }) => {
+    const mock = newMock();
+    const page = await openTeachers(context, mock);
+    await chooseTeacherItem(page, 'teacher.one', 'Delete');
+    await expect(popconfirm(page)).toContainText('Sure to delete?');
+    await popconfirm(page).getByRole('button', { name: 'Cancel' }).click();
+    await expect(popconfirm(page)).toHaveCount(0);
+    expect(mock.requests).toEqual([]);
+    await expect(row(page, 'teacher.one')).toHaveCount(1);
+    await expect.poll(() => focusedLabel(page)).toBe('Manage teacher.one');
+  });
+
+  test('a second click while the delete runs sends nothing more', async ({ context }) => {
+    const mock = newMock();
+    let release!: () => void;
+    mock.hold = new Promise<void>((resolve) => (release = resolve));
+    const page = await openTeachers(context, mock);
+    await chooseTeacherItem(page, 'teacher.one', 'Delete');
+    await popconfirm(page).locator('.ant-btn-primary').click();
+    await expect.poll(() => mock.requests.length).toBe(1);
+    await manage(page, 'teacher.one').click();
+    await expect(menuItem(page, 'Delete')).toHaveAttribute('aria-disabled', 'true');
+    await menuItem(page, 'Delete').click({ force: true });
+    await page.waitForTimeout(300);
+    expect(mock.requests, 'one request only').toHaveLength(1);
+    await expect(popconfirm(page)).toHaveCount(0);
+    release();
+    await expect(row(page, 'teacher.one')).toHaveCount(0);
+  });
+});
+
+test.describe('Manage menu: permissions', () => {
+  test('a user with none of the permissions sees no Manage button', async ({ context }) => {
+    const page = await openTeachers(context, newMock(), ['view_teacher', 'view_school']);
+    await expect(page.getByRole('button', { name: /^Manage / })).toHaveCount(0);
+    await expect(page.getByRole('columnheader', { name: 'Actions' })).toHaveCount(0);
+    await expect(row(page, 'teacher.one').getByTestId('disabled-tag')).toHaveCount(0);
+    await expect(row(page, 'teacher.two').getByTestId('disabled-tag')).toHaveText('Disabled');
+  });
+
+  test('a user with only delete_teacher sees a menu with only Delete, and no divider', async ({ context }) => {
+    const page = await openTeachers(context, newMock(), ['view_teacher', 'delete_teacher', 'view_school']);
+    await manage(page, 'teacher.one').click();
+    await expect(page.getByRole('menuitem')).toHaveText(['Delete']);
+    await expect(page.locator('.ant-dropdown-menu-item-divider')).toHaveCount(0);
+  });
+
+  test('a user with only update_teacher sees Reset password and Disable, and no Delete or divider', async ({ context }) => {
+    const page = await openTeachers(context, newMock(), ['view_teacher', 'update_teacher', 'view_school']);
+    await manage(page, 'teacher.one').click();
+    await expect(page.getByRole('menuitem')).toHaveText(['Reset password', 'Disable']);
+    await expect(page.locator('.ant-dropdown-menu-item-divider')).toHaveCount(0);
+  });
+});
+
+test.describe('Manage menu: reopening after a keyboard-chosen item', () => {
+  type Case = { list: 'learners' | 'teachers'; item: string; closeWith: 'Escape' | 'Cancel' };
+  const cases: Case[] = [
+    { list: 'learners', item: 'Disable', closeWith: 'Escape' },
+    { list: 'learners', item: 'Disable', closeWith: 'Cancel' },
+    { list: 'teachers', item: 'Disable', closeWith: 'Escape' },
+    { list: 'teachers', item: 'Disable', closeWith: 'Cancel' },
+    { list: 'teachers', item: 'Delete', closeWith: 'Escape' },
+    { list: 'teachers', item: 'Delete', closeWith: 'Cancel' },
+  ];
+  for (const c of cases) {
+    test(`${c.list}: ${c.item} chosen by keyboard, closed with ${c.closeWith}, one Enter on Manage opens the menu`, async ({ context }) => {
+      const mock = newMock();
+      const page = c.list === 'learners' ? await openLearners(context, mock) : await openTeachers(context, mock);
+      const button = c.list === 'learners' ? actions(page, 'dara1') : manage(page, 'teacher.one');
+      await button.focus();
+      await page.keyboard.press('Enter');
+      await expect(page.getByRole('menuitem').first()).toBeFocused();
+      const items = await page.getByRole('menuitem').allTextContents();
+      const steps = items.map((x) => x.trim()).indexOf(c.item);
+      for (let i = 0; i < steps; i++) {
+        await page.keyboard.press('Tab');
+        await expect(page.getByRole('menuitem').nth(i + 1)).toBeFocused();
+      }
+      await page.keyboard.press('Enter');
+      await expect(popconfirm(page)).toBeVisible();
+      if (c.closeWith === 'Escape') await page.keyboard.press('Escape');
+      else await popconfirm(page).getByRole('button', { name: 'Cancel' }).click();
+      await expect(popconfirm(page)).toHaveCount(0);
+      await expect(button).toBeFocused();
+      await expect(page.locator('.ant-dropdown'), 'the menu has finished closing').toHaveCount(0);
+      await page.keyboard.press('Enter');
+      await expect(button).toHaveAttribute('aria-expanded', 'true');
+      await expect(page.getByRole('menuitem').first()).toBeVisible();
+      expect(mock.requests).toEqual([]);
+    });
+  }
+});
+
+test.describe('Manage menu: the confirm follows the item chosen last', () => {
+  test('Delete, Escape, then Disable on the same row: the Disable text, and Confirm sends only the disabled request', async ({ context }) => {
+    const mock = newMock();
+    const page = await openTeachers(context, mock);
+    await chooseTeacherItem(page, 'teacher.one', 'Delete');
+    await expect(popconfirm(page)).toContainText('Sure to delete?');
+    await page.keyboard.press('Escape');
+    await expect(popconfirm(page)).toHaveCount(0);
+    await chooseTeacherItem(page, 'teacher.one', 'Disable');
+    await expect(popconfirm(page)).toContainText("Disable teacher.one? They won't be able to sign in.");
+    await expect(popconfirm(page)).not.toContainText('Sure to delete?');
+    await popconfirm(page).getByRole('button', { name: 'Disable' }).click();
+    await expect(row(page, 'teacher.one').getByTestId('disabled-tag')).toHaveText('Disabled');
+    expect(mock.requests).toEqual([{ method: 'PUT', path: 'teacher/tu-1/disabled', body: { disabled: true } }]);
+    await expect(row(page, 'teacher.one')).toHaveCount(1);
+  });
+
+  test('Disable, Escape, then Delete on the same row: the delete text, and Confirm sends only the delete', async ({ context }) => {
+    const mock = newMock();
+    const page = await openTeachers(context, mock);
+    await chooseTeacherItem(page, 'teacher.one', 'Disable');
+    await expect(popconfirm(page)).toContainText('Disable teacher.one?');
+    await page.keyboard.press('Escape');
+    await expect(popconfirm(page)).toHaveCount(0);
+    await chooseTeacherItem(page, 'teacher.one', 'Delete');
+    await expect(popconfirm(page)).toContainText('Sure to delete?');
+    await expect(popconfirm(page)).not.toContainText('Disable teacher.one?');
+    await popconfirm(page).locator('.ant-btn-primary').click();
+    await expect(row(page, 'teacher.one')).toHaveCount(0);
+    expect(mock.requests).toEqual([{ method: 'DELETE', path: 'teacher/tu-1', body: null }]);
+  });
+});
+
+test.describe('Manage menu: focus after a teacher is deleted', () => {
+  test('the next row\'s Manage button gets focus', async ({ context }) => {
+    const page = await openTeachers(context, newMock());
+    await chooseTeacherItem(page, 'teacher.one', 'Delete');
+    await popconfirm(page).locator('.ant-btn-primary').click();
+    await expect(row(page, 'teacher.one')).toHaveCount(0);
+    await expect.poll(() => focusedLabel(page)).toBe('Manage teacher.two');
+  });
+
+  test('the previous row\'s Manage button gets focus when the last row was deleted', async ({ context }) => {
+    const page = await openTeachers(context, newMock());
+    await chooseTeacherItem(page, 'teacher.two', 'Delete');
+    await popconfirm(page).locator('.ant-btn-primary').click();
+    await expect(row(page, 'teacher.two')).toHaveCount(0);
+    await expect.poll(() => focusedLabel(page)).toBe('Manage teacher.one');
+  });
+
+  test('the list heading gets focus when no row remains', async ({ context }) => {
+    const mock = newMock();
+    mock.teachers = mock.teachers.slice(0, 1);
+    const page = await openTeachers(context, mock);
+    await chooseTeacherItem(page, 'teacher.one', 'Delete');
+    await popconfirm(page).locator('.ant-btn-primary').click();
+    await expect(row(page, 'teacher.one')).toHaveCount(0);
+    await expect(page.locator('.ant-card-head-title')).toBeFocused();
   });
 });

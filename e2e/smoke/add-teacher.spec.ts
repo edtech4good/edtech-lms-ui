@@ -484,7 +484,7 @@ test.describe('Add teacher drawer', () => {
     await signIn(context, mock, { isplatform: false, organisationid: 'org-1' }, ['view_teacher', 'view_school']);
     const page = await context.newPage();
     await page.goto('/teacher/index');
-    await expect(page.getByRole('columnheader', { name: 'Tools' })).toBeVisible();
+    await expect(page.getByRole('columnheader', { name: 'Teacher User Name' })).toBeVisible();
     await expect(page.getByTestId('add-teacher')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Upload Teachers' })).toHaveCount(0);
   });

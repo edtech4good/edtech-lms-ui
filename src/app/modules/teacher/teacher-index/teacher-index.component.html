@@ -47,7 +47,7 @@
               </nz-filter-trigger>
             </th>
 
-            <th nzColumnKey="">Tools</th>
+            <th *ngxPermissionsOnly="['update_teacher', 'zr5ER4QD', 'Mapyr2Pw', 'delete_teacher', 'superadmin']" nzColumnKey="">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -58,49 +58,88 @@
             </td>
             <td *ngIf="owner.active()"><app-owner-name [id]="data.organisationid"></app-owner-name></td>
             <td>{{ data.schoolname }}</td>
-            <td>
-              <button
-                *ngxPermissionsOnly="['update_teacher', 'superadmin']"
-                type="button"
-                nz-button
-                nzSize="small"
-                style="margin-right: 20px"
-                [attr.aria-label]="'Reset password for ' + data.schoolusername"
-                [attr.data-reset-control]="data.schooluserid"
-                data-testid="reset-password-button"
-                (click)="openReset(data)"
-              >
-                Reset password
-              </button>
-              <button
-                *ngxPermissionsOnly="['update_teacher', 'superadmin']"
-                type="button"
-                nz-button
-                nzSize="small"
-                style="margin-right: 20px"
-                nz-popconfirm
-                [nzPopconfirmVisible]="confirming === data.schooluserid"
-                (nzPopconfirmVisibleChange)="closeConfirm($event, data)"
-                [attr.aria-label]="(data.isdisabled ? 'Enable ' : 'Disable ') + data.schoolusername"
-                [attr.data-row-control]="data.schooluserid"
-                [nzPopconfirmTitle]="confirmText(data)"
-                [nzOkText]="data.isdisabled ? 'Enable' : 'Disable'"
-                [disabled]="isChanging(data)"
-                (nzOnConfirm)="toggleDisabled(data)"
-              >
-                {{ data.isdisabled ? "Enable" : "Disable" }}
-              </button>
-              <a
-                *ngxPermissionsOnly="['zr5ER4QD', 'Mapyr2Pw', 'delete_teacher', 'superadmin']"
-                nz-button
-                nzDanger
-                nzSize="small"
-                style="margin-right: 20px"
-                nz-popconfirm
-                nzPopconfirmTitle="Sure to delete?"
-                (nzOnConfirm)="deleteTeacher(data.schooluserid)"
-                >Delete</a
-              >
+            <td *ngxPermissionsOnly="['update_teacher', 'zr5ER4QD', 'Mapyr2Pw', 'delete_teacher', 'superadmin']">
+              <ng-container>
+                <button
+                  type="button"
+                  nz-button
+                  nzType="default"
+                  nzSize="small"
+                  nz-dropdown
+                  nzTrigger="click"
+                  (nzVisibleChange)="onMenuVisible($event, data)"
+                  aria-haspopup="menu"
+                  [attr.aria-expanded]="menuOpen === data.schooluserid"
+                  [attr.data-row-control]="data.schooluserid"
+                  nzPlacement="bottomRight"
+                  [nzDropdownMenu]="rowMenu"
+                  nz-popconfirm
+                  [nzPopconfirmTrigger]="null"
+                  [nzPopconfirmVisible]="confirming === data.schooluserid"
+                  (nzPopconfirmVisibleChange)="closeConfirm($event, data)"
+                  [nzPopconfirmTitle]="confirmTitle(data)"
+                  [nzOkText]="okText(data)"
+                  nzCancelText="Cancel"
+                  (nzOnConfirm)="onConfirm(data)"
+                  [attr.aria-label]="'Manage ' + data.schoolusername"
+                  data-testid="row-actions"
+                >
+                  Manage
+                  <span nz-icon nzType="down" aria-hidden="true"></span>
+                </button>
+                <nz-dropdown-menu #rowMenu="nzDropdownMenu">
+                  <ul nz-menu role="menu">
+                    <ng-container *ngxPermissionsOnly="['update_teacher', 'superadmin']">
+                      <li
+                        nz-menu-item
+                        role="menuitem"
+                        tabindex="0"
+                        data-menu-action
+                        data-testid="reset-password-item"
+                        (click)="openReset(data)"
+                        (keydown.enter)="$any($event.currentTarget).click()"
+                        (keydown.space)="$event.preventDefault(); $any($event.currentTarget).click()"
+                      >
+                        Reset password
+                      </li>
+                      <li
+                        nz-menu-item
+                        role="menuitem"
+                        data-menu-action
+                        data-testid="toggle-disabled-item"
+                        [attr.tabindex]="isChanging(data) ? -1 : 0"
+                        [nzDisabled]="isChanging(data)"
+                        [attr.aria-disabled]="isChanging(data)"
+                        (click)="askToggle(data)"
+                        (keydown.enter)="$any($event.currentTarget).click()"
+                        (keydown.space)="$event.preventDefault(); $any($event.currentTarget).click()"
+                      >
+                        {{ data.isdisabled ? "Enable" : "Disable" }}
+                      </li>
+                    </ng-container>
+                    <ng-container *ngxPermissionsOnly="['zr5ER4QD', 'Mapyr2Pw', 'delete_teacher', 'superadmin']">
+                      <ng-container *ngxPermissionsOnly="['update_teacher', 'superadmin']">
+                        <li nz-menu-divider></li>
+                      </ng-container>
+                      <li
+                        nz-menu-item
+                        nzDanger
+                        role="menuitem"
+                        data-menu-action
+                        data-testid="delete-item"
+                        [attr.tabindex]="isChanging(data) ? -1 : 0"
+                        [nzDisabled]="isChanging(data)"
+                        [attr.aria-disabled]="isChanging(data)"
+                        (click)="askDelete(data)"
+                        (keydown.enter)="$any($event.currentTarget).click()"
+                        (keydown.space)="$event.preventDefault(); $any($event.currentTarget).click()"
+                      >
+                        Delete
+                      </li>
+                    </ng-container>
+                  </ul>
+                </nz-dropdown-menu>
+              </ng-container>
             </td>
           </tr>
         </tbody>

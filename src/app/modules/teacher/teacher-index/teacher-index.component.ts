@@ -7,7 +7,7 @@ import { NzTableQueryParams } from 'ng-zorro-antd/table';
 import { NzUploadChangeParam, NzUploadFile } from 'ng-zorro-antd/upload';
 import { Observable, of } from 'rxjs';
 import { catchError, finalize, first, map } from 'rxjs/operators';
-import { CONFIRM_OK_SELECTOR, disableConfirmText, disableNotice, focusSoon, restoreFocus, withDisabled } from '../../student/account-disable';
+import { CONFIRM_OK_SELECTOR, disableConfirmText, disableNotice, focusSoon, insideConfirmOrMenu, restoreFocus, rowControl, withDisabled } from '../../student/account-disable';
 import { restoreFocusAfterDrawer } from '../../student/reset-password/drawer-focus';
 import { IFilter } from 'src/app/models/IPaging';
 import { TeacherImport } from 'src/app/models/teacherimport';
@@ -252,6 +252,13 @@ export class TeacherIndexComponent implements OnInit {
     }
   };
 
+  /** The schooluserid whose Manage menu is open. */
+  menuOpen: string | null = null;
+  onMenuVisible(visible: boolean, row: any) {
+    this.menuOpen = visible ? row.schooluserid : this.menuOpen === row.schooluserid ? null : this.menuOpen;
+    if (visible) focusSoon('.ant-dropdown [data-menu-action]');
+    else if (!this.confirming && this.resetFor === null) restoreFocus(row.schooluserid);
+  }
   /** The schooluserid whose Reset password drawer is open, and its row (kept while the drawer slides away). */
   resetFor: string | null = null;
   resetRow: any = null;
@@ -262,26 +269,45 @@ export class TeacherIndexComponent implements OnInit {
   closeReset() {
     const id = this.resetFor;
     this.resetFor = null;
-    if (id) restoreFocusAfterDrawer(`[data-reset-control="${id.replace(/["\\]/g, '')}"]`);
+    if (id) restoreFocusAfterDrawer(rowControl(id));
   }
   private readonly changing = new Set<string>();
   isChanging = (row: any) => this.changing.has(row.schooluserid);
-  confirmText = (row: any) => disableConfirmText(row.schoolusername, !row.isdisabled);
-  /** The schooluserid whose Disable / Enable confirm is open. */
+  /** The schooluserid whose Disable / Enable or Delete confirm is open, and which of the two it is. */
   confirming: string | null = null;
+  confirmKind: 'toggle' | 'delete' = 'toggle';
+  confirmTitle = (row: any) => (this.confirmKind === 'delete' ? 'Sure to delete?' : disableConfirmText(row.schoolusername, !row.isdisabled));
+  okText = (row: any) => (this.confirmKind === 'delete' ? null : row.isdisabled ? 'Enable' : 'Disable');
   askToggle(row: any) {
+    this.openConfirm(row, 'toggle');
+  }
+  askDelete(row: any) {
+    this.openConfirm(row, 'delete');
+  }
+  private openConfirm(row: any, kind: 'toggle' | 'delete') {
     if (this.changing.has(row.schooluserid)) return;
+    this.confirmKind = kind;
     this.confirming = row.schooluserid;
     focusSoon(CONFIRM_OK_SELECTOR);
   }
-  /** The confirm opened (the button was clicked) or closed without a change (Cancel, Escape, a click outside). */
+  onConfirm(row: any) {
+    if (this.confirmKind === 'delete') void this.deleteTeacher(row.schooluserid);
+    else this.toggleDisabled(row);
+  }
+  /** The confirm closed without a change (Cancel, Escape, a click outside): focus goes back to the Manage button. */
   closeConfirm(visible: boolean, row: any) {
-    if (visible) {
-      this.askToggle(row);
-    } else if (this.confirming === row.schooluserid) {
+    if (!visible && this.confirming === row.schooluserid) {
       this.confirming = null;
       restoreFocus(row.schooluserid);
     }
+  }
+  /** A click outside the open confirm and the Manage menu closes the confirm; the click itself carries on. */
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    const id = this.confirming;
+    if (!id || insideConfirmOrMenu(event.target)) return;
+    this.confirming = null;
+    restoreFocus(id);
   }
   @HostListener('document:keydown.escape')
   onEscape() {
@@ -317,16 +343,49 @@ export class TeacherIndexComponent implements OnInit {
       });
   }
 
+  /** After a delete the row is gone: focus goes to the next row's Manage button, else the previous row's, else the list heading. */
+  private focusAfterDelete(before: string[], deleted: string) {
+    const at = before.indexOf(deleted);
+    const candidates = [...before.slice(at + 1), ...before.slice(0, Math.max(at, 0)).reverse()];
+    let done = false;
+    [100, 300, 700, 1200].forEach((delay, i, all) => {
+      setTimeout(() => {
+        // The list is read again after the delete; wait until the deleted row is gone.
+        if (done || document.querySelector(rowControl(deleted))) return;
+        const active = document.activeElement as HTMLElement | null;
+        if (active && active !== document.body && active.isConnected) return; // the user has moved on
+        const control = candidates.map((id) => document.querySelector(rowControl(id)) as HTMLElement | null).find((el) => !!el);
+        const heading = document.querySelector('app-teacher-index .ant-card-head-title') as HTMLElement | null;
+        if (control) control.focus();
+        else if (i === all.length - 1 && heading) {
+          heading.setAttribute('tabindex', '-1');
+          heading.focus();
+        } else return;
+        done = true;
+      }, delay);
+    });
+  }
+
   deleteTeacher = async (schooluserid: string) => {
-    await this.teacherService
-      .deleteTeacher(schooluserid)
-      .pipe(first())
-      .toPromise();
-    await this.loadDataFromServer();
-    this.notification.create(
-      'success',
-      'Success',
-      'Teacher deleted sucessfully'
-    );
+    this.confirming = null;
+    if (this.changing.has(schooluserid)) return;
+    this.changing.add(schooluserid);
+    const before = this.data.map((r) => r.schooluserid as string);
+    try {
+      await this.teacherService
+        .deleteTeacher(schooluserid)
+        .pipe(first())
+        .toPromise();
+      await this.loadDataFromServer();
+      this.focusAfterDelete(before, schooluserid);
+      this.notification.create(
+        'success',
+        'Success',
+        'Teacher deleted sucessfully'
+      );
+    } finally {
+      this.changing.delete(schooluserid);
+      restoreFocus(schooluserid);
+    }
   };
 }
