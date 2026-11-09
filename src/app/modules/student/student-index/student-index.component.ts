@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import * as csv from 'csvtojson';
 import { uniq } from 'lodash';
@@ -7,7 +7,8 @@ import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
 import { NzUploadChangeParam, NzUploadFile } from 'ng-zorro-antd/upload';
 import { BehaviorSubject, EMPTY, Observable, of, Subscription } from 'rxjs';
-import { catchError, debounceTime, filter, first, map, switchMap } from 'rxjs/operators';
+import { catchError, debounceTime, filter, finalize, first, map, switchMap } from 'rxjs/operators';
+import { CONFIRM_OK_SELECTOR, disableConfirmText, disableNotice, focusSoon, insideConfirmOrMenu, restoreFocus, withDisabled } from '../account-disable';
 import { IFilter } from 'src/app/models/IPaging';
 import { StudentImport, StudentImportForEdit } from 'src/app/models/studentimport';
 import { CoreService } from 'src/app/services/core.service';
@@ -306,6 +307,74 @@ export class StudentIndexComponent implements OnInit {
       }
     }
   };
+
+  /** The schooluserid whose Disable / Enable confirm is open. */
+  confirming: string | null = null;
+  private readonly changing = new Set<string>();
+  isChanging = (row: any) => this.changing.has(row.schooluserid);
+  username = (row: any): string => row['schooluser.schoolusername'];
+  confirmText = (row: any) => disableConfirmText(this.username(row), !row.isdisabled);
+  /** The schooluserid whose Actions menu is open. */
+  menuOpen: string | null = null;
+  onMenuVisible(visible: boolean, row: any) {
+    this.menuOpen = visible ? row.schooluserid : this.menuOpen === row.schooluserid ? null : this.menuOpen;
+    if (visible) focusSoon('.ant-dropdown [data-menu-action]');
+    else if (!this.confirming) restoreFocus(row.schooluserid);
+  }
+  askToggle(row: any) {
+    if (this.changing.has(row.schooluserid)) return;
+    this.confirming = row.schooluserid;
+    focusSoon(CONFIRM_OK_SELECTOR);
+  }
+  /** The confirm closed without a change (Cancel, Escape, a click outside): focus goes back to the Actions button. */
+  closeConfirm(visible: boolean, row: any) {
+    if (!visible && this.confirming === row.schooluserid) {
+      this.confirming = null;
+      restoreFocus(row.schooluserid);
+    }
+  }
+  /** A click outside the open confirm and the Actions menu closes the confirm; the click itself carries on. */
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    const id = this.confirming;
+    if (!id || insideConfirmOrMenu(event.target)) return;
+    this.confirming = null;
+    restoreFocus(id);
+  }
+  @HostListener('document:keydown.escape')
+  onEscape() {
+    const id = this.confirming;
+    if (!id) return;
+    this.confirming = null;
+    restoreFocus(id);
+  }
+  /** Disables or enables a learner; the row changes in place and a toast says what the learning server did. */
+  toggleDisabled(row: any) {
+    const id: string = row.schooluserid;
+    this.confirming = null;
+    if (this.changing.has(id)) return;
+    this.changing.add(id);
+    const disabled = !row.isdisabled;
+    const username = this.username(row);
+    this.studentService
+      .setDisabled(id, disabled)
+      .pipe(
+        first(),
+        finalize(() => {
+          this.changing.delete(id);
+          restoreFocus(id);
+        }),
+      )
+      .subscribe({
+        next: (result) => {
+          const state = typeof result?.disabled === 'boolean' ? result.disabled : disabled;
+          this.data = withDisabled(this.data, id, state);
+          const notice = disableNotice('learner', username, { disabled: state, push: result?.push });
+          this.notification.create(notice.type, notice.title, notice.text);
+        },
+        error: () => undefined,
+      });
+  }
 
   deletestudent = async (schooluserid: string) => {
     await this.studentService

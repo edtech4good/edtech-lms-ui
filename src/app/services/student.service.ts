@@ -4,6 +4,7 @@ import { IPaging } from 'src/app/models/IPaging';
 import { FAILURES_SHOWN_BY_CALLER, FIELD_ERRORS_INLINE } from 'src/app/interceptors/error-context';
 import { CoreService } from 'src/app/services/core.service';
 import { AddLearnerBody, CreatedLearner } from '../modules/student/add-learner/add-learner-form';
+import { DisabledResult } from '../modules/student/account-disable';
 import { StudentEditedImportBody, StudentImportBody } from '../models/studentimport';
 
 @Injectable({
@@ -61,6 +62,14 @@ export class StudentService {
   synccloudStudent(schoolname: string) {
     return this.http.post(
       `${this.coreService.CORE_API()}sync/cloud/${schoolname}/students`,
+      this.coreService.jsonhttpOptions
+    );
+  }
+  /** Stops or allows a learner's sign-in. The learner's progress is kept. */
+  setDisabled(schooluserid: string, disabled: boolean) {
+    return this.http.put<DisabledResult>(
+      `${this.coreService.CORE_API()}student/${schooluserid}/disabled`,
+      { disabled },
       this.coreService.jsonhttpOptions
     );
   }

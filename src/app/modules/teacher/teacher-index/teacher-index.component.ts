@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import * as csv from 'csvtojson';
 import { uniq } from 'lodash';
@@ -6,7 +6,8 @@ import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
 import { NzUploadChangeParam, NzUploadFile } from 'ng-zorro-antd/upload';
 import { Observable, of } from 'rxjs';
-import { catchError, first, map } from 'rxjs/operators';
+import { catchError, finalize, first, map } from 'rxjs/operators';
+import { CONFIRM_OK_SELECTOR, disableConfirmText, disableNotice, focusSoon, restoreFocus, withDisabled } from '../../student/account-disable';
 import { IFilter } from 'src/app/models/IPaging';
 import { TeacherImport } from 'src/app/models/teacherimport';
 import { CoreService } from 'src/app/services/core.service';
@@ -249,6 +250,59 @@ export class TeacherIndexComponent implements OnInit {
       }
     }
   };
+
+  private readonly changing = new Set<string>();
+  isChanging = (row: any) => this.changing.has(row.schooluserid);
+  confirmText = (row: any) => disableConfirmText(row.schoolusername, !row.isdisabled);
+  /** The schooluserid whose Disable / Enable confirm is open. */
+  confirming: string | null = null;
+  askToggle(row: any) {
+    if (this.changing.has(row.schooluserid)) return;
+    this.confirming = row.schooluserid;
+    focusSoon(CONFIRM_OK_SELECTOR);
+  }
+  /** The confirm opened (the button was clicked) or closed without a change (Cancel, Escape, a click outside). */
+  closeConfirm(visible: boolean, row: any) {
+    if (visible) {
+      this.askToggle(row);
+    } else if (this.confirming === row.schooluserid) {
+      this.confirming = null;
+      restoreFocus(row.schooluserid);
+    }
+  }
+  @HostListener('document:keydown.escape')
+  onEscape() {
+    const id = this.confirming;
+    if (!id) return;
+    this.confirming = null;
+    restoreFocus(id);
+  }
+  /** Disables or enables a teacher; the row changes in place and a toast says what the learning server did. */
+  toggleDisabled(row: any) {
+    const id: string = row.schooluserid;
+    this.confirming = null;
+    if (this.changing.has(id)) return;
+    this.changing.add(id);
+    const disabled = !row.isdisabled;
+    this.teacherService
+      .setDisabled(id, disabled)
+      .pipe(
+        first(),
+        finalize(() => {
+          this.changing.delete(id);
+          restoreFocus(id);
+        }),
+      )
+      .subscribe({
+        next: (result) => {
+          const state = typeof result?.disabled === 'boolean' ? result.disabled : disabled;
+          this.data = withDisabled(this.data, id, state);
+          const notice = disableNotice('teacher', row.schoolusername, { disabled: state, push: result?.push });
+          this.notification.create(notice.type, notice.title, notice.text);
+        },
+        error: () => undefined,
+      });
+  }
 
   deleteTeacher = async (schooluserid: string) => {
     await this.teacherService
