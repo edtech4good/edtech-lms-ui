@@ -2,6 +2,11 @@ import { expect, test } from '@playwright/test';
 import { disableConfirmText, disableNotice, withDisabled } from '../../src/app/modules/student/account-disable';
 
 /** The wording and the row update of Disable / Enable (account-disable.ts), in Node. The lists in a browser are account-disable.spec.ts. */
+
+/** Central's two real sentences for a push that failed: the learning server did not answer, or it lacks the class or curriculum. */
+const CENTRAL_SYNC_MESSAGE = "The change was saved, but the learning server did not answer. Run Sync Students for this school on the Schools screen.";
+const CENTRAL_MISSING_MESSAGE = "Saved, but the learning server doesn't have this class or curriculum yet. Run Sync Content, then Sync Students for this school.";
+
 test.describe('the confirm text', () => {
   test('says what disabling and enabling mean for sign-in and progress', () => {
     expect(disableConfirmText('dara1', true)).toBe("Disable dara1? They won't be able to sign in. Their progress is kept.");
@@ -24,6 +29,19 @@ test.describe('the toast after a 200', () => {
     );
     expect(disableNotice('learner', 'dara1', { disabled: false, push: { status: 'failed' } }).text).toBe(
       'dara1 is enabled on central, but the learning server did not answer. Run Sync Students for this school on the Schools screen.',
+    );
+  });
+  test("a learner's failed push shows central's own sentence, trimmed; a teacher's is unchanged", () => {
+    for (const message of [CENTRAL_SYNC_MESSAGE, CENTRAL_MISSING_MESSAGE]) {
+      for (const disabled of [true, false]) {
+        expect(disableNotice('learner', 'dara1', { disabled, push: { status: 'failed', message: ` ${message} ` } })).toEqual({ type: 'warning', title: 'Saved', text: `dara1 is ${disabled ? 'disabled' : 'enabled'} on central. ${message}` });
+      }
+    }
+    expect(disableNotice('learner', 'dara1', { disabled: true, push: { status: 'failed', message: '  ' } }).text).toBe(
+      'dara1 is disabled on central, but the learning server did not answer. Run Sync Students for this school on the Schools screen.',
+    );
+    expect(disableNotice('teacher', 'dara1', { disabled: true, push: { status: 'failed', message: CENTRAL_SYNC_MESSAGE } }).text).toBe(
+      'dara1 is disabled on central, but the learning server did not answer. Run Sync Teachers for this school on the Schools screen.',
     );
   });
   test('a skipped push says the learning server gets the change at its next sync', () => {

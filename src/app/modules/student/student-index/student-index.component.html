@@ -164,6 +164,18 @@
                         role="menuitem"
                         tabindex="0"
                         data-menu-action
+                        data-testid="edit-details-item"
+                        (click)="openEdit(data)"
+                        (keydown.enter)="$any($event.currentTarget).click()"
+                        (keydown.space)="$event.preventDefault(); $any($event.currentTarget).click()"
+                      >
+                        Edit details
+                      </li>
+                      <li
+                        nz-menu-item
+                        role="menuitem"
+                        tabindex="0"
+                        data-menu-action
                         data-testid="reset-password-item"
                         (click)="openReset(data)"
                         (keydown.enter)="$any($event.currentTarget).click()"
@@ -480,6 +492,12 @@
   (added)="onLearnerAdded()"
   (closed)="closeAddLearner()"
 ></app-add-learner-drawer>
+<app-edit-learner-drawer
+  [open]="editFor !== null"
+  [schooluserid]="editFor ?? ''"
+  (saved)="onDetailsSaved($event)"
+  (closed)="closeEdit()"
+></app-edit-learner-drawer>
 <app-reset-password-drawer
   [open]="resetFor !== null"
   kind="learner"

@@ -233,6 +233,9 @@ export interface AddLearnerBody {
 
 export type PushStatus = 'pushed' | 'failed' | 'skipped';
 
+/** Central's own sentence for a failed push (it says which sync to run), trimmed; empty when it gave none. */
+export const pushMessageOf = (push?: { message?: string }): string => (typeof push?.message === 'string' ? push.message.trim() : '');
+
 export interface CreatedLearner {
   schooluserid: string;
   schoolusername: string;
@@ -249,7 +252,9 @@ export function signInLine(result: Pick<CreatedLearner, 'studentname' | 'push'>)
     case 'failed':
       return {
         tone: 'warn',
-        text: `${name} can't sign in yet: the learning server did not answer. Run Sync Students for this school on the Schools screen.`,
+        text: pushMessageOf(result.push)
+          ? `${name} can't sign in yet. ${pushMessageOf(result.push)}`
+          : `${name} can't sign in yet: the learning server did not answer. Run Sync Students for this school on the Schools screen.`,
       };
     case 'skipped':
       return { tone: 'info', text: `${name} can sign in once the learning server next syncs.` };

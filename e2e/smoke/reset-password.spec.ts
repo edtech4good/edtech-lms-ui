@@ -138,6 +138,10 @@ const passwordField = (page: Page) => drawer(page).locator('#reset-password-inpu
 const save = (page: Page) => drawer(page).getByRole('button', { name: /^(Save|Saving…)$/ });
 const focusedLabel = (page: Page) => page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? document.activeElement?.tagName ?? '');
 
+/** Central's two real sentences for a push that failed: the learning server did not answer, or it lacks the class or curriculum. */
+const SYNC_MESSAGE = "The password was saved, but the learning server did not answer. Run Sync Students for this school on the Schools screen.";
+const MISSING_MESSAGE = "Saved, but the learning server doesn't have this class or curriculum yet. Run Sync Content, then Sync Students for this school.";
+
 type Where = { kind: 'learner' | 'teacher'; username: string; id: string; path: string };
 const LEARNER: Where = { kind: 'learner', username: 'dara1', id: 'lu-1', path: 'student/lu-1/password' };
 const TEACHER: Where = { kind: 'teacher', username: 'teacher.one', id: 'tu-1', path: 'teacher/tu-1/password' };
@@ -231,13 +235,27 @@ for (const where of [LEARNER, TEACHER]) {
       expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(where.username);
     });
 
+    if (where.kind === 'learner') {
+      for (const message of [SYNC_MESSAGE, MISSING_MESSAGE]) {
+        test(`a failed push shows central's own sentence: ${message.slice(0, 40)}`, async ({ context }) => {
+          const mock = newMock();
+          mock.answer = (_k, id) => json(200, { schooluserid: id, schoolusername: 'x', push: { status: 'failed', message } });
+          const page = await open(context, mock);
+          await openDrawer(page, where);
+          await saveNew(page);
+          await expect(page.getByTestId('done-outcome')).toHaveText(`The old password still works on the learning server. ${message}`);
+          await expect(page.getByTestId('done-password')).toHaveText(NEW_PASSWORD);
+        });
+      }
+    }
+
     for (const [status, line] of [
       ['failed', `The learning server did not answer, so the old password still works there. Run ${syncWord} for this school on the Schools screen.`],
       ['skipped', 'The learning server gets the new password at its next sync.'],
     ] as const) {
       test(`a ${status} push still shows the password once and says what to do`, async ({ context }) => {
         const mock = newMock();
-        mock.answer = (_k, id) => json(200, { schooluserid: id, schoolusername: 'x', push: { status, message: 'm' } });
+        mock.answer = (_k, id) => json(200, { schooluserid: id, schoolusername: 'x', push: { status, ...(status === 'failed' && where.kind === 'learner' ? {} : { message: 'm' }) } });
         const page = await open(context, mock);
         await openDrawer(page, where);
         await saveNew(page);
@@ -466,7 +484,9 @@ for (const where of [LEARNER, TEACHER]) {
         await button.focus();
         await page.keyboard.press('Enter');
         await expect(button).toHaveAttribute('aria-expanded', 'true');
-        // Focus opens on the first item, Reset password.
+        // Focus opens on the first item, Edit details; Reset password is the next.
+        await expect(menuItem(page, 'Edit details')).toBeFocused();
+        await page.keyboard.press('Tab');
         await expect(menuItem(page, 'Reset password')).toBeFocused();
         await page.keyboard.press('Enter');
       } else {
@@ -510,16 +530,18 @@ test.describe('Reset password: the Learners menu', () => {
   test('Reset password is the item above Disable or Enable', async ({ context }) => {
     const page = await openLearners(context, newMock());
     await actions(page, 'dara1').click();
-    await expect(page.getByRole('menuitem')).toHaveText(['Reset password', 'Disable']);
+    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Reset password', 'Disable']);
     await page.keyboard.press('Escape');
     await actions(page, 'sokha2').click();
-    await expect(page.getByRole('menuitem')).toHaveText(['Reset password', 'Enable']);
+    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Reset password', 'Enable']);
   });
 
   test('Space on the item opens the drawer, and the menu closes', async ({ context }) => {
     const page = await openLearners(context, newMock());
     await actions(page, 'dara1').focus();
     await page.keyboard.press('Enter');
+    await expect(menuItem(page, 'Edit details')).toBeFocused();
+    await page.keyboard.press('Tab');
     await expect(menuItem(page, 'Reset password')).toBeFocused();
     await page.keyboard.press('Space');
     await expect(drawer(page).getByRole('heading', { name: 'Reset password', exact: true })).toBeVisible();

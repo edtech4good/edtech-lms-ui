@@ -10,6 +10,7 @@ import { BehaviorSubject, EMPTY, Observable, of, Subscription } from 'rxjs';
 import { catchError, debounceTime, filter, finalize, first, map, switchMap } from 'rxjs/operators';
 import { CONFIRM_OK_SELECTOR, disableConfirmText, disableNotice, focusSoon, insideConfirmOrMenu, restoreFocus, rowControl, withDisabled } from '../account-disable';
 import { restoreFocusAfterDrawer } from '../reset-password/drawer-focus';
+import { EditLearnerResult, savedNotice } from '../edit-learner/edit-learner';
 import { IFilter } from 'src/app/models/IPaging';
 import { StudentImport, StudentImportForEdit } from 'src/app/models/studentimport';
 import { CoreService } from 'src/app/services/core.service';
@@ -190,7 +191,7 @@ export class StudentIndexComponent implements OnInit {
     await this.loadDataFromServer();
   };
 
-  async loadDataFromServer() {
+  async loadDataFromServer(after?: () => unknown) {
     this.dataLoading = true;
     this.studentService
       .getall({
@@ -232,6 +233,7 @@ export class StudentIndexComponent implements OnInit {
         this.total = x.data.total;
         this.data = x.data.data;
         this.dataLoading = false;
+        after?.();
       });
   }
 
@@ -320,7 +322,7 @@ export class StudentIndexComponent implements OnInit {
   onMenuVisible(visible: boolean, row: any) {
     this.menuOpen = visible ? row.schooluserid : this.menuOpen === row.schooluserid ? null : this.menuOpen;
     if (visible) focusSoon('.ant-dropdown [data-menu-action]');
-    else if (!this.confirming && this.resetFor === null) restoreFocus(row.schooluserid);
+    else if (!this.confirming && this.resetFor === null && this.editFor === null) restoreFocus(row.schooluserid);
   }
   /** The schooluserid whose Reset password drawer is open, and its row (kept while the drawer slides away). */
   resetFor: string | null = null;
@@ -333,6 +335,28 @@ export class StudentIndexComponent implements OnInit {
     const id = this.resetFor;
     this.resetFor = null;
     if (id) restoreFocusAfterDrawer(rowControl(id));
+  }
+  /** The schooluserid whose Edit details drawer is open (it closes itself when the row goes). */
+  editFor: string | null = null;
+  openEdit(row: any) {
+    this.editFor = row.schooluserid;
+  }
+  closeEdit() {
+    const id = this.editFor;
+    this.editFor = null;
+    if (id) restoreFocusAfterDrawer(rowControl(id));
+  }
+  /**
+   * The details were saved: the drawer closes, a toast says what the learning server did, and the page of the list is
+   * read again. The list shows the curriculum from a join that picks one of the learner's curricula, which the browser
+   * cannot reproduce, so the row is not patched in place; focus returns to the row's Actions button once the page is back.
+   */
+  onDetailsSaved(event: { result: EditLearnerResult; fallbackName: string }) {
+    const id = this.editFor;
+    this.editFor = null;
+    const notice = savedNotice(event.result, event.fallbackName);
+    this.notification.create(notice.type, notice.title, notice.text);
+    this.loadDataFromServer(() => id && restoreFocusAfterDrawer(rowControl(id)));
   }
   askToggle(row: any) {
     if (this.changing.has(row.schooluserid)) return;

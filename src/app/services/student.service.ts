@@ -5,6 +5,7 @@ import { FAILURES_SHOWN_BY_CALLER, FIELD_ERRORS_INLINE } from 'src/app/intercept
 import { CoreService } from 'src/app/services/core.service';
 import { AddLearnerBody, CreatedLearner } from '../modules/student/add-learner/add-learner-form';
 import { DisabledResult } from '../modules/student/account-disable';
+import { EditLearnerBody, EditLearnerResult, LearnerDetails } from '../modules/student/edit-learner/edit-learner';
 import { ResetPasswordBody, ResetResult } from '../modules/student/reset-password/reset-password';
 import { StudentEditedImportBody, StudentImportBody } from '../models/studentimport';
 
@@ -77,6 +78,20 @@ export class StudentService {
   /** Sets a new password for one learner. A 400 names its field; the drawer shows it beside the form. */
   resetPassword(schooluserid: string, body: ResetPasswordBody) {
     return this.http.put<ResetResult>(`${this.coreService.CORE_API()}student/${schooluserid}/password`, body, {
+      ...this.coreService.jsonhttpOptions,
+      context: new HttpContext().set(FIELD_ERRORS_INLINE, true),
+    });
+  }
+  /** One learner's editable details. The caller says every failure itself. */
+  getDetails(schooluserid: string) {
+    return this.http.get<LearnerDetails>(`${this.coreService.CORE_API()}student/${schooluserid}/details`, {
+      ...this.coreService.jsonhttpOptions,
+      context: new HttpContext().set(FAILURES_SHOWN_BY_CALLER, true),
+    });
+  }
+  /** Saves one learner's details. A 400 names its fields; the drawer shows them beside the form. */
+  updateDetails(schooluserid: string, body: EditLearnerBody) {
+    return this.http.put<EditLearnerResult>(`${this.coreService.CORE_API()}student/${schooluserid}/details`, body, {
       ...this.coreService.jsonhttpOptions,
       context: new HttpContext().set(FIELD_ERRORS_INLINE, true),
     });
