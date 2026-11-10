@@ -235,6 +235,7 @@ test.describe('Learners list', () => {
     await menuItem(page, 'Disable').click();
     await popconfirm(page).getByRole('button', { name: 'Disable' }).click();
     await expect(toasts(page)).toHaveText(`dara1 is disabled on central. ${SYNC_MESSAGE}`);
+    await page.mouse.move(2, 2); // a notice under the pointer pauses its timer
     await page.waitForTimeout(6000);
     await expect(toasts(page)).toHaveText(`dara1 is disabled on central. ${SYNC_MESSAGE}`);
   });
@@ -893,6 +894,7 @@ test.describe('Teachers Delete: what central says about the learning server', ()
     await chooseTeacherItem(page, 'teacher.one', 'Delete');
     await popconfirm(page).locator('.ant-btn-primary').click();
     await expect(toasts(page)).toHaveText(MESSAGES.failed);
+    await page.mouse.move(2, 2); // a notice under the pointer pauses its timer
     await page.waitForTimeout(6000);
     await expect(toasts(page)).toHaveText(MESSAGES.failed);
   });
