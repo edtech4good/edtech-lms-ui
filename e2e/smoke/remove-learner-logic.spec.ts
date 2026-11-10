@@ -39,7 +39,7 @@ test.describe('the failure text', () => {
   });
   test('falls back to a fixed sentence when there are no words', () => {
     expect(REMOVE_FAILED_MESSAGE).toBe('The learner was not removed.');
-    for (const error of [null, undefined, {}, { error: null }, { error: {} }, { error: { errormessage: '' } }, { error: { errormessage: 5 } }, { status: 0, error: new ProgressEvent('error') }]) {
+    for (const error of [null, undefined, {}, { error: null }, { error: {} }, { error: { errormessage: '' } }, { error: { errormessage: 5 } }, { status: 0, error: { isTrusted: true, type: 'error' } }]) {
       expect(removeFailureText(error)).toBe(REMOVE_FAILED_MESSAGE);
     }
   });
