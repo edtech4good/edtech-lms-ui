@@ -218,6 +218,8 @@ test.describe('Remove: success', () => {
     await page.keyboard.press('Enter');
     await expect(menuItem(page, 'Edit details')).toBeFocused();
     await page.keyboard.press('Tab');
+    await expect(menuItem(page, 'Move to another school')).toBeFocused();
+    await page.keyboard.press('Tab');
     await expect(menuItem(page, 'Reset password')).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(menuItem(page, 'Disable')).toBeFocused();

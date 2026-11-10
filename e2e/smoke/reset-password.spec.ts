@@ -482,6 +482,8 @@ for (const where of [LEARNER, TEACHER]) {
       if (where.kind === 'learner') {
         await expect(menuItem(page, 'Edit details')).toBeFocused();
         await page.keyboard.press('Tab');
+        await expect(menuItem(page, 'Move to another school')).toBeFocused();
+        await page.keyboard.press('Tab');
       }
       await expect(menuItem(page, 'Reset password')).toBeFocused();
       await page.keyboard.press('Enter');
@@ -540,6 +542,8 @@ test.describe('Reset password: the Learners menu', () => {
     await actions(page, 'dara1').focus();
     await page.keyboard.press('Enter');
     await expect(menuItem(page, 'Edit details')).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(menuItem(page, 'Move to another school')).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(menuItem(page, 'Reset password')).toBeFocused();
     await page.keyboard.press('Space');
