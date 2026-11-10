@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { deleteNotice, disableConfirmText, disableNotice, withDisabled } from '../../src/app/modules/student/account-disable';
+import { deleteNotice, disableConfirmText, disableNotice, noticeOptions, withDisabled } from '../../src/app/modules/student/account-disable';
 
 /** The wording and the row update of Disable / Enable (account-disable.ts), in Node. The lists in a browser are account-disable.spec.ts. */
 
@@ -34,7 +34,7 @@ test.describe('the toast after a 200', () => {
   test("a learner's failed push shows central's own sentence, trimmed; a teacher's is unchanged", () => {
     for (const message of [CENTRAL_SYNC_MESSAGE, CENTRAL_MISSING_MESSAGE]) {
       for (const disabled of [true, false]) {
-        expect(disableNotice('learner', 'dara1', { disabled, push: { status: 'failed', message: ` ${message} ` } })).toEqual({ type: 'warning', title: 'Saved', text: `dara1 is ${disabled ? 'disabled' : 'enabled'} on central. ${message}` });
+        expect(disableNotice('learner', 'dara1', { disabled, push: { status: 'failed', message: ` ${message} ` } })).toEqual({ type: 'warning', title: 'Saved', duration: 0, text: `dara1 is ${disabled ? 'disabled' : 'enabled'} on central. ${message}` });
       }
     }
     expect(disableNotice('learner', 'dara1', { disabled: true, push: { status: 'failed', message: '  ' } }).text).toBe(
@@ -101,5 +101,27 @@ test.describe('the toast after a teacher is deleted', () => {
   });
   test('a failed push with no message still names Sync Teachers', () => {
     expect(deleteNotice({ push: { status: 'failed' } })).toMatchObject({ type: 'warning', text: 'Deleted, but the learning server did not answer. Run Sync Teachers for this school on the Schools screen.' });
+  });
+});
+
+test.describe('how long a notice stays', () => {
+  test('a failed push stays until it is closed, for Disable and Delete', () => {
+    for (const kind of ['learner', 'teacher'] as const) {
+      expect(disableNotice(kind, 'dara1', { disabled: true, push: { status: 'failed' } }).duration).toBe(0);
+    }
+    expect(deleteNotice({ push: { status: 'failed', message: 'x' } }).duration).toBe(0);
+    expect(deleteNotice({ push: { status: 'failed' } }).duration).toBe(0);
+  });
+  test('any other outcome keeps the default duration', () => {
+    for (const push of [{ status: 'pushed' as const }, { status: 'skipped' as const }, {}, undefined]) {
+      expect(disableNotice('teacher', 'dara1', { disabled: true, push }).duration).toBeUndefined();
+    }
+    for (const result of [{ push: { status: 'pushed' as const, message: 'm' } }, { push: { status: 'skipped' as const, message: 'm' } }, {}, null, undefined]) {
+      expect(deleteNotice(result).duration).toBeUndefined();
+    }
+  });
+  test('the options carry 0 for a failed push and nothing otherwise', () => {
+    expect(noticeOptions({ duration: 0 })).toEqual({ nzDuration: 0 });
+    expect(noticeOptions({})).toEqual({});
   });
 });

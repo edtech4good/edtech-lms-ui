@@ -98,7 +98,7 @@ test.describe('the toast after a 200', () => {
   });
   test("failed shows central's own sentence, trimmed, whichever of its two it is", () => {
     for (const message of [CENTRAL_SYNC_MESSAGE, CENTRAL_MISSING_MESSAGE]) {
-      expect(savedNotice({ studentname: 'Dara Rivers', push: { status: 'failed', message: ` ${message} ` } })).toEqual({ type: 'warning', title: 'Saved', text: message });
+      expect(savedNotice({ studentname: 'Dara Rivers', push: { status: 'failed', message: ` ${message} ` } })).toEqual({ type: 'warning', title: 'Saved', duration: 0, text: message });
     }
   });
   test('failed with no sentence', () => {
@@ -106,8 +106,13 @@ test.describe('the toast after a 200', () => {
     expect(savedNotice({ studentname: 'Dara Rivers', push: { status: 'failed' } })).toEqual({
       type: 'warning',
       title: 'Saved',
+      duration: 0,
       text: 'Saved, but the learning server did not answer. Run Sync Students for this school on the Schools screen.',
     });
+  });
+  test('only a failed push stays until closed', () => {
+    for (const status of ['pushed', 'skipped'] as const) expect(savedNotice({ studentname: 'Dara Rivers', push: { status } }).duration).toBeUndefined();
+    expect(savedNotice({ studentname: 'Dara Rivers' }).duration).toBeUndefined();
   });
   test('skipped', () => {
     expect(savedNotice({ studentname: 'Dara Rivers', push: { status: 'skipped' } })).toEqual({

@@ -227,6 +227,18 @@ test.describe('Learners list', () => {
     });
   }
 
+  test('a failed push notice is still on screen after 6 seconds', async ({ context }) => {
+    const mock = newMock();
+    mock.answer = (_k, id, disabled) => json(200, { schooluserid: id, disabled, push: { status: 'failed', message: SYNC_MESSAGE } });
+    const page = await openLearners(context, mock);
+    await actions(page, 'dara1').click();
+    await menuItem(page, 'Disable').click();
+    await popconfirm(page).getByRole('button', { name: 'Disable' }).click();
+    await expect(toasts(page)).toHaveText(`dara1 is disabled on central. ${SYNC_MESSAGE}`);
+    await page.waitForTimeout(6000);
+    await expect(toasts(page)).toHaveText(`dara1 is disabled on central. ${SYNC_MESSAGE}`);
+  });
+
   test('a 404 leaves the row as it was', async ({ context }) => {
     const mock = newMock();
     mock.answer = () => json(404, { error: true, errormessage: 'Not found' });
@@ -873,6 +885,17 @@ test.describe('Teachers Delete: what central says about the learning server', ()
       await expect.poll(() => focusedLabel(page)).toBe('Manage teacher.two');
     });
   }
+
+  test('a failed push notice is still on screen after 6 seconds', async ({ context }) => {
+    const mock = newMock();
+    mock.deleteBody = { error: false, data: true, push: { status: 'failed', message: MESSAGES.failed } };
+    const page = await openTeachers(context, mock);
+    await chooseTeacherItem(page, 'teacher.one', 'Delete');
+    await popconfirm(page).locator('.ant-btn-primary').click();
+    await expect(toasts(page)).toHaveText(MESSAGES.failed);
+    await page.waitForTimeout(6000);
+    await expect(toasts(page)).toHaveText(MESSAGES.failed);
+  });
 
   test('central\'s message is shown as sent, not replaced', async ({ context }) => {
     const mock = newMock();

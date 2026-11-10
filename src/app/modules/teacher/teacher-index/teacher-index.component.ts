@@ -7,7 +7,7 @@ import { NzTableQueryParams } from 'ng-zorro-antd/table';
 import { NzUploadChangeParam, NzUploadFile } from 'ng-zorro-antd/upload';
 import { Observable, of } from 'rxjs';
 import { catchError, finalize, first, map } from 'rxjs/operators';
-import { CONFIRM_OK_SELECTOR, deleteNotice, type DeleteResult, disableConfirmText, disableNotice, focusSoon, insideConfirmOrMenu, restoreFocus, rowControl, withDisabled } from '../../student/account-disable';
+import { CONFIRM_OK_SELECTOR, deleteNotice, type DeleteResult, disableConfirmText, disableNotice, focusSoon, insideConfirmOrMenu, noticeOptions, restoreFocus, rowControl, withDisabled } from '../../student/account-disable';
 import { restoreFocusAfterDrawer } from '../../student/reset-password/drawer-focus';
 import { IFilter } from 'src/app/models/IPaging';
 import { TeacherImport } from 'src/app/models/teacherimport';
@@ -337,7 +337,7 @@ export class TeacherIndexComponent implements OnInit {
           const state = typeof result?.disabled === 'boolean' ? result.disabled : disabled;
           this.data = withDisabled(this.data, id, state);
           const notice = disableNotice('teacher', row.schoolusername, { disabled: state, push: result?.push });
-          this.notification.create(notice.type, notice.title, notice.text);
+          this.notification.create(notice.type, notice.title, notice.text, noticeOptions(notice));
         },
         error: () => undefined,
       });
@@ -379,7 +379,7 @@ export class TeacherIndexComponent implements OnInit {
       await this.loadDataFromServer();
       this.focusAfterDelete(before, schooluserid);
       const notice = deleteNotice(result as DeleteResult | null);
-      this.notification.create(notice.type, notice.title, notice.text);
+      this.notification.create(notice.type, notice.title, notice.text, noticeOptions(notice));
     } finally {
       this.changing.delete(schooluserid);
       restoreFocus(schooluserid);
