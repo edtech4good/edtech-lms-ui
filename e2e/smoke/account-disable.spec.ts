@@ -42,6 +42,8 @@ interface Mock {
   teachers: ReturnType<typeof teacher>[];
   /** Answers a disabled request: given the kind and the id. */
   answer: (kind: 'student' | 'teacher', id: string, disabled: boolean) => ReturnType<typeof json>;
+  /** The body a teacher delete answers with; none means an older server that sends no push. */
+  deleteBody?: unknown;
   requests: Array<{ method: string; path: string; body: unknown }>;
   /** Held until released, to see the state while a request runs. */
   hold?: Promise<void>;
@@ -94,7 +96,7 @@ async function answer(route: Route, mock: Mock): Promise<void> {
     mock.requests.push({ method, path, body: null });
     if (mock.hold) await mock.hold;
     mock.teachers = mock.teachers.filter((t) => t.schooluserid !== deletePath[1]);
-    return route.fulfill(json(200, { data: {} }));
+    return route.fulfill(json(200, mock.deleteBody ?? { data: {} }));
   }
   if (method === 'POST' && path === 'student') return route.fulfill(json(200, { data: { data: mock.learners, total: mock.learners.length } }));
   if (method === 'POST' && path === 'teacher') return route.fulfill(json(200, { data: { data: mock.teachers, total: mock.teachers.length } }));
@@ -690,7 +692,7 @@ test.describe('Manage menu: keyboard only, every action', () => {
     await page.keyboard.press('Enter');
     await expect(row(page, 'teacher.one')).toHaveCount(0);
     expect(mock.requests).toEqual([{ method: 'DELETE', path: 'teacher/tu-1', body: null }]);
-    await expect(toasts(page)).toHaveText('Teacher deleted sucessfully');
+    await expect(toasts(page)).toHaveText('Teacher deleted.');
   });
 });
 
@@ -847,5 +849,49 @@ test.describe('Manage menu: focus after a teacher is deleted', () => {
     await popconfirm(page).locator('.ant-btn-primary').click();
     await expect(row(page, 'teacher.one')).toHaveCount(0);
     await expect(page.locator('.ant-card-head-title')).toBeFocused();
+  });
+});
+
+test.describe('Teachers Delete: what central says about the learning server', () => {
+  const MESSAGES = {
+    pushed: 'Deleted. The teacher can no longer sign in.',
+    skipped: 'Deleted. No learner server is set up here, so nothing was pushed.',
+    failed: 'Deleted, but the learning server did not answer. Run Sync Teachers for this school on the Schools screen.',
+  } as const;
+  const notice = (page: Page) => page.locator('.ant-notification-notice');
+
+  for (const [status, kind] of [['pushed', 'success'], ['skipped', 'success'], ['failed', 'warning']] as const) {
+    test(`a ${status} push shows central's sentence as a ${kind} notice; the row leaves; focus moves on`, async ({ context }) => {
+      const mock = newMock();
+      mock.deleteBody = { error: false, data: true, push: { status, message: MESSAGES[status] } };
+      const page = await openTeachers(context, mock);
+      await chooseTeacherItem(page, 'teacher.one', 'Delete');
+      await popconfirm(page).locator('.ant-btn-primary').click();
+      await expect(row(page, 'teacher.one')).toHaveCount(0);
+      await expect(toasts(page)).toHaveText(MESSAGES[status]);
+      await expect(notice(page).locator(`.ant-notification-notice-icon-${kind}`)).toHaveCount(1);
+      await expect.poll(() => focusedLabel(page)).toBe('Manage teacher.two');
+    });
+  }
+
+  test('central\'s message is shown as sent, not replaced', async ({ context }) => {
+    const mock = newMock();
+    mock.deleteBody = { error: false, data: true, push: { status: 'failed', message: 'Invented central sentence.' } };
+    const page = await openTeachers(context, mock);
+    await chooseTeacherItem(page, 'teacher.one', 'Delete');
+    await popconfirm(page).locator('.ant-btn-primary').click();
+    await expect(toasts(page)).toHaveText('Invented central sentence.');
+  });
+
+  test('an answer without push shows a plain success notice; the row leaves; focus moves on', async ({ context }) => {
+    const mock = newMock();
+    mock.deleteBody = { error: false, data: true };
+    const page = await openTeachers(context, mock);
+    await chooseTeacherItem(page, 'teacher.one', 'Delete');
+    await popconfirm(page).locator('.ant-btn-primary').click();
+    await expect(row(page, 'teacher.one')).toHaveCount(0);
+    await expect(toasts(page)).toHaveText('Teacher deleted.');
+    await expect(notice(page).locator('.ant-notification-notice-icon-success')).toHaveCount(1);
+    await expect.poll(() => focusedLabel(page)).toBe('Manage teacher.two');
   });
 });

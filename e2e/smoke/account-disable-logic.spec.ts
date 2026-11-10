@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { disableConfirmText, disableNotice, withDisabled } from '../../src/app/modules/student/account-disable';
+import { deleteNotice, disableConfirmText, disableNotice, withDisabled } from '../../src/app/modules/student/account-disable';
 
 /** The wording and the row update of Disable / Enable (account-disable.ts), in Node. The lists in a browser are account-disable.spec.ts. */
 
@@ -87,5 +87,19 @@ test.describe('the row update', () => {
   });
   test('an unknown id changes nothing', () => {
     expect(withDisabled(rows, 'zzz', true)).toEqual(rows);
+  });
+});
+
+test.describe('the toast after a teacher is deleted', () => {
+  test("passes central's sentence through, with the type for each push outcome", () => {
+    expect(deleteNotice({ push: { status: 'pushed', message: ' Deleted. The teacher can no longer sign in. ' } })).toEqual({ type: 'success', title: 'Success', text: 'Deleted. The teacher can no longer sign in.' });
+    expect(deleteNotice({ push: { status: 'skipped', message: 'Deleted. Nothing was pushed.' } })).toMatchObject({ type: 'success', text: 'Deleted. Nothing was pushed.' });
+    expect(deleteNotice({ push: { status: 'failed', message: 'Deleted, but it did not answer.' } })).toMatchObject({ type: 'warning', text: 'Deleted, but it did not answer.' });
+  });
+  test('an answer without push (an older server) says the teacher was deleted', () => {
+    for (const result of [undefined, null, {}, { push: undefined }]) expect(deleteNotice(result)).toEqual({ type: 'success', title: 'Success', text: 'Teacher deleted.' });
+  });
+  test('a failed push with no message still names Sync Teachers', () => {
+    expect(deleteNotice({ push: { status: 'failed' } })).toMatchObject({ type: 'warning', text: 'Deleted, but the learning server did not answer. Run Sync Teachers for this school on the Schools screen.' });
   });
 });

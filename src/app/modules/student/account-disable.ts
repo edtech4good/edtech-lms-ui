@@ -48,6 +48,20 @@ export function disableNotice(kind: AccountKind, username: string, result: Pick<
   }
 }
 
+/** The answer of `DELETE teacher/:schooluserid`: central says whether the learning server was told. */
+export interface DeleteResult {
+  push?: { status?: PushStatus; message?: string };
+}
+
+/** The toast after a teacher is deleted: central's own sentence about the push, or a plain line from an older server. */
+export function deleteNotice(result: DeleteResult | null | undefined): DisableNotice {
+  const push = result?.push;
+  const message = pushMessageOf(push);
+  if (push?.status === 'failed') return { type: 'warning', title: 'Deleted', text: message || 'Deleted, but the learning server did not answer. Run Sync Teachers for this school on the Schools screen.' };
+  if ((push?.status === 'pushed' || push?.status === 'skipped') && message) return { type: 'success', title: 'Success', text: message };
+  return { type: 'success', title: 'Success', text: 'Teacher deleted.' };
+}
+
 /** Moves focus to the first element matching `selector`, after Angular has drawn the change. */
 export function focusSoon(selector: string): void {
   setTimeout(() => (document.querySelector(selector) as HTMLElement | null)?.focus(), 0);
