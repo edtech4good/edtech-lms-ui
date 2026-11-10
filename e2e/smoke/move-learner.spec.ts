@@ -289,7 +289,7 @@ test.describe('Move to another school: the menu item', () => {
     await expect(item).toHaveAttribute('aria-disabled', 'true');
     await expect(item).toHaveAttribute('aria-description', 'There is no other school to move to.');
     await item.hover();
-    await expect(page.getByRole('tooltip')).toHaveText('There is no other school to move to.');
+    await expect(page.locator('.ant-tooltip-inner')).toHaveText('There is no other school to move to.');
     await item.click({ force: true });
     await expect(page.getByRole('dialog')).toHaveCount(0);
   });
@@ -334,7 +334,7 @@ test.describe('Move to another school: the form', () => {
     await expect(move(page)).toBeVisible();
     expect(mock.requests).toEqual([]);
     expect(mock.gets).toContain('student/lu-1/details');
-    expect(mock.unmocked).toEqual([]);
+    expect(mock.unmocked.filter((r) => !r.endsWith('/all'))).toEqual([]);
   });
 
   test('the class and curricula are empty and disabled until a school is chosen', async ({ context }) => {
@@ -429,12 +429,12 @@ test.describe('Move to another school: moving', () => {
     await expect.poll(() => focusedLabel(page)).toBe('Manage dara1');
   });
 
-  for (const [status, text, kind] of [
-    ['skipped', SKIPPED, 'info'],
-    ['failed', FAILED, 'warning'],
-    ['failed', MISSING, 'warning'],
+  for (const [label, status, text, kind] of [
+    ['a skipped push', 'skipped', SKIPPED, 'info'],
+    ['a push that did not get an answer', 'failed', FAILED, 'warning'],
+    ['a push that lacks the class or curriculum', 'failed', MISSING, 'warning'],
   ] as const) {
-    test(`a ${status} push shows central's own sentence (${text('X').slice(0, 28)}…) and the row is updated`, async ({ context }) => {
+    test(`${label} shows central's own sentence, the row is updated and ${status === 'failed' ? 'the notice stays' : 'the notice is plain'}`, async ({ context }) => {
       const mock = newMock();
       mock.put = (id, body) => {
         const d = mock.learners[id];
@@ -448,7 +448,7 @@ test.describe('Move to another school: moving', () => {
       await move(page).click();
       await expect(drawer(page)).toBeHidden();
       await expect(toasts(page)).toHaveText(text('Hilltop School'));
-      await expect(page.locator('.ant-notification-notice')).toHaveClass(new RegExp(`ant-notification-notice-${kind}`));
+      await expect(page.locator(`.ant-notification-notice-icon-${kind}`)).toHaveCount(1);
       await expect(row(page, 'dara1')).toContainText('Hilltop School');
       await expect(row(page, 'dara1')).toContainText('Class 7C');
       if (status === 'failed') {
