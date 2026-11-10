@@ -136,25 +136,25 @@ test.describe('Remove: who sees it', () => {
   test('a never-signed-in row gets Remove after a divider, in the danger tone, with delete_student', async ({ context }) => {
     const page = await openLearners(context, newMock());
     await actions(page, 'dara1').click();
-    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Reset password', 'Disable', 'Remove']);
+    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Move to another school', 'Reset password', 'Disable', 'Remove']);
     await expect(dividers(page)).toHaveCount(1);
     await expect(menuItem(page, 'Remove')).toHaveClass(/ant-dropdown-menu-item-danger/);
     // The divider sits between Disable and Remove.
     const order = await page.locator('.ant-dropdown-menu > li').evaluateAll((els) => els.map((el) => (el.classList.contains('ant-dropdown-menu-item-divider') ? '|' : (el.textContent ?? '').trim())));
-    expect(order).toEqual(['Edit details', 'Reset password', 'Disable', '|', 'Remove']);
+    expect(order).toEqual(['Edit details', 'Move to another school', 'Reset password', 'Disable', '|', 'Remove']);
   });
 
   test('a row that has signed in has no Remove and no divider', async ({ context }) => {
     const page = await openLearners(context, newMock());
     await actions(page, 'sokha2').click();
-    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Reset password', 'Disable']);
+    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Move to another school', 'Reset password', 'Disable']);
     await expect(dividers(page)).toHaveCount(0);
   });
 
   test('without delete_student there is no Remove and no divider, on a never-signed-in row too', async ({ context }) => {
     const page = await openLearners(context, newMock(), WITHOUT_DELETE);
     await actions(page, 'dara1').click();
-    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Reset password', 'Disable']);
+    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Move to another school', 'Reset password', 'Disable']);
     await expect(dividers(page)).toHaveCount(0);
   });
 

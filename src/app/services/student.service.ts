@@ -7,6 +7,7 @@ import { AddLearnerBody, CreatedLearner } from '../modules/student/add-learner/a
 import { DisabledResult } from '../modules/student/account-disable';
 import { RemoveResult } from '../modules/student/account-remove';
 import { EditLearnerBody, EditLearnerResult, LearnerDetails } from '../modules/student/edit-learner/edit-learner';
+import { MoveLearnerBody, MoveLearnerResult } from '../modules/student/move-learner/move-learner';
 import { ResetPasswordBody, ResetResult } from '../modules/student/reset-password/reset-password';
 import { StudentEditedImportBody, StudentImportBody } from '../models/studentimport';
 
@@ -95,6 +96,16 @@ export class StudentService {
     return this.http.put<EditLearnerResult>(`${this.coreService.CORE_API()}student/${schooluserid}/details`, body, {
       ...this.coreService.jsonhttpOptions,
       context: new HttpContext().set(FIELD_ERRORS_INLINE, true),
+    });
+  }
+  /**
+   * Moves a learner to another school of the same organisation. The drawer shows every failure itself, central's own
+   * sentence included, so the error interceptor stays quiet for it.
+   */
+  moveSchool(schooluserid: string, body: MoveLearnerBody) {
+    return this.http.put<MoveLearnerResult>(`${this.coreService.CORE_API()}student/${schooluserid}/school`, body, {
+      ...this.coreService.jsonhttpOptions,
+      context: new HttpContext().set(FAILURES_SHOWN_BY_CALLER, true),
     });
   }
   /**

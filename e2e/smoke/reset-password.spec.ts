@@ -529,10 +529,10 @@ test.describe('Reset password: the Learners menu', () => {
   test('Reset password is the item above Disable or Enable', async ({ context }) => {
     const page = await openLearners(context, newMock());
     await actions(page, 'dara1').click();
-    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Reset password', 'Disable']);
+    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Move to another school', 'Reset password', 'Disable']);
     await page.keyboard.press('Escape');
     await actions(page, 'sokha2').click();
-    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Reset password', 'Enable']);
+    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Move to another school', 'Reset password', 'Enable']);
   });
 
   test('Space on the item opens the drawer, and the menu closes', async ({ context }) => {

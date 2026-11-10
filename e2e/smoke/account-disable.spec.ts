@@ -623,7 +623,7 @@ test.describe('Manage menu: the button', () => {
   test('the menus list their items in order, and the Teachers menu puts Delete after a divider', async ({ context }) => {
     const page = await openLearners(context, newMock());
     await actions(page, 'dara1').click();
-    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Reset password', 'Disable']);
+    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Move to another school', 'Reset password', 'Disable']);
     await expect(page.locator('.ant-dropdown-menu-item-divider')).toHaveCount(0);
     await page.keyboard.press('Escape');
     const teachers = await openTeachers(context, newMock());

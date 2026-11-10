@@ -1,0 +1,138 @@
+<nz-drawer
+  [nzVisible]="open()"
+  nzPlacement="right"
+  nzWidth="560px"
+  [nzClosable]="false"
+  [nzMaskClosable]="true"
+  nzWrapClassName="org-drawer"
+  [nzMaskStyle]="{ background: 'rgba(30, 41, 59, 0.35)' }"
+  (nzOnClose)="requestClose()"
+  (nzVisibleChange)="onVisibleChange($event)"
+>
+  <ng-container *nzDrawerContent>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="move-learner-title">
+      <header class="head">
+        <h2 #title id="move-learner-title" class="title" tabindex="-1">Move {{ username() }}</h2>
+        <button type="button" class="close" aria-label="Close" (click)="requestClose()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true" focusable="false">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </header>
+
+      @if (loadState() === 'error' || schoolsState() === 'error') {
+        <div class="body" data-testid="move-learner-load-error">
+          <p class="form-error" role="alert">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 8v4M12 16h.01" />
+            </svg>
+            <span>{{ loadState() === 'error' ? loadMessage() : schoolsFailed }}</span>
+            @if (loadState() !== 'error') {
+              <button type="button" class="link" (click)="retrySchools.emit()">Try again</button>
+            }
+          </p>
+        </div>
+        <footer class="foot">
+          <button #closeButton nz-button nzType="primary" type="button" class="foot-button" (click)="requestClose()">Close</button>
+        </footer>
+      } @else if (!ready()) {
+        <div class="body" aria-busy="true" data-testid="move-learner-loading">
+          <span class="sr-only" role="status">Loading</span>
+          <div class="skel short"></div>
+          <div class="skel"></div>
+          <div class="skel"></div>
+        </div>
+        <footer class="foot">
+          <button nz-button type="button" class="foot-button" (click)="requestClose()">Cancel</button>
+          <button nz-button nzType="primary" class="foot-button" type="button" disabled>Move</button>
+        </footer>
+      } @else {
+        <form id="move-learner-form" class="body" novalidate (ngSubmit)="submit()">
+          @if (formError(); as message) {
+            <p class="form-error" role="alert" data-testid="move-form-error">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 8v4M12 16h.01" />
+              </svg>
+              <span>{{ message }}</span>
+            </p>
+          }
+
+          <p class="help" data-testid="move-results-note">{{ resultsNote }}</p>
+
+          <div class="field">
+            <label class="label" for="move-learner-school-input">School <span class="req" aria-hidden="true">*</span></label>
+            <nz-select
+              #schoolSelect
+              id="move-learner-school"
+              nzId="move-learner-school-input"
+              class="wide"
+              nzPlaceHolder="Choose a school"
+              [class.invalid]="errors().schoolid"
+              [nzOptions]="schools()"
+              [ngModel]="schoolId()"
+              (ngModelChange)="setSchool($event)"
+              [ngModelOptions]="{ standalone: true }"
+            />
+            @if (errors().schoolid; as message) {
+              <p class="field-error" role="alert">{{ message }}</p>
+            }
+          </div>
+
+          <div class="field">
+            <label class="label" for="move-learner-class-input">{{ classWord }} <span class="req" aria-hidden="true">*</span></label>
+            <nz-select
+              id="move-learner-class"
+              nzId="move-learner-class-input"
+              class="wide"
+              [nzPlaceHolder]="'Choose a ' + classWord.toLowerCase()"
+              [class.invalid]="errors().standard"
+              [nzDisabled]="!schoolId()"
+              [nzLoading]="placementState() === 'loading'"
+              [nzOptions]="standards()"
+              [ngModel]="standardId()"
+              (ngModelChange)="setStandard($event)"
+              [ngModelOptions]="{ standalone: true }"
+            />
+            @if (errors().standard; as message) {
+              <p class="field-error" role="alert">{{ message }}</p>
+            }
+          </div>
+
+          <div class="field">
+            <label class="label" for="move-learner-curricula-input">Curricula <span class="req" aria-hidden="true">*</span></label>
+            <nz-select
+              id="move-learner-curricula"
+              nzId="move-learner-curricula-input"
+              class="wide"
+              nzMode="multiple"
+              nzPlaceHolder="Choose one or more"
+              [class.invalid]="errors().curriculumids"
+              [nzDisabled]="!schoolId()"
+              [nzLoading]="placementState() === 'loading'"
+              [nzOptions]="curricula()"
+              [ngModel]="curriculumIds()"
+              (ngModelChange)="setCurricula($event)"
+              [ngModelOptions]="{ standalone: true }"
+            />
+            @if (placementState() === 'error') {
+              <p class="field-error" role="alert">
+                This school's classes or curricula couldn't be loaded.
+                <button type="button" class="link" (click)="retryPlacement()">Try again</button>
+              </p>
+            }
+            @if (errors().curriculumids; as message) {
+              <p class="field-error" role="alert">{{ message }}</p>
+            }
+          </div>
+        </form>
+
+        <footer class="foot">
+          <button nz-button type="button" class="foot-button" (click)="requestClose()">Cancel</button>
+          <button #submitButton nz-button nzType="primary" class="foot-button" type="submit" form="move-learner-form" [disabled]="!canMove()">
+            {{ submitting() ? 'Moving…' : 'Move' }}
+          </button>
+        </footer>
+      }
+    </div>
+  </ng-container>
+</nz-drawer>

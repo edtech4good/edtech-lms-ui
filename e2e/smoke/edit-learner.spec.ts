@@ -320,10 +320,10 @@ test.describe('Edit details: the entry point', () => {
   test('Edit details is the first item in the menu, above Reset password and Disable or Enable', async ({ context }) => {
     const page = await openLearners(context, newMock());
     await actions(page, 'dara1').click();
-    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Reset password', 'Disable']);
+    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Move to another school', 'Reset password', 'Disable']);
     await page.keyboard.press('Escape');
     await actions(page, 'sokha2').click();
-    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Reset password', 'Enable']);
+    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Move to another school', 'Reset password', 'Enable']);
   });
 
   test('keyboard only: from the row to Save, the saved row, the toast and focus back on the row', async ({ context }) => {
