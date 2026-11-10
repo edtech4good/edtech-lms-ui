@@ -279,6 +279,7 @@ test.describe('Remove: success', () => {
 const ERRORS: Array<[string, number, string]> = [
   ['409 signed in or has progress', 409, "This learner has signed in or has progress, so it can't be removed. Disable it instead."],
   ['409 held under another school', 409, 'The learning server holds this account under another school, so nothing was removed. Run Sync Students for this school, then try again.'],
+  ['409 removed there but kept here', 409, 'This learner was removed from the learning server, but has activity here, so it was kept. Run Sync Students for this school to restore it on the learning server.'],
   ['503 learning server did not answer', 503, "The learning server didn't answer, so nothing was removed. Try again later."],
   ['500 removed there but not here', 500, 'Removed from the learning server, but not here. Try again.'],
   ['404 not found', 404, 'That learner was not found in this organisation.'],
@@ -302,6 +303,18 @@ test.describe('Remove: central refuses', () => {
       await expect(menuItem(page, 'Remove'), 'the row can be tried again').toBeEnabled();
     });
   }
+
+  test("the Remove confirm's OK button has the danger style and Disable's does not", async ({ context }) => {
+    const page = await openLearners(context, newMock());
+    await chooseRemove(page, 'dara1');
+    await expect(popconfirm(page).getByRole('button', { name: 'Remove' })).toHaveClass(/ant-btn-dangerous/);
+    await page.keyboard.press('Escape');
+    await expect(popconfirm(page)).toHaveCount(0);
+    await actions(page, 'dara1').click();
+    await menuItem(page, 'Disable').click();
+    await expect(popconfirm(page)).toContainText('Disable dara1');
+    await expect(popconfirm(page).getByRole('button', { name: 'Disable' })).not.toHaveClass(/ant-btn-dangerous/);
+  });
 
   test('a refusal with no words of its own shows the fixed sentence', async ({ context }) => {
     const mock = newMock();

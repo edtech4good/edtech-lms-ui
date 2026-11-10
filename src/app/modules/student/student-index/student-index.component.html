@@ -150,6 +150,7 @@
                     (nzPopconfirmVisibleChange)="closeConfirm($event, data)"
                     [nzPopconfirmTitle]="confirmText(data)"
                     [nzOkText]="okText(data)"
+                    [nzOkDanger]="confirmKind === 'remove'"
                     nzCancelText="Cancel"
                     (nzOnConfirm)="onConfirm(data)"
                     [attr.aria-label]="'Manage ' + data['schooluser.schoolusername']"
