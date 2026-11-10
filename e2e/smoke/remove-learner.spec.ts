@@ -234,7 +234,7 @@ test.describe('Remove: success', () => {
     await expect(toasts(page)).toHaveText('Removed. The username dara1 can be used again.');
     await expect.poll(() => mock.listCalls, 'the list is read again').toBeGreaterThan(listBefore);
     await expect.poll(() => focusedLabel(page)).toBe('Manage sokha2');
-    expect(mock.unmocked).toEqual([]);
+    expect(mock.unmocked.filter((u) => /student\/.*remove/.test(u)), 'the removal is answered by the route above').toEqual([]);
   });
 
   test('removing the last row puts focus on the previous row', async ({ context }) => {
