@@ -9,6 +9,7 @@ import { NzUploadChangeParam, NzUploadFile } from 'ng-zorro-antd/upload';
 import { BehaviorSubject, EMPTY, Observable, of, Subscription } from 'rxjs';
 import { catchError, debounceTime, filter, finalize, first, map, switchMap } from 'rxjs/operators';
 import { CONFIRM_OK_SELECTOR, disableConfirmText, disableNotice, focusSoon, insideConfirmOrMenu, noticeOptions, restoreFocus, rowControl, withDisabled } from '../account-disable';
+import { canRemove, focusAfterRemove, removeConfirmText, removeFailureText, removedText } from '../account-remove';
 import { restoreFocusAfterDrawer } from '../reset-password/drawer-focus';
 import { EditLearnerResult, savedNotice } from '../edit-learner/edit-learner';
 import { IFilter } from 'src/app/models/IPaging';
@@ -316,7 +317,11 @@ export class StudentIndexComponent implements OnInit {
   private readonly changing = new Set<string>();
   isChanging = (row: any) => this.changing.has(row.schooluserid);
   username = (row: any): string => row['schooluser.schoolusername'];
-  confirmText = (row: any) => disableConfirmText(this.username(row), !row.isdisabled);
+  /** Which of the two the open confirm is for: the Disable / Enable change, or the removal of a never-signed-in learner. */
+  confirmKind: 'toggle' | 'remove' = 'toggle';
+  confirmText = (row: any) => (this.confirmKind === 'remove' ? removeConfirmText(this.username(row)) : disableConfirmText(this.username(row), !row.isdisabled));
+  okText = (row: any) => (this.confirmKind === 'remove' ? 'Remove' : row.isdisabled ? 'Enable' : 'Disable');
+  canRemove = canRemove;
   /** The schooluserid whose Actions menu is open. */
   menuOpen: string | null = null;
   onMenuVisible(visible: boolean, row: any) {
@@ -359,9 +364,55 @@ export class StudentIndexComponent implements OnInit {
     this.loadDataFromServer(() => id && restoreFocusAfterDrawer(rowControl(id)));
   }
   askToggle(row: any) {
+    this.openConfirm(row, 'toggle');
+  }
+  askRemove(row: any) {
+    if (!canRemove(row)) return;
+    this.openConfirm(row, 'remove');
+  }
+  private openConfirm(row: any, kind: 'toggle' | 'remove') {
     if (this.changing.has(row.schooluserid)) return;
+    this.confirmKind = kind;
     this.confirming = row.schooluserid;
     focusSoon(CONFIRM_OK_SELECTOR);
+  }
+  onConfirm(row: any) {
+    if (this.confirmKind === 'remove') this.removeLearner(row);
+    else this.toggleDisabled(row);
+  }
+  /**
+   * Removes a learner who never signed in. Central asks the learning server first; its own sentence is shown for any
+   * refusal, which stays until closed, and the row stays. On success the row leaves and focus moves on.
+   */
+  removeLearner(row: any) {
+    const id: string = row.schooluserid;
+    this.confirming = null;
+    if (this.changing.has(id) || !canRemove(row)) return;
+    this.changing.add(id);
+    const username = this.username(row);
+    const before = this.data.map((r) => r.schooluserid as string);
+    let removed = false;
+    this.studentService
+      .removeStudent(id)
+      .pipe(
+        first(),
+        finalize(() => {
+          this.changing.delete(id);
+          if (!removed) restoreFocus(id);
+        }),
+      )
+      .subscribe({
+        next: (result) => {
+          removed = true;
+          this.data = this.data.filter((r) => r.schooluserid !== id);
+          this.notification.create('success', 'Success', removedText(result, username));
+          void this.loadDataFromServer();
+          focusAfterRemove(before, id, 'app-student-index .ant-card-head-title');
+        },
+        error: (error) => {
+          this.notification.create('error', 'Error', removeFailureText(error), { nzDuration: 0 });
+        },
+      });
   }
   /** The confirm closed without a change (Cancel, Escape, a click outside): focus goes back to the Actions button. */
   closeConfirm(visible: boolean, row: any) {

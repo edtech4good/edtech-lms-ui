@@ -149,9 +149,10 @@
                     [nzPopconfirmVisible]="confirming === data.schooluserid"
                     (nzPopconfirmVisibleChange)="closeConfirm($event, data)"
                     [nzPopconfirmTitle]="confirmText(data)"
-                    [nzOkText]="data.isdisabled ? 'Enable' : 'Disable'"
+                    [nzOkText]="okText(data)"
+                    [nzOkDanger]="confirmKind === 'remove'"
                     nzCancelText="Cancel"
-                    (nzOnConfirm)="toggleDisabled(data)"
+                    (nzOnConfirm)="onConfirm(data)"
                     [attr.aria-label]="'Manage ' + data['schooluser.schoolusername']"
                     data-testid="row-actions"
                   >
@@ -197,6 +198,26 @@
                       >
                         {{ data.isdisabled ? "Enable" : "Disable" }}
                       </li>
+                      <ng-container *ngIf="canRemove(data)">
+                        <ng-container *ngxPermissionsOnly="['delete_student', 'superadmin']">
+                          <li nz-menu-divider></li>
+                          <li
+                            nz-menu-item
+                            nzDanger
+                            role="menuitem"
+                            data-menu-action
+                            data-testid="remove-item"
+                            [attr.tabindex]="isChanging(data) ? -1 : 0"
+                            [nzDisabled]="isChanging(data)"
+                            [attr.aria-disabled]="isChanging(data)"
+                            (click)="askRemove(data)"
+                            (keydown.enter)="$any($event.currentTarget).click()"
+                            (keydown.space)="$event.preventDefault(); $any($event.currentTarget).click()"
+                          >
+                            Remove
+                          </li>
+                        </ng-container>
+                      </ng-container>
                     </ul>
                   </nz-dropdown-menu>
                 </td>

@@ -5,6 +5,7 @@ import { FAILURES_SHOWN_BY_CALLER, FIELD_ERRORS_INLINE } from 'src/app/intercept
 import { CoreService } from 'src/app/services/core.service';
 import { AddLearnerBody, CreatedLearner } from '../modules/student/add-learner/add-learner-form';
 import { DisabledResult } from '../modules/student/account-disable';
+import { RemoveResult } from '../modules/student/account-remove';
 import { EditLearnerBody, EditLearnerResult, LearnerDetails } from '../modules/student/edit-learner/edit-learner';
 import { ResetPasswordBody, ResetResult } from '../modules/student/reset-password/reset-password';
 import { StudentEditedImportBody, StudentImportBody } from '../models/studentimport';
@@ -96,6 +97,18 @@ export class StudentService {
       context: new HttpContext().set(FIELD_ERRORS_INLINE, true),
     });
   }
+  /**
+   * Removes a learner who has never signed in, so the username is free again. The caller shows every failure with
+   * central's own sentence, so the error interceptor stays quiet for it.
+   */
+  removeStudent(schooluserid: string) {
+    return this.http.post<RemoveResult>(
+      `${this.coreService.CORE_API()}student/${schooluserid}/remove`,
+      {},
+      { ...this.coreService.jsonhttpOptions, context: new HttpContext().set(FAILURES_SHOWN_BY_CALLER, true) },
+    );
+  }
+
   deleteStudent(schooluserid: string) {
     return this.http.delete(
       `${this.coreService.CORE_API()}student/${schooluserid}`,
