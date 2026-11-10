@@ -18,6 +18,13 @@ export interface DisableNotice {
   type: 'success' | 'warning' | 'info';
   title: string;
   text: string;
+  /** Milliseconds the notice stays; 0 until it is closed. Absent: the default. A failed push says to run a sync, so it stays. */
+  duration?: number;
+}
+
+/** The options for `notification.create`: the notice's own duration, or none so the default applies. */
+export function noticeOptions(notice: { duration?: number }): { nzDuration?: number } {
+  return notice.duration === undefined ? {} : { nzDuration: notice.duration };
 }
 
 /** What a popconfirm says before the change. */
@@ -37,6 +44,7 @@ export function disableNotice(kind: AccountKind, username: string, result: Pick<
       return {
         type: 'warning',
         title: 'Saved',
+        duration: 0,
         text: (kind === 'learner' && pushMessageOf(result.push) && `${username} is ${word} on central. ${pushMessageOf(result.push)}`) || `${username} is ${word} on central, but the learning server did not answer. Run ${sync} for this school on the Schools screen.`,
       };
     case 'skipped':
@@ -46,6 +54,20 @@ export function disableNotice(kind: AccountKind, username: string, result: Pick<
     default:
       return { type: 'info', title: 'Saved', text: `${username} was updated.` };
   }
+}
+
+/** The answer of `DELETE teacher/:schooluserid`: central says whether the learning server was told. */
+export interface DeleteResult {
+  push?: { status?: PushStatus; message?: string };
+}
+
+/** The toast after a teacher is deleted: central's own sentence about the push, or a plain line from an older server. */
+export function deleteNotice(result: DeleteResult | null | undefined): DisableNotice {
+  const push = result?.push;
+  const message = pushMessageOf(push);
+  if (push?.status === 'failed') return { type: 'warning', title: 'Deleted', duration: 0, text: message || 'Deleted, but the learning server did not answer. Run Sync Teachers for this school on the Schools screen.' };
+  if ((push?.status === 'pushed' || push?.status === 'skipped') && message) return { type: 'success', title: 'Success', text: message };
+  return { type: 'success', title: 'Success', text: 'Teacher deleted.' };
 }
 
 /** Moves focus to the first element matching `selector`, after Angular has drawn the change. */

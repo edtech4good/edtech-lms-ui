@@ -120,6 +120,8 @@ export interface SavedNotice {
   type: 'success' | 'warning' | 'info';
   title: string;
   text: string;
+  /** Milliseconds the notice stays; 0 until it is closed. Absent: the default. */
+  duration?: number;
 }
 
 /** The toast after a 200: what the push to the learning server means. */
@@ -132,6 +134,7 @@ export function savedNotice(result: Pick<EditLearnerResult, 'studentname' | 'pus
       return {
         type: 'warning',
         title: 'Saved',
+        duration: 0,
         text: pushMessageOf(result.push) || 'Saved, but the learning server did not answer. Run Sync Students for this school on the Schools screen.',
       };
     case 'skipped':

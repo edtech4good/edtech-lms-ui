@@ -8,7 +8,7 @@ import { NzTableQueryParams } from 'ng-zorro-antd/table';
 import { NzUploadChangeParam, NzUploadFile } from 'ng-zorro-antd/upload';
 import { BehaviorSubject, EMPTY, Observable, of, Subscription } from 'rxjs';
 import { catchError, debounceTime, filter, finalize, first, map, switchMap } from 'rxjs/operators';
-import { CONFIRM_OK_SELECTOR, disableConfirmText, disableNotice, focusSoon, insideConfirmOrMenu, restoreFocus, rowControl, withDisabled } from '../account-disable';
+import { CONFIRM_OK_SELECTOR, disableConfirmText, disableNotice, focusSoon, insideConfirmOrMenu, noticeOptions, restoreFocus, rowControl, withDisabled } from '../account-disable';
 import { canRemove, focusAfterRemove, removeConfirmText, removeFailureText, removedText } from '../account-remove';
 import { restoreFocusAfterDrawer } from '../reset-password/drawer-focus';
 import { EditLearnerResult, savedNotice } from '../edit-learner/edit-learner';
@@ -360,7 +360,7 @@ export class StudentIndexComponent implements OnInit {
     const id = this.editFor;
     this.editFor = null;
     const notice = savedNotice(event.result, event.fallbackName);
-    this.notification.create(notice.type, notice.title, notice.text);
+    this.notification.create(notice.type, notice.title, notice.text, noticeOptions(notice));
     this.loadDataFromServer(() => id && restoreFocusAfterDrawer(rowControl(id)));
   }
   askToggle(row: any) {
@@ -458,7 +458,7 @@ export class StudentIndexComponent implements OnInit {
           const state = typeof result?.disabled === 'boolean' ? result.disabled : disabled;
           this.data = withDisabled(this.data, id, state);
           const notice = disableNotice('learner', username, { disabled: state, push: result?.push });
-          this.notification.create(notice.type, notice.title, notice.text);
+          this.notification.create(notice.type, notice.title, notice.text, noticeOptions(notice));
         },
         error: () => undefined,
       });
