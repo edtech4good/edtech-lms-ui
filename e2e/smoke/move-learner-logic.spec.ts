@@ -4,6 +4,7 @@ import {
   MOVE_NO_ACCESS,
   MoveOption,
   SchoolRow,
+  curriculaAfterPlacement,
   keptCurricula,
   moveBody,
   moveErrors,
@@ -126,5 +127,21 @@ test.describe('moveErrors', () => {
     expect(moveErrors({ status: 0 })).toEqual({ fields: {}, form: MOVE_FAILED });
     expect(moveErrors({ status: 403, error: {} })).toEqual({ fields: {}, form: MOVE_NO_ACCESS });
     expect(moveErrors({ status: 409, error: { errormessage: '   ' } }).form).toBe(MOVE_FAILED);
+  });
+});
+
+test.describe('curriculaAfterPlacement', () => {
+  const available: MoveOption[] = [
+    { label: 'One', value: '1' },
+    { label: 'Four', value: '4' },
+  ];
+  test('keeps the learner\'s current curricula that the school has when the person has chosen nothing since', () => {
+    expect(curriculaAfterPlacement(false, [], ['4', '2', '1'], available)).toEqual(['4', '1']);
+  });
+  test('leaves the person\'s own choice alone once they have changed the curricula', () => {
+    expect(curriculaAfterPlacement(true, ['4'], ['1', '2'], available)).toEqual(['4']);
+  });
+  test('leaves an emptied choice empty rather than restoring the learner\'s curricula', () => {
+    expect(curriculaAfterPlacement(true, [], ['1'], available)).toEqual([]);
   });
 });

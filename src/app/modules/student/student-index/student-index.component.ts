@@ -7,7 +7,7 @@ import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
 import { NzUploadChangeParam, NzUploadFile } from 'ng-zorro-antd/upload';
 import { BehaviorSubject, EMPTY, Observable, of, Subscription } from 'rxjs';
-import { catchError, debounceTime, filter, finalize, first, map, switchMap } from 'rxjs/operators';
+import { catchError, debounceTime, filter, finalize, first, map, shareReplay, switchMap } from 'rxjs/operators';
 import { CONFIRM_OK_SELECTOR, disableConfirmText, disableNotice, focusSoon, insideConfirmOrMenu, noticeOptions, restoreFocus, rowControl, withDisabled } from '../account-disable';
 import { canRemove, focusAfterRemove, removeConfirmText, removeFailureText, removedText } from '../account-remove';
 import { restoreFocusAfterDrawer } from '../reset-password/drawer-focus';
@@ -136,13 +136,13 @@ export class StudentIndexComponent implements OnInit {
     private countryService: CountryService,
   ) {}
   ngOnInit() {
-    this.school$ = this.schoolService.getall({ pagesize: 200 }).pipe(
-      catchError((x: any) => []),
-      first(),
-      map((x: any) => x.data.data)
+    // One request for the schools list: the filter dropdown and the Move to another school list both read this answer.
+    this.schoolsAnswer$ = this.readSchools().pipe(shareReplay({ bufferSize: 1, refCount: false }));
+    this.school$ = this.schoolsAnswer$.pipe(
+      filter((answer) => answer.ok),
+      map((answer) => answer.rows),
     );
-    this.school$.subscribe();
-    this.loadMoveSchools();
+    this.loadMoveSchools(false);
     this.resetForm();
     this.setupSearchCountry();
     this.setupSearchSchool();
@@ -371,19 +371,26 @@ export class StudentIndexComponent implements OnInit {
   private moveSchools: SchoolRow[] = [];
   moveSchoolsState: 'idle' | 'loading' | 'ready' | 'error' = 'idle';
   private moveSchoolsRead = 0;
-  loadMoveSchools() {
+  private schoolsAnswer$!: Observable<{ ok: boolean; rows: any[] }>;
+  private readSchools(): Observable<{ ok: boolean; rows: any[] }> {
+    return this.schoolService.getall({ pagesize: 200 }).pipe(
+      map((answer: any) => ({ ok: true, rows: (answer?.data?.data ?? []) as any[] })),
+      catchError(() => of({ ok: false, rows: [] as any[] })),
+    );
+  }
+  /** Reads the schools the page already asked for; `again` asks afresh (the retry after a failure). */
+  loadMoveSchools(again = true) {
     const read = ++this.moveSchoolsRead;
     this.moveSchoolsState = 'loading';
-    this.schoolService.getall({ pagesize: 200 }).subscribe({
-      next: (answer: any) => {
-        if (read !== this.moveSchoolsRead) return;
-        this.moveSchools = (answer?.data?.data ?? []) as SchoolRow[];
-        this.moveSchoolsState = 'ready';
-        this.moveOptions = this.moveTargets(this.moveRow);
-      },
-      error: () => {
-        if (read === this.moveSchoolsRead) this.moveSchoolsState = 'error';
-      },
+    (again ? this.readSchools() : this.schoolsAnswer$).pipe(first()).subscribe((answer) => {
+      if (read !== this.moveSchoolsRead) return;
+      if (!answer.ok) {
+        this.moveSchoolsState = 'error';
+        return;
+      }
+      this.moveSchools = answer.rows as SchoolRow[];
+      this.moveSchoolsState = 'ready';
+      this.moveOptions = this.moveTargets(this.moveRow);
     });
   }
   /** The schools this learner can move to. */

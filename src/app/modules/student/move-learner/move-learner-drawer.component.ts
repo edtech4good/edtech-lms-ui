@@ -16,7 +16,7 @@ import {
   MoveFieldKey,
   MoveLearnerResult,
   MoveOption,
-  keptCurricula,
+  curriculaAfterPlacement,
   moveBody,
   moveErrors,
   moveFormErrors,
@@ -132,6 +132,9 @@ export class MoveLearnerDrawerComponent {
     }
   }
 
+  /** Set when the person changes the curricula after choosing a school: the learner's kept curricula then no longer replace their choice. */
+  private curriculaTouched = false;
+
   private begin(id: string): void {
     const session = ++this.session;
     this.placementRead++;
@@ -141,6 +144,7 @@ export class MoveLearnerDrawerComponent {
     this.schoolId.set(null);
     this.standardId.set(null);
     this.curriculumIds.set([]);
+    this.curriculaTouched = false;
     this.standards.set([]);
     this.curricula.set([]);
     this.placementState.set('idle');
@@ -174,6 +178,7 @@ export class MoveLearnerDrawerComponent {
     this.schoolId.set(schoolid);
     this.standardId.set(null);
     this.curriculumIds.set([]);
+    this.curriculaTouched = false;
     this.standards.set([]);
     this.curricula.set([]);
     this.clearServer('schoolid');
@@ -199,7 +204,7 @@ export class MoveLearnerDrawerComponent {
     const finish = () => {
       if (read !== this.placementRead || --pending > 0) return;
       this.placementState.set(failed ? 'error' : 'ready');
-      if (!failed) this.curriculumIds.set(keptCurricula(this.details()?.curriculumids ?? [], this.curricula()));
+      if (!failed) this.curriculumIds.set(curriculaAfterPlacement(this.curriculaTouched, this.curriculumIds(), this.details()?.curriculumids ?? [], this.curricula()));
     };
     this.standardService.getSchoolidStandard(schoolid).subscribe({
       next: (answer: any) => {
@@ -247,6 +252,7 @@ export class MoveLearnerDrawerComponent {
   }
   setCurricula(value: string[]): void {
     this.curriculumIds.set(value ?? []);
+    this.curriculaTouched = true;
     this.clearServer('curriculumids');
   }
 

@@ -310,6 +310,16 @@ test.describe('Move to another school: the menu item', () => {
     await expect(page.locator('.ant-select-item-option')).toHaveText(['Bayview School']);
   });
 
+  test('the Learners page asks for the schools once, however many things use them', async ({ context }) => {
+    const mock = newMock();
+    const page = await openLearners(context, mock);
+    expect(mock.gets.filter((g) => g === 'POST school')).toHaveLength(1);
+    await openMove(page);
+    await schoolSelect(page).locator('.ant-select-selector').click();
+    await expect(page.locator('.ant-select-item-option')).toHaveText(['Lakeside School', 'Hilltop School']);
+    expect(mock.gets.filter((g) => g === 'POST school')).toHaveLength(1);
+  });
+
   test('when the schools cannot be read the item stays usable and the drawer says so, with Try again', async ({ context }) => {
     const mock = newMock();
     mock.schools = 'fail';
@@ -359,6 +369,23 @@ test.describe('Move to another school: the form', () => {
     await expect(curriculaSelect(page).locator('.ant-select-selection-item')).toHaveText(['Reading Basics']);
     await curriculaSelect(page).locator('.ant-select-selector').click();
     await expect(page.locator('.ant-select-item-option')).toHaveText(['Reading Basics', 'History Tales']);
+  });
+
+  test('curricula chosen before the school\'s classes arrive are not replaced by the learner\'s kept ones', async ({ context }) => {
+    const mock = newMock();
+    let release!: () => void;
+    mock.holdPlacement['school-b'] = new Promise<void>((resolve) => (release = resolve));
+    const page = await openLearners(context, mock);
+    await openMove(page);
+    await pick(page, 'school', 'Lakeside School');
+    await pick(page, 'curricula', 'History Tales');
+    await expect(curriculaSelect(page).locator('.ant-select-selection-item')).toHaveText(['History Tales']);
+    release();
+    await expect(classSelect(page).locator('.ant-select-selector')).toBeVisible();
+    await classSelect(page).locator('.ant-select-selector').click();
+    await expect(page.locator('.ant-select-item-option')).toHaveText(['Class 5B', 'Class 6B']);
+    await page.keyboard.press('Escape');
+    await expect(curriculaSelect(page).locator('.ant-select-selection-item')).toHaveText(['History Tales']);
   });
 
   test('a school that has none of the learner\'s curricula starts with none chosen', async ({ context }) => {

@@ -70,6 +70,11 @@ export function keptCurricula(current: readonly string[], available: readonly Mo
   return current.filter((id) => offered.has(id));
 }
 
+/** The curricula once a school's lists have both arrived: the learner's kept ones, unless the person has already chosen curricula since the school was chosen. */
+export function curriculaAfterPlacement(touched: boolean, picked: readonly string[], current: readonly string[], available: readonly MoveOption[]): string[] {
+  return touched ? [...picked] : keptCurricula(current, available);
+}
+
 /** The request body for a form the caller has checked. */
 export function moveBody(schoolid: string, standard: string, curriculumids: readonly string[]): MoveLearnerBody {
   return { schoolid, standard, curriculumids: [...curriculumids] };
