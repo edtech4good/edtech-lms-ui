@@ -92,6 +92,11 @@ interface Mock {
   listReads: number;
   holdGet: Record<string, Promise<void>>;
   holdPut?: Promise<void>;
+  /** Publication state of a curriculum by id; any other is published. */
+  publication: Record<string, string>;
+  publicationReads: string[];
+  /** Makes every publication read fail (the pickers then offer everything: central still refuses an unpublished one). */
+  publicationFails: boolean;
   unmocked: string[];
 }
 
@@ -119,6 +124,9 @@ function newMock(): Mock {
     gets: [],
     listReads: 0,
     holdGet: {},
+    publication: {},
+    publicationReads: [],
+    publicationFails: false,
     unmocked: [],
   };
   return mock;
@@ -169,6 +177,13 @@ async function answer(route: Route, mock: Mock): Promise<void> {
   if (method === 'POST' && path === 'school') return route.fulfill(json(200, { data: { data: [{ schoolid: 'school-a', schoolname: 'North Valley School' }], total: 1 } }));
   if (method === 'GET' && path === 'standard/school/school-a') return route.fulfill(json(200, { data: CLASSES }));
   if (method === 'GET' && path === 'school/school-a/curriculums') return route.fulfill(json(200, { data: CURRICULA }));
+  // Each curriculum's publication state (the pickers offer only published ones).
+  const publication = /^curriculum\/publication\/([^/]+)$/.exec(path);
+  if (method === 'GET' && publication) {
+    mock.publicationReads.push(publication[1]);
+    if (mock.publicationFails) return route.fulfill(json(500, { error: true, errormessage: 'Something broke.' }));
+    return route.fulfill(json(200, { data: { publicationstatus: mock.publication[publication[1]] ?? 'published' } }));
+  }
   mock.unmocked.push(`${method} ${path}`);
   return route.fulfill(json(200, { data: [] }));
 }
@@ -690,5 +705,45 @@ test.describe('Edit details: screenshots', () => {
     await expect(row(page, 'dara1')).toContainText('Dara Rivera');
     await page.waitForTimeout(500);
     await page.screenshot({ path: `${SHOTS}/edit-saved.png` });
+  });
+});
+
+test.describe('only published curricula are offered', () => {
+  const offered = (page: Page) => page.locator('.ant-select-item-option').allTextContents();
+
+  test('a curriculum never published or retired is not offered', async ({ context }) => {
+    const mock = newMock();
+    mock.publication = { 'cur-2': 'never', 'cur-3': 'withdrawn' };
+    const page = await openLearners(context, mock);
+    await openEdit(page, 'dara1');
+    await curriculaSelect(page).locator('.ant-select-selector').click();
+    await expect.poll(() => offered(page)).toEqual(['Reading Basics']);
+  });
+
+  test("a learner's own curriculum that is no longer published shows as not available and must be replaced before saving", async ({ context }) => {
+    const mock = newMock();
+    // maly3 holds cur-2.
+    mock.publication = { 'cur-2': 'withdrawn' };
+    const page = await openLearners(context, mock);
+    await openEdit(page, 'maly3');
+    await expect(curriculaSelect(page)).toContainText('(no longer available)');
+    await expect(page.getByTestId('curricula-gone')).toBeVisible();
+    await first(page).fill('Malia');
+    await expect(save(page)).toBeDisabled();
+    await choose(page, 'curricula', 'Reading Basics');
+    await curriculaSelect(page).locator('.ant-select-selection-item', { hasText: '(no longer available)' }).locator('.ant-select-selection-item-remove').click();
+    await expect(save(page)).toBeEnabled();
+  });
+
+  test("central's 400 on curriculumids is shown under the Curriculum field, in its own words", async ({ context }) => {
+    const mock = newMock();
+    const SAYS = 'Publish Number Skills first, or choose another curriculum.';
+    mock.put = () => json(400, { code: 'INVALID_INPUT', errormessage: 'Invalid input.', fields: [{ field: 'curriculumids', message: SAYS }] });
+    const page = await openLearners(context, mock);
+    await openEdit(page, 'dara1');
+    await choose(page, 'curricula', 'Number Skills');
+    await save(page).click();
+    await expect(errorOf(page, '#edit-learner-curricula')).toHaveText(SAYS);
+    expect(await toasts(page).count(), 'a validation failure is not a toast').toBe(0);
   });
 });

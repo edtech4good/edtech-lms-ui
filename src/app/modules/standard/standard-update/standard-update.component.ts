@@ -9,6 +9,7 @@ import { SchoolService } from '../../../services/school.service';
 import { IMultiFilter } from 'src/app/models/IPaging';
 import { any } from 'joi';
 import { UtilService } from 'src/app/services/util.service';
+import { StickyNoticeService, pushOf } from 'src/app/shared/notices/sticky-notice.service';
 
 @Component({
     selector: 'app-standard-update',
@@ -29,7 +30,7 @@ export class StandardUpdateComponent implements OnInit {
   async submiteditForm() {
     this.utilservice.checkFormDirty(this.editForm);
     if (this.editForm.valid) {
-      await this.dts
+      const answer = await this.dts
         .update({
           standardname: this.editForm.getRawValue()['standardname'],
           schoolid: this.editForm.getRawValue()['schoolid'],
@@ -37,14 +38,17 @@ export class StandardUpdateComponent implements OnInit {
         })
         .pipe(first())
         .toPromise();
-      setTimeout(() => {
-        this.notification.create(
-          'success',
-          'Success',
-          'Standard updated successfully'
-        );
-      }, 400);
-      this.router.navigate(['standard/index']);
+      // Go to the list first: a notice that stays is closed by the route change, so it is raised on the list.
+      await this.router.navigate(['standard/index']);
+      if (!this.sticky.pushFailed(pushOf(answer))) {
+        setTimeout(() => {
+          this.notification.create(
+            'success',
+            'Success',
+            'Standard updated successfully'
+          );
+        }, 400);
+      }
     } else {
       if(this.editForm.get('standardname')?.value !==null){
       this.notification.create(
@@ -63,7 +67,8 @@ export class StandardUpdateComponent implements OnInit {
     private route: ActivatedRoute,
     private fb: UntypedFormBuilder,
     private schoolService: SchoolService,
-    private utilservice: UtilService
+    private utilservice: UtilService,
+    private readonly sticky: StickyNoticeService
     ) { }
 
   ngOnInit(): void {

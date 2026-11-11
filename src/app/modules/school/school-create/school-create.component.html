@@ -6,7 +6,10 @@
           <nz-form-label [nzSm]="6" [nzXs]="24" nzRequired nzFor="schoolname"
             >School Name</nz-form-label
           >
-          <nz-form-control nzErrorTip="Please enter school name!">
+          <nz-form-control
+            [nzErrorTip]="nameError || 'Please enter school name!'"
+            [nzValidateStatus]="nameError ? 'error' : createForm.controls['schoolname']"
+          >
             <grammarly-editor-plugin>
               <input
                 type="text"

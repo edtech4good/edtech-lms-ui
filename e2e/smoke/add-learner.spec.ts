@@ -63,6 +63,11 @@ interface Mock {
   createAnswer: () => ReturnType<typeof json>;
   created: Array<Record<string, unknown>>;
   listCalls: number;
+  /** Publication state of a curriculum by id; any other is published. */
+  publication: Record<string, string>;
+  publicationReads: string[];
+  /** Makes every publication read fail (the pickers then offer everything: central still refuses an unpublished one). */
+  publicationFails: boolean;
   unmocked: string[];
 }
 
@@ -76,6 +81,9 @@ function newMock(): Mock {
     createAnswer: () => json(201, { schooluserid: 'su-1', schoolusername: 'sokha1', studentname: FULL, push: { status: 'pushed', message: 'ok' } }),
     created: [],
     listCalls: 0,
+    publication: {},
+    publicationReads: [],
+    publicationFails: false,
     unmocked: [],
   };
 }
@@ -138,6 +146,13 @@ async function answer(route: Route, mock: Mock): Promise<void> {
   if (method === 'GET' && standards) return route.fulfill(json(200, { data: CLASSES[standards[1]] ?? [] }));
   const curricula = path.match(/^school\/(.+)\/curriculums$/);
   if (method === 'GET' && curricula) return route.fulfill(json(200, { data: CURRICULA[curricula[1]] ?? [] }));
+  // Each curriculum's publication state (the pickers offer only published ones).
+  const publication = /^curriculum\/publication\/([^/]+)$/.exec(path);
+  if (method === 'GET' && publication) {
+    mock.publicationReads.push(publication[1]);
+    if (mock.publicationFails) return route.fulfill(json(500, { error: true, errormessage: 'Something broke.' }));
+    return route.fulfill(json(200, { data: { publicationstatus: mock.publication[publication[1]] ?? 'published' } }));
+  }
   mock.unmocked.push(`${method} ${path}`);
   return route.fulfill(json(200, { data: [] }));
 }
@@ -883,5 +898,63 @@ test.describe('Add learner drawer', () => {
     const box = (await button.boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await expect(page.locator('.ant-tooltip:not(.ant-tooltip-hidden)')).toContainText('Choose an organisation to act in');
+  });
+});
+
+test.describe('only published curricula are offered', () => {
+  const offered = (page: Page) => page.locator('.ant-select-item-option').allTextContents();
+
+  async function openCurricula(page: Page): Promise<void> {
+    await openDrawer(page);
+    await choose(page, 'add-learner-school-input', 'North Valley School');
+    await expect(page.locator('#add-learner-curricula')).toBeVisible();
+    await page.locator('#add-learner-curricula .ant-select-selector').click();
+  }
+
+  test('a curriculum never published is not offered', async ({ context }) => {
+    const mock = newMock();
+    mock.publication = { 'cur-2': 'never' };
+    const page = await openLearners(context, mock);
+    await openCurricula(page);
+    await expect.poll(() => offered(page)).toEqual(['Reading Basics']);
+    expect([...mock.publicationReads].sort()).toEqual(['cur-1', 'cur-2']);
+  });
+
+  test('a curriculum retired is not offered', async ({ context }) => {
+    const mock = newMock();
+    mock.publication = { 'cur-1': 'withdrawn' };
+    const page = await openLearners(context, mock);
+    await openCurricula(page);
+    await expect.poll(() => offered(page)).toEqual(['Number Skills']);
+  });
+
+  test('published curricula are all offered', async ({ context }) => {
+    const mock = newMock();
+    const page = await openLearners(context, mock);
+    await openCurricula(page);
+    await expect.poll(() => offered(page)).toEqual(['Reading Basics', 'Number Skills']);
+  });
+
+  test('a publication read that fails leaves the curricula offered, and says nothing', async ({ context }) => {
+    const mock = newMock();
+    mock.publicationFails = true;
+    const page = await openLearners(context, mock);
+    await openCurricula(page);
+    await expect.poll(() => offered(page)).toEqual(['Reading Basics', 'Number Skills']);
+    await page.waitForTimeout(500);
+    expect(await toasts(page).count(), 'a failed read is not a toast').toBe(0);
+  });
+
+  test("central's 400 on curriculumids is shown under the Curriculum field, in its own words", async ({ context }) => {
+    const mock = newMock();
+    const SAYS = 'Publish Reading Basics first, or choose another curriculum.';
+    mock.createAnswer = () => invalid([{ field: 'curriculumids', message: SAYS }]);
+    const page = await openLearners(context, mock);
+    await openDrawer(page);
+    await fillRequired(page);
+    await page.getByRole('button', { name: 'Add learner', exact: true }).click();
+    await expect(errorOf(page, '#add-learner-curricula')).toHaveText(SAYS);
+    expect(await toasts(page).count(), 'a validation failure is not a toast').toBe(0);
+    await expect(drawer(page)).toBeVisible();
   });
 });

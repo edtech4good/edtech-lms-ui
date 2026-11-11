@@ -121,6 +121,11 @@ interface Mock {
   holdPut?: Promise<void>;
   /** Holds the classes and curricula of one school until released. */
   holdPlacement: Record<string, Promise<void>>;
+  /** Publication state of a curriculum by id; any other is published. */
+  publication: Record<string, string>;
+  publicationReads: string[];
+  /** Makes every publication read fail (the pickers then offer everything: central still refuses an unpublished one). */
+  publicationFails: boolean;
   unmocked: string[];
 }
 
@@ -143,6 +148,9 @@ function newMock(): Mock {
     listReads: 0,
     holdGet: {},
     holdPlacement: {},
+    publication: {},
+    publicationReads: [],
+    publicationFails: false,
     unmocked: [],
   };
   return mock;
@@ -206,6 +214,13 @@ async function answer(route: Route, mock: Mock): Promise<void> {
   if (method === 'GET' && curricula) {
     mock.gets.push(path);
     return route.fulfill(json(200, { data: CURRICULA[curricula[1]] ?? [] }));
+  }
+  // Each curriculum's publication state (the pickers offer only published ones).
+  const publication = /^curriculum\/publication\/([^/]+)$/.exec(path);
+  if (method === 'GET' && publication) {
+    mock.publicationReads.push(publication[1]);
+    if (mock.publicationFails) return route.fulfill(json(500, { error: true, errormessage: 'Something broke.' }));
+    return route.fulfill(json(200, { data: { publicationstatus: mock.publication[publication[1]] ?? 'published' } }));
   }
   mock.unmocked.push(`${method} ${path}`);
   return route.fulfill(json(200, { data: [] }));
@@ -763,5 +778,34 @@ test.describe('Move to another school: screenshots', () => {
     await fill(page, 'Lakeside School', 'Class 5B');
     await page.waitForTimeout(700);
     await page.screenshot({ path: `${SHOTS}/move-drawer.png` });
+  });
+});
+
+test.describe('only published curricula are offered', () => {
+  const offered = (page: Page) => page.locator('.ant-select-item-option').allTextContents();
+
+  test('a curriculum never published or retired is not offered', async ({ context }) => {
+    const mock = newMock();
+    // The second school lists Reading Basics (cur-1), History Tales (cur-4) and one deleted curriculum.
+    mock.publication = { 'cur-4': 'never' };
+    const page = await openLearners(context, mock);
+    await openMove(page);
+    await pick(page, 'school', 'Lakeside School');
+    await expect(curriculaSelect(page)).toBeVisible();
+    await curriculaSelect(page).locator('.ant-select-selector').click();
+    await expect.poll(() => offered(page)).toEqual(['Reading Basics']);
+  });
+
+  test("central's 400 on curriculumids is shown under the Curriculum field, in its own words", async ({ context }) => {
+    const mock = newMock();
+    const SAYS = 'Publish History Tales first, or choose another curriculum.';
+    mock.put = () => json(400, { code: 'INVALID_INPUT', errormessage: 'Invalid input.', fields: [{ field: 'curriculumids', message: SAYS }] });
+    const page = await openLearners(context, mock);
+    await openMove(page);
+    await pick(page, 'school', 'Lakeside School');
+    await pick(page, 'class', 'Class');
+    await move(page).click();
+    await expect(errorOf(page, '#move-learner-curricula')).toHaveText(SAYS);
+    expect(await toasts(page).count(), 'a validation failure is not a toast').toBe(0);
   });
 });

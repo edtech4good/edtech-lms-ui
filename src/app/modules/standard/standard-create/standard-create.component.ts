@@ -7,6 +7,7 @@ import { catchError, first, map } from 'rxjs/operators';
 import { IMultiFilter } from 'src/app/models/IPaging';
 import { StandardService } from 'src/app/services/standard.service';
 import { UtilService } from 'src/app/services/util.service';
+import { StickyNoticeService, pushOf } from 'src/app/shared/notices/sticky-notice.service';
 import { SchoolService } from '../../../services/school.service';
 
 @Component({
@@ -28,21 +29,24 @@ export class StandardCreateComponent implements OnInit {
   async submitcreateForm() {
     this.utilservice.checkFormDirty(this.createForm);
     if (this.createForm.valid) {
-      await this.dts
+      const answer = await this.dts
         .create(
           this.createForm.getRawValue()['standardname'],
           this.createForm.getRawValue()['schoolid'],
         )
         .pipe(first())
         .toPromise();
-      setTimeout(() => {
-        this.notification.create(
-          'success',
-          'Success',
-          'Standard created successfully'
-        );
-      }, 400);
-      this.router.navigate(['standard/index']);
+      // Go to the list first: a notice that stays is closed by the route change, so it is raised on the list.
+      await this.router.navigate(['standard/index']);
+      if (!this.sticky.pushFailed(pushOf(answer))) {
+        setTimeout(() => {
+          this.notification.create(
+            'success',
+            'Success',
+            'Standard created successfully'
+          );
+        }, 400);
+      }
     }
   }
   constructor(
@@ -51,7 +55,8 @@ export class StandardCreateComponent implements OnInit {
     private router: Router,
     private readonly notification: NzNotificationService,
     private utilservice: UtilService,
-    private schoolService:SchoolService
+    private schoolService:SchoolService,
+    private readonly sticky: StickyNoticeService
   ) {}
 
   ngOnInit(): void {

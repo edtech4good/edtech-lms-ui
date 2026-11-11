@@ -11,6 +11,7 @@ import { NzTableModule } from 'ng-zorro-antd/table';
 import { NgxPermissionsService } from 'ngx-permissions';
 import { EMPTY, Subject, catchError, debounceTime, lastValueFrom, switchMap, tap } from 'rxjs';
 import { gatewayText } from 'src/app/interceptors/error.interceptor';
+import { StickyNoticeService } from 'src/app/shared/notices/sticky-notice.service';
 import { confirmDialog } from './confirm-dialog';
 import { OrganisationDrawerComponent } from './organisation-drawer.component';
 import { DEFAULT_TILE_COLOUR, NO_ACCESS_HEADING, NO_ACCESS_LINE, knownBranding, tileTextColour } from './organisation-form';
@@ -47,6 +48,7 @@ export class OrganisationListComponent {
   private readonly permissions = inject(NgxPermissionsService);
   private readonly modal = inject(NzModalService);
   private readonly notification = inject(NzNotificationService);
+  private readonly sticky = inject(StickyNoticeService);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly canCreate = !!this.permissions.getPermission('create_organisation');
@@ -195,11 +197,14 @@ export class OrganisationListComponent {
 
   onSaved(event: { organisation: Organisation; created: boolean }): void {
     this.drawerOpen.set(false);
-    this.notification.success(
-      event.created ? 'Organisation created' : 'Organisation saved',
-      event.organisation.organisationname,
-      { nzDuration: 6000 },
-    );
+    // A save whose push to the learning server failed leaves one warning that stays (central's own sentence), not the success.
+    if (event.created || !this.sticky.pushFailed(event.organisation.push)) {
+      this.notification.success(
+        event.created ? 'Organisation created' : 'Organisation saved',
+        event.organisation.organisationname,
+        { nzDuration: 6000 },
+      );
+    }
     if (event.created) {
       // Show it: it is listed by name, wherever that falls, so clear the search and start at page one.
       this.search.set('');

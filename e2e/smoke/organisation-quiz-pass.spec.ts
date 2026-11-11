@@ -20,7 +20,7 @@ let api: APIRequestContext;
 let page: Page;
 
 const LABEL = 'Learners must pass the quiz to finish a lesson';
-const HELP = "When on, a failed quiz can be retried as many times as needed. The lesson isn't complete until it is passed. Applies to learners after the next Sync Content.";
+const HELP = "When on, a failed quiz can be retried as many times as needed. The lesson isn't complete until it is passed. Applies to quizzes learners take after this is saved. Earlier results are not recalculated.";
 
 async function tokenOf(p: Page): Promise<string> {
   return p.evaluate(() => {
