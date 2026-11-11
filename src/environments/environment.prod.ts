@@ -9,5 +9,8 @@ export const environment = {
   REFRESH_PAYLOAD_KEY: 'your-production-refresh-payload-key-here',
   REFRESH_ALG_KEY: 'your-production-refresh-alg-key-here',
   REFRESH_HASH_KEY: 'your-production-refresh-hash-key-here',
+  // Which server holds this deployment's learners: 'online' or 'offline'. Picks the route of the learner page's Awards section
+  // (report/online/student-awards or report/student-awards) and the permission that shows it. Optional: a file without it means 'online'.
+  learningServer: 'online',
   GRAMMARLY_CLIENT_ID: 'your-production-grammarly-client-id-here',
 };

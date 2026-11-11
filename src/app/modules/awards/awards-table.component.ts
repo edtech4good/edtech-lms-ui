@@ -6,7 +6,10 @@ import { APPROXIMATE_HINT, StudentAward, nameOrDash } from './awards';
 
 /**
  * The awards of one learner as a plain table: a small badge with the level's order, the level, the curriculum (and, on the
- * report, the grade) and when it was earned. An approximate date reads "by <date>" with an "Approx." tag. Read-only.
+ * report, the grade) and when it was earned. An approximate date reads "by <date>" with an "Approx." tag; the tag holds visually hidden text so a screen reader reads
+ * "Approx. (the exact date was not recorded)", and the hover tooltip repeats it for a mouse. The tag is not a tab stop: the
+ * explanation is already in the page text (and the note under the table), so a focusable span would only be a stop that says nothing new.
+ * Read-only.
  */
 @Component({
   selector: 'app-awards-table',
@@ -53,9 +56,7 @@ import { APPROXIMATE_HINT, StudentAward, nameOrDash } from './awards';
                   data-testid="award-approx"
                   nz-tooltip
                   [nzTooltipTitle]="hint"
-                  tabindex="0"
-                  [attr.aria-label]="'Approx. ' + hint"
-                  >Approx.</span
+                  >Approx.<span class="visually-hidden"> (the exact date was not recorded)</span></span
                 >
               } @else {
                 {{ row.earnedat | date: 'd MMM y' }}
@@ -76,6 +77,18 @@ import { APPROXIMATE_HINT, StudentAward, nameOrDash } from './awards';
       .badge text {
         fill: var(--color-ink, #1b1b1b);
         font: 700 13px var(--font-body, sans-serif);
+      }
+      /* Read by a screen reader, not drawn: the tag says "Approx." and this says what it means. */
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+        border: 0;
       }
       .approx {
         margin-left: 6px;

@@ -1,13 +1,15 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input, OnChanges } from '@angular/core';
 import { ReportService } from 'src/app/services/report.service';
-import { EMPTY_MESSAGE, ERROR_MESSAGE, StudentAward, awardsRequest, awardsSummary, newestFirst } from './awards';
+import { EMPTY_MESSAGE, StudentAward, awardsErrorMessage, awardsRequest, awardsSummary, learnerAwardsOnline, newestFirst } from './awards';
 import { AwardsTableComponent } from './awards-table.component';
 
 /**
  * The "Awards" section of the learner page: what the learner has earned, newest first. Read-only; staff cannot grant or remove
- * an award. The page shows it only to a user who may see the level-progress report (the same permission the API asks for).
- * The learner is one of the caller's own, so central's offline route answers.
+ * an award. The deployment's `learningServer` setting (environment file; absent means online) picks the route, and the page
+ * gates the section on that route's permission (see awards.ts): online asks `report/online/student-awards` and needs
+ * view_online_report, offline asks `report/student-awards` and needs view_offline_report. A failure is the error state; it
+ * never falls back to the other route and never shows an empty list.
  */
 @Component({
   selector: 'app-learner-awards',
@@ -33,7 +35,7 @@ import { AwardsTableComponent } from './awards-table.component';
         }
         @default {
           <app-awards-table [rows]="rows"></app-awards-table>
-          <p class="note">Awards are earned automatically and are never removed. "Approx." means the exact date was not recorded.</p>
+          <p class="note" data-testid="awards-note">Awards are earned automatically and are never removed. "Approx." means the exact date was not recorded.</p>
         }
       }
     </section>
@@ -74,14 +76,14 @@ export class LearnerAwardsComponent implements OnChanges {
   rows: StudentAward[] = [];
   summary = '';
   readonly emptyMessage = EMPTY_MESSAGE;
-  readonly errorMessage = ERROR_MESSAGE;
+  errorMessage = awardsErrorMessage(null);
 
   constructor(private readonly reports: ReportService) {}
 
   ngOnChanges(): void {
     if (!this.studentid) return;
     this.state = 'loading';
-    this.reports.getStudentAwards(awardsRequest(this.studentid)).subscribe({
+    this.reports.getStudentAwards(awardsRequest(this.studentid), learnerAwardsOnline()).subscribe({
       next: (res: any) => {
         const rows: StudentAward[] = Array.isArray(res?.data?.data) ? res.data.data : [];
         this.rows = newestFirst(rows);
@@ -89,8 +91,9 @@ export class LearnerAwardsComponent implements OnChanges {
         this.summary = awardsSummary(Number(res?.data?.total ?? this.rows.length), approximate);
         this.state = this.rows.length === 0 ? 'empty' : 'ready';
       },
-      error: () => {
+      error: (err: any) => {
         this.rows = [];
+        this.errorMessage = awardsErrorMessage(err?.status);
         this.state = 'error';
       },
     });

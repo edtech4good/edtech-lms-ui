@@ -7,7 +7,7 @@ import { GradeService } from 'src/app/services/grade.service';
 import { ReportService } from 'src/app/services/report.service';
 import { SchoolService } from 'src/app/services/school.service';
 import { StudentService } from 'src/app/services/student.service';
-import { EMPTY_MESSAGE, ERROR_MESSAGE, StudentAward, awardsRequest, awardsSummary, newestFirst } from '../../awards/awards';
+import { EMPTY_MESSAGE, StudentAward, awardsErrorMessage, awardsRequest, awardsSummary, newestFirst } from '../../awards/awards';
 
 /**
  * The Awards report: which module awards one learner has earned, and when. The learner is picked the way the level-progress
@@ -26,7 +26,7 @@ export class StudentAwardsComponent implements OnInit {
   total = 0;
   summary = '';
   readonly emptyMessage = EMPTY_MESSAGE;
-  readonly errorMessage = ERROR_MESSAGE;
+  errorMessage = awardsErrorMessage(null);
 
   searchFields = { countryid: '', schoolname: '', studentid: '', gradeid: '' };
 
@@ -120,8 +120,9 @@ export class StudentAwardsComponent implements OnInit {
           this.summary = awardsSummary(this.total, this.rows.filter((r) => r.earnedat_approximate).length);
           this.state = this.rows.length === 0 ? 'empty' : 'ready';
         },
-        error: () => {
+        error: (err: any) => {
           this.rows = [];
+          this.errorMessage = awardsErrorMessage(err?.status);
           this.state = 'error';
         },
       });

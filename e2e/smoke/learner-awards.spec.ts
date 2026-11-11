@@ -5,7 +5,9 @@ import { API_URL, BASE_URL } from '../fixtures/env';
  * A learner's level awards, in a browser, with every answer from the API mocked (none is real, so it runs against any build served on
  * E2E_BASE_URL; E2E_ACCESS_KEYS is "algKey,payloadKey,hashKey" as in notice-placement.spec.ts). Any other host is refused.
  *
- *  - the learner page's "Awards" section: newest first, the "Approx." tag, a missing name shown as a dash, the empty state, the
+ *  - the learner page's "Awards" section (the build served here has no `learningServer` in its environment file, so it is an
+ *    ONLINE deployment: it asks the online route and needs view_online_report; the offline decision is unit-tested in
+ *    learner-awards-logic.spec.ts): newest first, the "Approx." tag, a missing name shown as a dash, the empty state, the
  *    error state (never an empty list), and nothing at all for a role without the report permission;
  *  - the Reports hub entry and the per-learner Awards report: gated the same way, the offline route by default and the online
  *    route for the online variant, with the Grade column.
@@ -126,27 +128,31 @@ const fence = (page: Page) => page.evaluate(() => new Promise<void>((done) => se
 test.describe('the learner page: Awards', () => {
   test('a. lists the awards newest first, with the Approx. tag on the one whose date is approximate', async ({ context }) => {
     const mock = newMock(() => answer(THREE));
-    const page = await learnerPage(context, ['view_offline_report'], mock);
+    const page = await learnerPage(context, ['view_online_report'], mock);
     const section = page.getByTestId('learner-awards');
     await expect(section.getByRole('heading', { name: 'Awards' })).toBeVisible();
     await expect(section.getByTestId('award-level')).toHaveText(['ម៉ូឌុល 3', 'ម៉ូឌុល 2', 'ម៉ូឌុល 1']);
     await expect(section.getByTestId('award-curriculum')).toHaveText(['Sustainable Design', 'Workplace Skills', 'Sustainable Design']);
     await expect(section.getByTestId('awards-summary')).toHaveText('3 earned · 1 with an approximate date');
-    await expect(section.getByTestId('award-earned')).toHaveText(['3 Oct 2026', '28 Sep 2026', 'by 12 Sep 2026 Approx.']);
+    await expect(section.getByTestId('awards-note')).toContainText('"Approx." means the exact date was not recorded');
+    await expect(section.getByTestId('award-earned')).toHaveText(['3 Oct 2026', '28 Sep 2026', 'by 12 Sep 2026 Approx. (the exact date was not recorded)']);
     const tag = section.getByTestId('award-approx');
     await expect(tag, 'one tag, on the oldest row').toHaveCount(1);
-    await expect(section.getByTestId('award-row').nth(2).getByTestId('award-approx')).toHaveText('Approx.');
-    await expect(tag).toHaveAttribute('aria-label', 'Approx. The exact date was not recorded');
+    await expect(section.getByTestId('award-row').nth(2).getByTestId('award-approx')).toHaveText('Approx. (the exact date was not recorded)');
+    // a screen reader reads the explanation: it is in the tag's text, drawn off-screen
+    await expect(tag).toHaveText('Approx. (the exact date was not recorded)');
+    await expect(tag.locator('.visually-hidden')).toHaveText('(the exact date was not recorded)');
+    expect(await tag.locator('.visually-hidden').evaluate((el) => el.getBoundingClientRect().width), 'not drawn').toBeLessThanOrEqual(1);
     await tag.hover();
     await expect(page.locator('.ant-tooltip-inner')).toHaveText('The exact date was not recorded');
     // it asked central's offline route for this learner, once
-    expect(mock.calls.map((c) => c.path)).toEqual([OFFLINE]);
+    expect(mock.calls.map((c) => c.path)).toEqual([ONLINE]);
     expect(mock.calls[0].body.filter).toEqual([{ key: 'studentid', value: STUDENT }]);
   });
 
   test('b. a level or curriculum with no readable name is shown as a dash', async ({ context }) => {
     const mock = newMock(() => answer([award(1, { levelname: null, curriculumname: null, gradename: null })]));
-    const page = await learnerPage(context, ['view_offline_report'], mock);
+    const page = await learnerPage(context, ['view_online_report'], mock);
     const section = page.getByTestId('learner-awards');
     await expect(section.getByTestId('award-level')).toHaveText('—');
     await expect(section.getByTestId('award-curriculum')).toHaveText('—');
@@ -156,14 +162,14 @@ test.describe('the learner page: Awards', () => {
 
   test('c. no awards: says so, with no table', async ({ context }) => {
     const mock = newMock(() => answer([]));
-    const page = await learnerPage(context, ['view_offline_report'], mock);
+    const page = await learnerPage(context, ['view_online_report'], mock);
     const section = page.getByTestId('learner-awards');
     await expect(section.getByTestId('awards-empty')).toHaveText('No awards yet.');
     await expect(section.getByTestId('awards-table')).toHaveCount(0);
     await expect(section.getByTestId('awards-error')).toHaveCount(0);
   });
 
-  test('d. a role without the report permission sees no Awards section and the page asks for none', async ({ context }) => {
+  test('d. a role without the online report permission sees no Awards section and the page asks for none', async ({ context }) => {
     const mock = newMock(() => answer(THREE));
     const page = await learnerPage(context, ['view_student'], mock);
     await fence(page);
@@ -171,15 +177,33 @@ test.describe('the learner page: Awards', () => {
     expect(mock.calls, 'no request for awards').toEqual([]);
   });
 
+  test('d. an online deployment: a role with only view_offline_report does not see the section either', async ({ context }) => {
+    const mock = newMock(() => answer(THREE));
+    const page = await learnerPage(context, ['view_offline_report'], mock);
+    await fence(page);
+    await expect(page.getByTestId('learner-awards')).toHaveCount(0);
+    expect(mock.calls, 'no request for awards').toEqual([]);
+  });
+
   test('f. an error from the API is the error state, not an empty list, and not a second message', async ({ context }) => {
     const mock = newMock(() => json(500, { error: true, errormessage: 'Something went wrong' }));
-    const page = await learnerPage(context, ['view_offline_report'], mock);
+    const page = await learnerPage(context, ['view_online_report'], mock);
     const section = page.getByTestId('learner-awards');
     await expect(section.getByTestId('awards-error')).toHaveText('Awards could not be loaded. Try again in a moment.');
     await expect(section.getByTestId('awards-empty')).toHaveCount(0);
     await expect(section.getByTestId('awards-table')).toHaveCount(0);
     await fence(page);
     expect(await page.locator('.ant-notification-notice').count(), 'the page says it once; the interceptor stays quiet').toBe(0);
+    expect(mock.calls.map((c) => c.path), 'an online failure is not retried on the offline route').toEqual([ONLINE]);
+  });
+
+  test('f. a 403 says the role may not see awards, not "try again"', async ({ context }) => {
+    const mock = newMock(() => json(403, { error: true, errormessage: 'Forbidden' }));
+    const page = await learnerPage(context, ['view_online_report'], mock);
+    const section = page.getByTestId('learner-awards');
+    await expect(section.getByTestId('awards-error')).toHaveText("You don't have permission to see awards.");
+    await expect(section.getByTestId('awards-empty')).toHaveCount(0);
+    expect(mock.calls.map((c) => c.path)).toEqual([ONLINE]);
   });
 });
 
@@ -225,6 +249,8 @@ test.describe('the Reports hub and the Awards report', () => {
     await expect(page.getByTestId('award-level')).toHaveText(['ម៉ូឌុល 3', 'ម៉ូឌុល 2', 'ម៉ូឌុល 1']);
     await expect(page.getByTestId('award-grade')).toHaveText(['ថ្នាក់ទី ១', 'ថ្នាក់ទី ១', 'ថ្នាក់ទី ១']);
     await expect(page.getByTestId('award-approx')).toHaveCount(1);
+    await expect(page.getByTestId('award-approx')).toHaveText('Approx. (the exact date was not recorded)');
+    await expect(page.getByTestId('awards-note')).toContainText('"Approx." means the exact date was not recorded');
     expect(mock.calls.map((c) => c.path)).toEqual([OFFLINE]);
     expect(mock.calls[0].body.filter).toEqual([{ key: 'studentid', value: STUDENT }]);
   });
