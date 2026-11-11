@@ -1103,3 +1103,23 @@ test.describe('Add learner drawer: the grade', () => {
     expect(mock.created).toEqual([]);
   });
 });
+
+test.describe('Add learner drawer: a refusal on both the grade and the curriculum', () => {
+  test('both fields show their own message, each under its own field, and nothing is a toast', async ({ context }) => {
+    const mock = newMock();
+    const CURRICULUM_SAYS = 'Publish Reading Basics first, or choose another curriculum.';
+    mock.grades['cur-1'] = [grade('cur-1', 1), grade('cur-1', 2)];
+    mock.createAnswer = () => invalid([{ field: 'curriculumids', message: CURRICULUM_SAYS }, { field: 'gradeid', message: GRADE_MESSAGE }]);
+    const page = await openLearners(context, mock);
+    await openDrawer(page);
+    await fillAllButCurriculum(page);
+    await pickCurricula(page, 'Reading Basics');
+    await page.locator('#add-learner-grade .ant-select-selector').click();
+    await page.locator('.ant-select-item-option', { hasText: 'Grade 1' }).click();
+    await addButton(page).click();
+    await expect(errorOf(page, '#add-learner-curricula')).toHaveText(CURRICULUM_SAYS);
+    await expect(page.getByTestId('grade-error')).toHaveText(GRADE_MESSAGE);
+    expect(await toasts(page).count(), 'a validation failure is not a toast').toBe(0);
+    await expect(drawer(page)).toBeVisible();
+  });
+});

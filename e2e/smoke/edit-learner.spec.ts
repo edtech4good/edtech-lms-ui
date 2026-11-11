@@ -952,3 +952,21 @@ test.describe('Edit details: the grade', () => {
     expect(mock.requests).toEqual([]);
   });
 });
+
+test.describe('Edit details: a refusal on both the grade and the curriculum', () => {
+  test('both fields show their own message, each under its own field, and nothing is a toast', async ({ context }) => {
+    const mock = newMock();
+    const CURRICULUM_SAYS = 'Publish Number Skills first, or choose another curriculum.';
+    const GRADE_SAYS = 'Choose a grade for this student.';
+    mock.grades['cur-1'] = [grade('cur-1', 1), grade('cur-1', 2)];
+    mock.details['lu-1'] = details(1, 'dara1', 'Dara', { curriculumid: 'cur-1', gradeid: 'gr-cur-1-1' });
+    mock.put = () => json(400, { error: true, code: 'INVALID_INPUT', errormessage: 'Check the highlighted fields.', fields: [{ field: 'curriculumids', message: CURRICULUM_SAYS }, { field: 'gradeid', message: GRADE_SAYS }] });
+    const page = await openLearners(context, mock);
+    await openEdit(page, 'dara1');
+    await first(page).fill('Dara Two');
+    await save(page).click();
+    await expect(errorOf(page, '#edit-learner-curricula')).toHaveText(CURRICULUM_SAYS);
+    await expect(page.getByTestId('grade-error')).toHaveText(GRADE_SAYS);
+    expect(await toasts(page).count(), 'a validation failure is not a toast').toBe(0);
+  });
+});

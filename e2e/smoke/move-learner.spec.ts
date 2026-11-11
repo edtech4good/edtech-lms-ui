@@ -927,3 +927,21 @@ test.describe('Move to another school: the grade', () => {
     expect(mock.requests).toEqual([]);
   });
 });
+
+test.describe('Move to another school: a refusal on both the grade and the curriculum', () => {
+  test('both fields show their own message, each under its own field, and nothing is a toast', async ({ context }) => {
+    const mock = newMock();
+    const CURRICULUM_SAYS = 'Publish Reading Basics first, or choose another curriculum.';
+    const GRADE_SAYS = 'Choose a grade for this student.';
+    mock.learners['lu-1'] = learner(1, 'dara1', 'Dara', { curriculumid: 'cur-1', gradeid: 'gr-cur-1-2' });
+    mock.grades['cur-1'] = [grade('cur-1', 1), grade('cur-1', 2)];
+    mock.put = () => json(400, { error: true, code: 'INVALID_INPUT', errormessage: 'Check the highlighted fields.', fields: [{ field: 'curriculumids', message: CURRICULUM_SAYS }, { field: 'gradeid', message: GRADE_SAYS }] });
+    const page = await openLearners(context, mock);
+    await openMove(page);
+    await fill(page, 'Lakeside School', 'Class 6B');
+    await move(page).click();
+    await expect(errorOf(page, '#move-learner-curricula')).toHaveText(CURRICULUM_SAYS);
+    await expect(page.getByTestId('grade-error')).toHaveText(GRADE_SAYS);
+    expect(await toasts(page).count(), 'a validation failure is not a toast').toBe(0);
+  });
+});
