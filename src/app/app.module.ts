@@ -9,6 +9,7 @@ import { JwtModule, JWT_OPTIONS } from '@auth0/angular-jwt';
 import { EffectsModule } from '@ngrx/effects';
 import { StoreModule } from '@ngrx/store';
 import { StoreDevtoolsModule } from '@ngrx/store-devtools';
+import { NzConfig, NZ_CONFIG } from 'ng-zorro-antd/core/config';
 import { en_US, NZ_I18N } from 'ng-zorro-antd/i18n';
 import { NzLayoutModule } from 'ng-zorro-antd/layout';
 import { NzMenuModule } from 'ng-zorro-antd/menu';
@@ -36,6 +37,9 @@ export const jwtoptionsfactory = (
   skipWhenExpired: true,
   allowedDomains: [core.COREDOMAIN()],
 });
+/** Every admin notice sits at the bottom left, app-wide, so none covers the Create and Sync buttons at the top right of a list. No call sets its own placement. */
+const NOTICE_CONFIG: NzConfig = { notification: { nzPlacement: 'bottomLeft' } };
+
 @NgModule({ declarations: [AppComponent, PageNotFoundComponent, UnAuthorizedComponent],
     bootstrap: [AppComponent],
     schemas: [CUSTOM_ELEMENTS_SCHEMA], imports: [BrowserModule,
@@ -70,5 +74,5 @@ export const jwtoptionsfactory = (
                 connectInZone: true
             })
             : [],
-        NgxPermissionsModule.forRoot()], providers: [{ provide: NZ_I18N, useValue: en_US }, provideHttpClient(withInterceptorsFromDi())] })
+        NgxPermissionsModule.forRoot()], providers: [{ provide: NZ_I18N, useValue: en_US }, { provide: NZ_CONFIG, useValue: NOTICE_CONFIG }, provideHttpClient(withInterceptorsFromDi())] })
 export class AppModule {}

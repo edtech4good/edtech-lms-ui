@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, TemplateRef, ViewChild, inject } from '@angular/core';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
 import { catchError, first, map } from 'rxjs/operators';
@@ -12,6 +12,8 @@ import { StudentService } from 'src/app/services/student.service';
 import { TeacherService } from 'src/app/services/teacher.service';
 import { organisationOf, withOrganisationFilter } from 'src/app/shared/owner/owner-view';
 import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
+import { asksForSyncContent } from 'src/app/shared/notices/notice-rules';
+import { SYNC_REFUSED_NOTICE_KEY, StickyNoticeService, pushOf } from 'src/app/shared/notices/sticky-notice.service';
 
 /** What a refused sync says when central sent no words of its own. */
 export const SYNC_REFUSED_MESSAGE = 'The sync was refused.';
@@ -89,19 +91,25 @@ export class SchoolIndexComponent implements OnInit {
     });
   }
 
+  /** The body of the sync notice that carries the link to the Curriculum list. */
+  @ViewChild('syncRefusedWithLink', { static: true }) syncRefusedWithLink!: TemplateRef<any>;
+
   deletetag = async (schoolid: string) => {
-    await this.schoolService.delete(schoolid).pipe(first()).toPromise();
+    const answer = await this.schoolService.delete(schoolid).pipe(first()).toPromise();
     this.loadDataFromServer({
       filter: [...this.filter],
       pageindex: this.pageIndex,
       pagesize: this.pageSize,
     });
     await this.schoolContributeService.deleteSchoolContribute(schoolid).pipe(first()).toPromise();
-    this.notification.create(
-      'success',
-      'Success',
-      'School deleted sucessfully'
-    );
+    // A delete central saved but could not send to the learning server leaves a warning that stays, not the success.
+    if (!this.sticky.pushFailed(pushOf(answer))) {
+      this.notification.create(
+        'success',
+        'Success',
+        'School deleted sucessfully'
+      );
+    }
   };
 
   constructor(
@@ -111,7 +119,8 @@ export class SchoolIndexComponent implements OnInit {
     private readonly teacherService: TeacherService,
     private readonly countryService: CountryService,
     private readonly curriculumService: CurriculumService,
-    private readonly schoolContributeService: SchoolContributeService
+    private readonly schoolContributeService: SchoolContributeService,
+    private readonly sticky: StickyNoticeService
   ) {}
 
   ngOnInit(): void {
@@ -187,13 +196,20 @@ export class SchoolIndexComponent implements OnInit {
 
   /**
    * Central answers a sync it cannot send with a 409 and says what to do first (the learning server lacks the school, a class
-   * or a curriculum). Shown as it is, and kept until closed, because the person has to act on it. The error interceptor says
-   * nothing for a 409, so this is the only notice; every other refusal is the interceptor's, as before.
+   * or a curriculum). Shown as it is, and kept until closed or the route changes, because the person has to act on it; it is
+   * one notice however often the sync is pressed. When the next step is Sync Content it carries a link to the Curriculum list,
+   * where that button is. The error interceptor says nothing for a 409, so this is the only notice; every other refusal is
+   * the interceptor's, as before.
    */
   private syncRefused(error: HttpErrorResponse): void {
     if (error?.status !== 409) return;
     const said = error.error?.errormessage;
-    this.notification.create('error', 'Error', typeof said === 'string' && said.trim() ? said : SYNC_REFUSED_MESSAGE, { nzDuration: 0 });
+    const message = typeof said === 'string' && said.trim() ? said : SYNC_REFUSED_MESSAGE;
+    if (asksForSyncContent(message)) {
+      this.sticky.show('error', 'Error', this.syncRefusedWithLink, SYNC_REFUSED_NOTICE_KEY, { message });
+    } else {
+      this.sticky.show('error', 'Error', message, SYNC_REFUSED_NOTICE_KEY);
+    }
   }
 
   reset(): void {

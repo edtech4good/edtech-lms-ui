@@ -64,6 +64,11 @@ interface Mock {
   createAnswer: () => ReturnType<typeof json>;
   created: Array<Record<string, unknown>>;
   listCalls: number;
+  /** `publicationstatus` of a curriculum by id on `school/:id/curriculums`; any other is published. */
+  publication: Record<string, string>;
+  publicationReads: string[];
+  /** Leaves `publicationstatus` off the curriculum rows (the pickers then offer everything: central still refuses an unpublished one). */
+  statusMissing: boolean;
   unmocked: string[];
   /** curriculumid → its grades; a curriculum not listed has one. */
   grades: Record<string, MockGrade[]>;
@@ -81,6 +86,9 @@ function newMock(): Mock {
     createAnswer: () => json(201, { schooluserid: 'su-1', schoolusername: 'sokha1', studentname: FULL, push: { status: 'pushed', message: 'ok' } }),
     created: [],
     listCalls: 0,
+    publication: {},
+    publicationReads: [],
+    statusMissing: false,
     unmocked: [],
     grades: {},
     gradeReads: [],
@@ -118,6 +126,10 @@ async function openLearners(
   return page;
 }
 
+/** The rows of `GET school/:schoolid/curriculums`: each carries its `publicationstatus`. */
+const annotate = (mock: Mock, rows: Array<Record<string, any>>) =>
+  rows.map((c) => (mock.statusMissing ? c : { ...c, publicationstatus: mock.publication[c.curriculumid] ?? 'published' }));
+
 async function answer(route: Route, mock: Mock): Promise<void> {
   const request = route.request();
   const url = new URL(request.url());
@@ -144,7 +156,14 @@ async function answer(route: Route, mock: Mock): Promise<void> {
   const standards = path.match(/^standard\/school\/(.+)$/);
   if (method === 'GET' && standards) return route.fulfill(json(200, { data: CLASSES[standards[1]] ?? [] }));
   const curricula = path.match(/^school\/(.+)\/curriculums$/);
-  if (method === 'GET' && curricula) return route.fulfill(json(200, { data: CURRICULA[curricula[1]] ?? [] }));
+  if (method === 'GET' && curricula) return route.fulfill(json(200, { data: annotate(mock, CURRICULA[curricula[1]] ?? []) }));
+  // Each curriculum's publication state (the pickers offer only published ones).
+  const publication = /^curriculum\/publication\/([^/]+)$/.exec(path);
+  if (method === 'GET' && publication) {
+    // The state comes on the curriculum rows; a request to this route is a regression, and is recorded.
+    mock.publicationReads.push(publication[1]);
+    return route.fulfill(json(404, { error: true }));
+  }
   const gradesOf = /^grade\/curriculum\/(.+)$/.exec(path);
   if (method === 'GET' && gradesOf) {
     mock.gradeReads.push(gradesOf[1]);
@@ -903,6 +922,64 @@ test.describe('Add learner drawer', () => {
   });
 });
 
+test.describe('only published curricula are offered', () => {
+  const offered = (page: Page) => page.locator('.ant-select-item-option').allTextContents().then((t) => t.map((x) => x.trim()));
+
+  async function openCurricula(page: Page): Promise<void> {
+    await openDrawer(page);
+    await choose(page, 'add-learner-school-input', 'North Valley School');
+    await expect(page.locator('#add-learner-curricula')).toBeVisible();
+    await page.locator('#add-learner-curricula .ant-select-selector').click();
+  }
+
+  test('a curriculum never published is not offered', async ({ context }) => {
+    const mock = newMock();
+    mock.publication = { 'cur-2': 'never' };
+    const page = await openLearners(context, mock);
+    await openCurricula(page);
+    await expect.poll(() => offered(page)).toEqual(['Reading Basics']);
+    expect(mock.publicationReads, 'the state comes on the curriculum rows: no per-curriculum request').toEqual([]);
+  });
+
+  test('a curriculum retired is not offered', async ({ context }) => {
+    const mock = newMock();
+    mock.publication = { 'cur-1': 'withdrawn' };
+    const page = await openLearners(context, mock);
+    await openCurricula(page);
+    await expect.poll(() => offered(page)).toEqual(['Number Skills']);
+  });
+
+  test('published curricula are all offered', async ({ context }) => {
+    const mock = newMock();
+    const page = await openLearners(context, mock);
+    await openCurricula(page);
+    await expect.poll(() => offered(page)).toEqual(['Reading Basics', 'Number Skills']);
+  });
+
+  test('curricula that carry no state are all offered, and nothing is said', async ({ context }) => {
+    const mock = newMock();
+    mock.statusMissing = true;
+    const page = await openLearners(context, mock);
+    await openCurricula(page);
+    await expect.poll(() => offered(page)).toEqual(['Reading Basics', 'Number Skills']);
+    await page.waitForTimeout(500);
+    expect(await toasts(page).count(), 'no state is not a toast').toBe(0);
+  });
+
+  test("central's 400 on curriculumids is shown under the Curriculum field, in its own words", async ({ context }) => {
+    const mock = newMock();
+    const SAYS = 'Publish Reading Basics first, or choose another curriculum.';
+    mock.createAnswer = () => invalid([{ field: 'curriculumids', message: SAYS }]);
+    const page = await openLearners(context, mock);
+    await openDrawer(page);
+    await fillRequired(page);
+    await page.getByRole('button', { name: 'Add learner', exact: true }).click();
+    await expect(errorOf(page, '#add-learner-curricula')).toHaveText(SAYS);
+    expect(await toasts(page).count(), 'a validation failure is not a toast').toBe(0);
+    await expect(drawer(page)).toBeVisible();
+  });
+});
+
 const GRADE_MESSAGE = 'Choose a grade for this student.';
 const NO_GRADE_MESSAGE = "This curriculum has no grade yet, so a learner can't be put in it.";
 const gradeSelect = (page: Page) => page.locator('#add-learner-grade');
@@ -1024,5 +1101,48 @@ test.describe('Add learner drawer: the grade', () => {
     await addButton(page).click();
     await expect(page.getByTestId('grade-error')).toHaveText(GRADE_MESSAGE);
     expect(mock.created).toEqual([]);
+  });
+});
+
+test.describe('Add learner drawer: a refusal on both the grade and the curriculum', () => {
+  test('both fields show their own message, each under its own field, and nothing is a toast', async ({ context }) => {
+    const mock = newMock();
+    const CURRICULUM_SAYS = 'Publish Reading Basics first, or choose another curriculum.';
+    mock.grades['cur-1'] = [grade('cur-1', 1), grade('cur-1', 2)];
+    mock.createAnswer = () => invalid([{ field: 'curriculumids', message: CURRICULUM_SAYS }, { field: 'gradeid', message: GRADE_MESSAGE }]);
+    const page = await openLearners(context, mock);
+    await openDrawer(page);
+    await fillAllButCurriculum(page);
+    await pickCurricula(page, 'Reading Basics');
+    await page.locator('#add-learner-grade .ant-select-selector').click();
+    await page.locator('.ant-select-item-option', { hasText: 'Grade 1' }).click();
+    await addButton(page).click();
+    await expect(errorOf(page, '#add-learner-curricula')).toHaveText(CURRICULUM_SAYS);
+    await expect(page.getByTestId('grade-error')).toHaveText(GRADE_MESSAGE);
+    expect(await toasts(page).count(), 'a validation failure is not a toast').toBe(0);
+    await expect(drawer(page)).toBeVisible();
+  });
+});
+
+test.describe('Add learner drawer: a notice raised while it is open', () => {
+  test('sits at the bottom left and does not cover the drawer\'s buttons', async ({ context }) => {
+    const mock = newMock();
+    mock.createAnswer = () => json(500, { error: true, errormessage: 'The server could not save this learner. Try again in a moment.' });
+    const page = await openLearners(context, mock);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openDrawer(page);
+    await fillRequired(page);
+    await page.getByRole('button', { name: 'Add learner', exact: true }).click();
+    const notice = page.locator('.ant-notification-bottomLeft .ant-notification-notice');
+    await expect(notice).toBeVisible();
+    await expect(drawer(page)).toBeVisible();
+    await page.mouse.move(700, 100);
+    await page.waitForTimeout(1000);
+    const n = (await notice.boundingBox())!;
+    for (const name of ['Add learner', 'Cancel']) {
+      const b = (await page.getByRole('button', { name, exact: true }).boundingBox())!;
+      const overlap = n.x < b.x + b.width && n.x + n.width > b.x && n.y < b.y + b.height && n.y + n.height > b.y;
+      expect(overlap, `the notice is not over ${name}`).toBe(false);
+    }
   });
 });

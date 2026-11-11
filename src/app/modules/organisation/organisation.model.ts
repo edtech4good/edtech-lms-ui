@@ -1,5 +1,7 @@
 /** What the organisation routes return (edtech-lms-api, src/modules/organisation/models). */
 
+import type { PushOutcome } from 'src/app/shared/publication/publication.model';
+
 export type OrganisationPreset = 'company' | 'schoolnetwork';
 
 export interface OrganisationCountry {
@@ -28,6 +30,8 @@ export interface Organisation {
   /** Only on one organisation read by id (the list does not carry it): a failed lesson quiz earns no points while it is on. */
   requireLessonQuizPass?: boolean;
   countries: OrganisationCountry[];
+  /** Only on the answer to a save: how sending the organisation's set to the learning server went (the quiz-pass switch is read there). */
+  push?: PushOutcome;
 }
 
 export interface OrganisationPage {

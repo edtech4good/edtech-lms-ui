@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
 import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -8,6 +9,8 @@ import { CountryService } from 'src/app/services/country.service';
 import { CurriculumService } from 'src/app/services/curriculum.service';
 import { SchoolService } from 'src/app/services/school.service';
 import { UtilService } from 'src/app/services/util.service';
+import { StickyNoticeService, pushOf } from 'src/app/shared/notices/sticky-notice.service';
+import { schoolFormFailure } from '../school-form-failure';
 
 @Component({
     selector: 'app-school-create',
@@ -22,17 +25,28 @@ export class SchoolCreateComponent implements OnInit {
   valid = true;
   selectedSchool = true;
   curriculums$?: Observable<any>;
+  /** Central's refusal of the name (a school held it before), shown under the field until the name is changed. */
+  nameError: string | null = null;
   async submitcreateForm() {
     this.utilservice.checkFormDirty(this.createForm);
     if (this.createForm.valid && this.valid) {
-      await this.dts
-        .create(
-          this.createForm.getRawValue()['schoolname'],
-          this.createForm.getRawValue()['countryid'],
-          this.createForm.getRawValue()['curriculums']
-        )
-        .pipe(first())
-        .toPromise();
+      let answer: unknown;
+      try {
+        answer = await this.dts
+          .create(
+            this.createForm.getRawValue()['schoolname'],
+            this.createForm.getRawValue()['countryid'],
+            this.createForm.getRawValue()['curriculums']
+          )
+          .pipe(first())
+          .toPromise();
+      } catch (e) {
+        this.refused(e as HttpErrorResponse);
+        return;
+      }
+      // Go to the list first: a notice that stays is closed by the route change, so it is raised on the list.
+      await this.router.navigate(['school/index']);
+      if (!this.sticky.pushFailed(pushOf(answer))) {
         setTimeout(() => {
           this.notification.create(
             'success',
@@ -40,12 +54,18 @@ export class SchoolCreateComponent implements OnInit {
             'School created sucessfully'
           );
         }, 400);
-      this.router.navigate(['school/index']);
+      }
     } else {
       if (this.createForm.get('schoolname')?.value !== null) {
         this.notification.create('error', 'error', 'Invalid Input');
       }
     }
+  }
+
+  private refused(error: HttpErrorResponse): void {
+    const failure = schoolFormFailure(error);
+    this.nameError = failure.nameError ?? null;
+    if (failure.notice) this.notification.create('error', 'Error', failure.notice.text, failure.notice.key ? { nzKey: failure.notice.key } : undefined);
   }
   constructor(
     private fb: UntypedFormBuilder,
@@ -54,7 +74,8 @@ export class SchoolCreateComponent implements OnInit {
     private readonly notification: NzNotificationService,
     private utilservice: UtilService,
     private readonly countryService: CountryService,
-    private readonly curriculumService: CurriculumService
+    private readonly curriculumService: CurriculumService,
+    private readonly sticky: StickyNoticeService
   ) {}
 
   ngOnInit(): void {
@@ -78,6 +99,7 @@ export class SchoolCreateComponent implements OnInit {
     }, 400);
   }
   restrictSpecialCharecter() {
+    this.nameError = null;
     const scholname = this.createForm.get('schoolname')?.value;
     var format = /[`!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~]/;
     // console.log('sc name is', scholname);

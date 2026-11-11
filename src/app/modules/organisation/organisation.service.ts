@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { FIELD_ERRORS_INLINE, FORBIDDEN_HANDLED, GATEWAY_HANDLED, NOT_FOUND_HANDLED } from 'src/app/interceptors/error-context';
 import { CoreService } from 'src/app/services/core.service';
+import { pushOf } from 'src/app/shared/notices/sticky-notice.service';
 import {
   Country,
   Organisation,
@@ -70,7 +71,11 @@ export class OrganisationService {
         // reactivate (a toast with the API's words). So no gateway toast from the interceptor as well.
         context: new HttpContext().set(FIELD_ERRORS_INLINE, true).set(GATEWAY_HANDLED, true),
       })
-      .pipe(map((r) => r.data));
+      // The answer carries `push` beside `data` (only when the quiz-pass switch was sent): how sending the set went. Kept on the organisation.
+      .pipe(map((r) => {
+        const push = pushOf(r);
+        return push ? { ...r.data, push } : r.data;
+      }));
   }
 
   delete(organisationid: string): Observable<unknown> {

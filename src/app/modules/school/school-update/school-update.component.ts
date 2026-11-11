@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
 import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -9,6 +10,8 @@ import { CurriculumService } from 'src/app/services/curriculum.service';
 import { SchoolContributeService } from 'src/app/services/school-contribute.service';
 import { SchoolService } from 'src/app/services/school.service';
 import { UtilService } from 'src/app/services/util.service';
+import { StickyNoticeService, pushOf } from 'src/app/shared/notices/sticky-notice.service';
+import { schoolFormFailure } from '../school-form-failure';
 
 @Component({
     selector: 'app-school-update',
@@ -26,19 +29,28 @@ export class SchoolUpdateComponent implements OnInit {
   selectedSchool = true;
   schoolcontribute: any;
 
+  /** Central's refusal of the name (a school held it before), shown under the field until the name is changed. */
+  nameError: string | null = null;
+
   async submiteditForm() {
     this.utilservice.checkFormDirty(this.editForm);
     if (this.editForm.valid && this.valid) {
-      await this.dts
-        .update({
-          schoolname: this.editForm.getRawValue()['schoolname'],
-          countryid: this.editForm.getRawValue()['countryid'],
-          curriculums: this.editForm.getRawValue()['curriculums'],
-          uitheme: this.editForm.getRawValue()['uitheme'],
-          schoolid: this.school.schoolid
-        })
-        .pipe(first())
-        .toPromise();
+      let answer: unknown;
+      try {
+        answer = await this.dts
+          .update({
+            schoolname: this.editForm.getRawValue()['schoolname'],
+            countryid: this.editForm.getRawValue()['countryid'],
+            curriculums: this.editForm.getRawValue()['curriculums'],
+            uitheme: this.editForm.getRawValue()['uitheme'],
+            schoolid: this.school.schoolid
+          })
+          .pipe(first())
+          .toPromise();
+      } catch (e) {
+        this.refused(e as HttpErrorResponse);
+        return;
+      }
         if(this.schoolcontribute.length > 0 && this.schoolcontribute !== ''){
           this.schoolcontributeService
           .updateSchoolName({
@@ -49,12 +61,15 @@ export class SchoolUpdateComponent implements OnInit {
           .pipe(first())
           .toPromise();
         }
-      this.notification.create(
-        'success',
-        'Success',
-        'School updated successfully'
-      );
-      this.router.navigate(['school/index']);
+      // Go to the list first: a notice that stays is closed by the route change, so it is raised on the list.
+      await this.router.navigate(['school/index']);
+      if (!this.sticky.pushFailed(pushOf(answer))) {
+        this.notification.create(
+          'success',
+          'Success',
+          'School updated successfully'
+        );
+      }
     } else {
       if(this.editForm.get('schoolname')?.value !== null){
       this.notification.create(
@@ -65,6 +80,12 @@ export class SchoolUpdateComponent implements OnInit {
     }
     }
   }
+  private refused(error: HttpErrorResponse): void {
+    const failure = schoolFormFailure(error);
+    this.nameError = failure.nameError ?? null;
+    if (failure.notice) this.notification.create('error', 'Error', failure.notice.text, failure.notice.key ? { nzKey: failure.notice.key } : undefined);
+  }
+
   constructor(
     private fb: UntypedFormBuilder,
     private dts: SchoolService,
@@ -74,7 +95,8 @@ export class SchoolUpdateComponent implements OnInit {
     private utilservice: UtilService,
     private readonly countryService: CountryService,
     private readonly curriculumService: CurriculumService,
-    private readonly schoolcontributeService: SchoolContributeService
+    private readonly schoolcontributeService: SchoolContributeService,
+    private readonly sticky: StickyNoticeService
   ) {}
 
   ngOnInit(): void {
@@ -163,6 +185,7 @@ export class SchoolUpdateComponent implements OnInit {
       );
   }
   restrictSpecialCharecter(){
+    this.nameError = null;
     const scholname=this.editForm.get('schoolname')?.value;
     var format = /[`!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~]/;
     // console.log('sc name is',scholname)

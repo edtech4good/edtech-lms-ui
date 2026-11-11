@@ -12,6 +12,7 @@ import { organisationOf, withOrganisationFilter } from 'src/app/shared/owner/own
 import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
 import { NOT_FOUND_MESSAGE, NOT_FOUND_TOAST_KEY } from 'src/app/interceptors/error.interceptor';
 import { classDeleteRefusalText } from './standard-delete-refusal';
+import { StickyNoticeService, pushOf } from 'src/app/shared/notices/sticky-notice.service';
 
 @Component({
     selector: 'app-standard-index',
@@ -87,8 +88,9 @@ export class StandardIndexComponent implements OnInit {
   }
 
   deletetag = async (standardid: string) => {
+    let answer: unknown;
     try {
-      await this.standardService.delete(standardid).pipe(first()).toPromise();
+      answer = await this.standardService.delete(standardid).pipe(first()).toPromise();
     } catch (e) {
       // The delete request opts out of the interceptor's 400, 403 and 404 notices, so each is said here, once. Any
       // other failure (500, 429, the gateway, no connection) is still the interceptor's.
@@ -111,17 +113,21 @@ export class StandardIndexComponent implements OnInit {
       pageindex: this.pageIndex,
       pagesize: this.pageSize,
     });
-    this.notification.create(
-      'success',
-      'Success',
-      'Standard deleted sucessfully'
-    );
+    // A delete central saved but could not send to the learning server leaves a warning that stays, not the success.
+    if (!this.sticky.pushFailed(pushOf(answer))) {
+      this.notification.create(
+        'success',
+        'Success',
+        'Standard deleted sucessfully'
+      );
+    }
   };
 
   constructor(
     private readonly standardService: StandardService,
     private readonly notification: NzNotificationService,
     private readonly schoolService: SchoolService,
+    private readonly sticky: StickyNoticeService,
   ) {}
 
   ngOnInit(): void {

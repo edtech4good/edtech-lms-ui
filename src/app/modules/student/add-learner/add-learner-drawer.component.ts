@@ -367,7 +367,7 @@ export class AddLearnerDrawerComponent {
         done();
       },
     });
-    this.schoolService.getCurriculums(schoolid).subscribe({
+    this.schoolService.getPublishedCurriculums(schoolid).subscribe({
       next: (answer: any) => {
         if (read !== this.placementRead) return;
         // The route marks no deleted curriculum; a deleted one comes back without a name, so a missing name drops it.

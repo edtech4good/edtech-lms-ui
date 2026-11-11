@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { splitCurricula } from 'src/app/shared/publication/published-curricula';
 import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, input, output, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -94,6 +95,9 @@ export class EditLearnerDrawerComponent {
 
   readonly standards = signal<Option[]>([]);
   readonly curricula = signal<Option[]>([]);
+  /** Curricula the learner already has that are no longer published: shown while chosen, never offered as a new pick. */
+  private readonly heldUnpublished = signal<Option[]>([]);
+  private readonly curriculaShown = computed(() => [...this.curricula(), ...this.heldUnpublished().filter((o) => this.curriculumIds().includes(o.value))]);
   readonly placementState = signal<LoadState>('idle');
 
   readonly submitting = signal(false);
@@ -128,9 +132,9 @@ export class EditLearnerDrawerComponent {
   });
   private readonly placementReady = computed(() => this.placementState() === 'ready');
   readonly classOptions = computed(() => (this.placementReady() ? withUnavailable(this.standards(), [this.standardId()]) : this.standards()));
-  readonly curriculumOptions = computed(() => (this.placementReady() ? withUnavailable(this.curricula(), this.curriculumIds()) : this.curricula()));
+  readonly curriculumOptions = computed(() => (this.placementReady() ? withUnavailable(this.curriculaShown(), this.curriculumIds()) : this.curriculaShown()));
   readonly classGone = computed(() => this.placementReady() && unavailableOf(this.standards(), [this.standardId()]).length > 0);
-  readonly curriculaGone = computed(() => this.placementReady() && unavailableOf(this.curricula(), this.curriculumIds()).length > 0);
+  readonly curriculaGone = computed(() => this.placementReady() && unavailableOf(this.curriculaShown(), this.curriculumIds()).length > 0);
   readonly canSave = computed(
     () => this.loadState() === 'ready' && this.placementReady() && this.changed() && !this.classGone() && !this.curriculaGone() && !this.submitting(),
   );
@@ -217,6 +221,7 @@ export class EditLearnerDrawerComponent {
     this.gradeState.set(IDLE_GRADE_STATE);
     this.standards.set([]);
     this.curricula.set([]);
+    this.heldUnpublished.set([]);
     this.placementState.set('idle');
     this.submitting.set(false);
     this.submitted.set(false);
@@ -275,15 +280,14 @@ export class EditLearnerDrawerComponent {
         finish();
       },
     });
-    this.schoolService.getCurriculums(schoolid).subscribe({
+    this.schoolService.getCurriculumsWithState(schoolid).subscribe({
       next: (answer: any) => {
         if (session !== this.session) return;
         // The route marks no deleted curriculum; a deleted one comes back without a name, so a missing name drops it.
-        this.curricula.set(
-          ((answer?.data as any[]) ?? [])
-            .filter((c) => c && !c.isdeleted && typeof c.curriculumname === 'string' && c.curriculumname.trim() !== '')
-            .map((c) => ({ label: c.curriculumname, value: c.curriculumid })),
-        );
+        // New picks are the published ones; a curriculum the learner already has stays, labelled "(retired)" when it was retired.
+        const split = splitCurricula(((answer?.data as any[]) ?? []), this.details()?.curriculumids ?? []);
+        this.curricula.set(split.offered);
+        this.heldUnpublished.set(split.held);
         finish();
       },
       error: () => {
