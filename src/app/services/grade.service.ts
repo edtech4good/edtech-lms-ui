@@ -1,7 +1,14 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { IPaging } from 'src/app/models/IPaging';
+import { FAILURES_SHOWN_BY_CALLER } from 'src/app/interceptors/error-context';
 import { CoreService } from 'src/app/services/core.service';
+
+/** What `GET grade/curriculum/:curriculumid` answers (only what the learner forms read). */
+export interface GradesOfCurriculum {
+  error?: boolean;
+  data?: Array<{ gradeid: string; gradename: string; gradeorder?: number; curriculumid?: string }>;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -17,6 +24,14 @@ export class GradeService {
       `${this.coreService.CORE_API()}grade`, paging,
       this.coreService.jsonhttpOptions
     );
+  }
+
+  /** The grades of one curriculum, as the learner forms offer them. The form says every failure itself, so the interceptor stays quiet. */
+  getByCurriculum(curriculumid: string) {
+    return this.http.get<GradesOfCurriculum>(`${this.coreService.CORE_API()}grade/curriculum/${curriculumid}`, {
+      ...this.coreService.jsonhttpOptions,
+      context: new HttpContext().set(FAILURES_SHOWN_BY_CALLER, true),
+    });
   }
 
   delete(gradeid: string) {
