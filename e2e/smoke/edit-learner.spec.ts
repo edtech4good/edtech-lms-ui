@@ -92,11 +92,11 @@ interface Mock {
   listReads: number;
   holdGet: Record<string, Promise<void>>;
   holdPut?: Promise<void>;
-  /** Publication state of a curriculum by id; any other is published. */
+  /** `publicationstatus` of a curriculum by id on `school/:id/curriculums`; any other is published. */
   publication: Record<string, string>;
   publicationReads: string[];
-  /** Makes every publication read fail (the pickers then offer everything: central still refuses an unpublished one). */
-  publicationFails: boolean;
+  /** Leaves `publicationstatus` off the curriculum rows (the pickers then offer everything: central still refuses an unpublished one). */
+  statusMissing: boolean;
   unmocked: string[];
 }
 
@@ -126,7 +126,7 @@ function newMock(): Mock {
     holdGet: {},
     publication: {},
     publicationReads: [],
-    publicationFails: false,
+    statusMissing: false,
     unmocked: [],
   };
   return mock;
@@ -150,6 +150,10 @@ async function signIn(context: BrowserContext, mock: Mock, permissions: string[]
   );
   await context.route(`${API_URL}/**`, (route) => answer(route, mock));
 }
+
+/** The rows of `GET school/:schoolid/curriculums`: each carries its `publicationstatus`. */
+const annotate = (mock: Mock, rows: Array<Record<string, any>>) =>
+  rows.map((c) => (mock.statusMissing ? c : { ...c, publicationstatus: mock.publication[c.curriculumid] ?? 'published' }));
 
 async function answer(route: Route, mock: Mock): Promise<void> {
   const request = route.request();
@@ -176,13 +180,13 @@ async function answer(route: Route, mock: Mock): Promise<void> {
   }
   if (method === 'POST' && path === 'school') return route.fulfill(json(200, { data: { data: [{ schoolid: 'school-a', schoolname: 'North Valley School' }], total: 1 } }));
   if (method === 'GET' && path === 'standard/school/school-a') return route.fulfill(json(200, { data: CLASSES }));
-  if (method === 'GET' && path === 'school/school-a/curriculums') return route.fulfill(json(200, { data: CURRICULA }));
+  if (method === 'GET' && path === 'school/school-a/curriculums') return route.fulfill(json(200, { data: annotate(mock, CURRICULA) }));
   // Each curriculum's publication state (the pickers offer only published ones).
   const publication = /^curriculum\/publication\/([^/]+)$/.exec(path);
   if (method === 'GET' && publication) {
+    // The state comes on the curriculum rows; a request to this route is a regression, and is recorded.
     mock.publicationReads.push(publication[1]);
-    if (mock.publicationFails) return route.fulfill(json(500, { error: true, errormessage: 'Something broke.' }));
-    return route.fulfill(json(200, { data: { publicationstatus: mock.publication[publication[1]] ?? 'published' } }));
+    return route.fulfill(json(404, { error: true }));
   }
   mock.unmocked.push(`${method} ${path}`);
   return route.fulfill(json(200, { data: [] }));
@@ -718,6 +722,7 @@ test.describe('only published curricula are offered', () => {
     await openEdit(page, 'dara1');
     await curriculaSelect(page).locator('.ant-select-selector').click();
     await expect.poll(() => offered(page)).toEqual(['Reading Basics']);
+    expect(mock.publicationReads, 'the state comes on the curriculum rows: no per-curriculum request').toEqual([]);
   });
 
   test('a curriculum the learner already has that was retired is kept, labelled (retired), and saves without a change to it', async ({ context }) => {

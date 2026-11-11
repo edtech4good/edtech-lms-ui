@@ -1,10 +1,9 @@
 import { HttpClient, HttpContext } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, forkJoin, of } from 'rxjs';
-import { catchError, map, switchMap } from 'rxjs/operators';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { FIELD_ERRORS_INLINE } from 'src/app/interceptors/error-context';
 import { isOffered } from 'src/app/shared/publication/published-curricula';
-import { CurriculumService } from 'src/app/services/curriculum.service';
 import { IMultiPaging, IPaging } from 'src/app/models/IPaging';
 import { CoreService } from 'src/app/services/core.service';
 import { ResponseBody } from '../models/response.model';
@@ -16,8 +15,7 @@ import { LineChartFormat } from '../modules/dashboard/index/models/LineChartForm
 export class SchoolService {
   constructor(
     private readonly http: HttpClient,
-    private readonly coreService: CoreService,
-    private readonly curriculumService: CurriculumService
+    private readonly coreService: CoreService
   ) {}
   getall(paging: IMultiPaging) {
     return this.http.post(
@@ -78,27 +76,12 @@ export class SchoolService {
     );
   }
   /**
-   * The school's curricula, each row with its publication state added as `publicationstatus` (read on its own from
-   * `curriculum/publication/:id`; undefined when it could not be read or the row is deleted). The learner forms use it to
-   * offer published curricula for a new pick while keeping one the learner already has.
+   * The school's curricula. Each row carries `publicationstatus` (`never`, `published` or `withdrawn`), the state central reads
+   * for it, so one request answers a drawer. A row without it (an older central) is treated as offered: central still refuses an
+   * unpublished one when the learner is saved.
    */
   getCurriculumsWithState(schoolid: string): Observable<any> {
-    return this.getCurriculums(schoolid).pipe(
-      switchMap((answer: any) => {
-        const rows: any[] = Array.isArray(answer?.data) ? answer.data : [];
-        // A deleted curriculum comes back without a name or an id: there is nothing to read for it, and the forms drop it.
-        const reads = rows.map((row) =>
-          row?.curriculumid && !row.isdeleted
-            ? this.curriculumService.publication(row.curriculumid, true).pipe(
-                map((overview) => overview?.publicationstatus),
-                catchError(() => of(undefined))
-              )
-            : of(undefined)
-        );
-        if (reads.length === 0) return of(answer);
-        return forkJoin(reads).pipe(map((states) => ({ ...answer, data: rows.map((row, i) => ({ ...row, publicationstatus: states[i] })) })));
-      })
-    );
+    return this.getCurriculums(schoolid);
   }
 
   /**

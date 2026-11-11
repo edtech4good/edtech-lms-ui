@@ -61,10 +61,4 @@ export class StickyNoticeService {
   }
 }
 
-/**
- * The `push` an answer carries. Central puts it beside `data` on school create, edit and delete, class create, edit and delete,
- * and the organisation save (the last only when the quiz-pass switch was sent): `{ error, data, push }`. Absent otherwise.
- */
-export function pushOf(answer: unknown): PushOutcome | undefined {
-  return answer && typeof answer === 'object' ? (answer as { push?: PushOutcome }).push : undefined;
-}
+export { pushOf } from './notice-rules';

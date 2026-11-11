@@ -63,11 +63,11 @@ interface Mock {
   createAnswer: () => ReturnType<typeof json>;
   created: Array<Record<string, unknown>>;
   listCalls: number;
-  /** Publication state of a curriculum by id; any other is published. */
+  /** `publicationstatus` of a curriculum by id on `school/:id/curriculums`; any other is published. */
   publication: Record<string, string>;
   publicationReads: string[];
-  /** Makes every publication read fail (the pickers then offer everything: central still refuses an unpublished one). */
-  publicationFails: boolean;
+  /** Leaves `publicationstatus` off the curriculum rows (the pickers then offer everything: central still refuses an unpublished one). */
+  statusMissing: boolean;
   unmocked: string[];
 }
 
@@ -83,7 +83,7 @@ function newMock(): Mock {
     listCalls: 0,
     publication: {},
     publicationReads: [],
-    publicationFails: false,
+    statusMissing: false,
     unmocked: [],
   };
 }
@@ -119,6 +119,10 @@ async function openLearners(
   return page;
 }
 
+/** The rows of `GET school/:schoolid/curriculums`: each carries its `publicationstatus`. */
+const annotate = (mock: Mock, rows: Array<Record<string, any>>) =>
+  rows.map((c) => (mock.statusMissing ? c : { ...c, publicationstatus: mock.publication[c.curriculumid] ?? 'published' }));
+
 async function answer(route: Route, mock: Mock): Promise<void> {
   const request = route.request();
   const url = new URL(request.url());
@@ -145,13 +149,13 @@ async function answer(route: Route, mock: Mock): Promise<void> {
   const standards = path.match(/^standard\/school\/(.+)$/);
   if (method === 'GET' && standards) return route.fulfill(json(200, { data: CLASSES[standards[1]] ?? [] }));
   const curricula = path.match(/^school\/(.+)\/curriculums$/);
-  if (method === 'GET' && curricula) return route.fulfill(json(200, { data: CURRICULA[curricula[1]] ?? [] }));
+  if (method === 'GET' && curricula) return route.fulfill(json(200, { data: annotate(mock, CURRICULA[curricula[1]] ?? []) }));
   // Each curriculum's publication state (the pickers offer only published ones).
   const publication = /^curriculum\/publication\/([^/]+)$/.exec(path);
   if (method === 'GET' && publication) {
+    // The state comes on the curriculum rows; a request to this route is a regression, and is recorded.
     mock.publicationReads.push(publication[1]);
-    if (mock.publicationFails) return route.fulfill(json(500, { error: true, errormessage: 'Something broke.' }));
-    return route.fulfill(json(200, { data: { publicationstatus: mock.publication[publication[1]] ?? 'published' } }));
+    return route.fulfill(json(404, { error: true }));
   }
   mock.unmocked.push(`${method} ${path}`);
   return route.fulfill(json(200, { data: [] }));
@@ -917,7 +921,7 @@ test.describe('only published curricula are offered', () => {
     const page = await openLearners(context, mock);
     await openCurricula(page);
     await expect.poll(() => offered(page)).toEqual(['Reading Basics']);
-    expect([...mock.publicationReads].sort()).toEqual(['cur-1', 'cur-2']);
+    expect(mock.publicationReads, 'the state comes on the curriculum rows: no per-curriculum request').toEqual([]);
   });
 
   test('a curriculum retired is not offered', async ({ context }) => {
@@ -935,14 +939,14 @@ test.describe('only published curricula are offered', () => {
     await expect.poll(() => offered(page)).toEqual(['Reading Basics', 'Number Skills']);
   });
 
-  test('a publication read that fails leaves the curricula offered, and says nothing', async ({ context }) => {
+  test('curricula that carry no state are all offered, and nothing is said', async ({ context }) => {
     const mock = newMock();
-    mock.publicationFails = true;
+    mock.statusMissing = true;
     const page = await openLearners(context, mock);
     await openCurricula(page);
     await expect.poll(() => offered(page)).toEqual(['Reading Basics', 'Number Skills']);
     await page.waitForTimeout(500);
-    expect(await toasts(page).count(), 'a failed read is not a toast').toBe(0);
+    expect(await toasts(page).count(), 'no state is not a toast').toBe(0);
   });
 
   test("central's 400 on curriculumids is shown under the Curriculum field, in its own words", async ({ context }) => {

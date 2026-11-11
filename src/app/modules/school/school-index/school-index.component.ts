@@ -12,16 +12,11 @@ import { StudentService } from 'src/app/services/student.service';
 import { TeacherService } from 'src/app/services/teacher.service';
 import { organisationOf, withOrganisationFilter } from 'src/app/shared/owner/owner-view';
 import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
+import { asksForSyncContent } from 'src/app/shared/notices/notice-rules';
 import { SYNC_REFUSED_NOTICE_KEY, StickyNoticeService, pushOf } from 'src/app/shared/notices/sticky-notice.service';
 
 /** What a refused sync says when central sent no words of its own. */
 export const SYNC_REFUSED_MESSAGE = 'The sync was refused.';
-
-/**
- * Whether a refused sync's sentence sends the person to Sync Content (the learning server lacks the school or one of its classes).
- * The curriculum refusal ("Publish it, then Sync Students.") has another next step, so it gets no link.
- */
-export const asksForSyncContent = (message: string): boolean => /\bSync Content\b/.test(message);
 
 @Component({
     selector: 'app-school-index',

@@ -54,8 +54,8 @@ const json = (status: number, body: unknown) => ({ status, contentType: 'applica
 
 type Answer = ReturnType<typeof json>;
 type Push = { status: 'pushed' | 'skipped' | 'failed'; message: string };
-const PUSHED: Push = { status: 'pushed', message: 'ok' };
-const SKIPPED: Push = { status: 'skipped', message: '' };
+const PUSHED: Push = { status: 'pushed', message: "The learning server has the organisation's schools and classes." };
+const SKIPPED: Push = { status: 'skipped', message: 'No learner server is set up here, so nothing was pushed.' };
 const FAILED: Push = { status: 'failed', message: PUSH_FAILED };
 
 interface Mock {
@@ -261,7 +261,7 @@ test.describe('a school saved', () => {
   ] as const) {
     test(`${form}: a name a school held before is shown under the name field, in central's words, and nothing else`, async ({ context }) => {
       const mock = newMock();
-      const refusal = json(400, { error: true, code: 'INVALID_INPUT', errormessage: NAME_TAKEN, fields: [{ field: 'schoolname', message: NAME_TAKEN }] });
+      const refusal = json(409, { error: true, code: 'ALREADY_EXISTS', errormessage: NAME_TAKEN, fields: [{ field: 'schoolname', message: NAME_TAKEN }] });
       if (button === 'create') mock.refuse.schoolCreate = refusal;
       else mock.refuse.schoolUpdate = refusal;
       const page = await open(context, mock, path, ready);
@@ -280,6 +280,29 @@ test.describe('a school saved', () => {
     });
   }
 
+
+  test("create: a name a live school holds is shown under the name field (409 on schoolname)", async ({ context }) => {
+    const mock = newMock();
+    const SAYS = 'That school already exists.';
+    mock.refuse.schoolCreate = json(409, { error: true, code: 'ALREADY_EXISTS', errormessage: SAYS, fields: [{ field: 'schoolname', message: SAYS }] });
+    const page = await open(context, mock, '/school/create', createReady);
+    await createSchool(page);
+    await expect(page.locator('nz-form-item', { hasText: 'School Name' }).locator('.ant-form-item-explain-error')).toHaveText(SAYS);
+    expect(await noticesAfterFence(page)).toEqual([]);
+  });
+
+  test("edit: a change of organisation central refuses (409 on organisationid) is one notice, in central's words, and the form stays", async ({ context }) => {
+    const mock = newMock();
+    const SAYS = "A school can't be moved to another organisation yet. Create the school in the other organisation instead.";
+    mock.refuse.schoolUpdate = json(409, { error: true, code: 'ALREADY_EXISTS', errormessage: SAYS, fields: [{ field: 'organisationid', message: SAYS }] });
+    const page = await open(context, mock, `/school/update/${SCHOOL.schoolid}`, editReady);
+    await page.getByRole('button', { name: 'Submit' }).click();
+    await expect(descriptions(page)).toHaveText([SAYS]);
+    await page.waitForTimeout(500);
+    expect(await notices(page).count(), 'one notice').toBe(1);
+    await expect(page).toHaveURL(/\/school\/update\//);
+    await expect(page.locator('nz-form-item', { hasText: 'School Name' }).locator('.ant-form-item-explain-error')).toHaveCount(0);
+  });
 });
 
 test.describe('a class saved', () => {
