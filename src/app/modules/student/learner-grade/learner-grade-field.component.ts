@@ -72,7 +72,6 @@ export class LearnerGradeFieldComponent {
   readonly value = model<string | null>(null);
   /** The learner's own grade, chosen when it belongs to the curriculum and nothing else is chosen. */
   readonly preferred = input<string | null>(null);
-  /** Choosing is not required (an edit that keeps the primary curriculum: the server keeps the learner's grade). */
   /** The message beside the select; shown only while the select is. */
   readonly error = input<string | null>(null);
   readonly idPrefix = input('learner-grade');
