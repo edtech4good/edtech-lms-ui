@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, inject } from '@angular/core';
 import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
@@ -11,6 +12,9 @@ import { StudentService } from 'src/app/services/student.service';
 import { TeacherService } from 'src/app/services/teacher.service';
 import { organisationOf, withOrganisationFilter } from 'src/app/shared/owner/owner-view';
 import { OwnerViewService } from 'src/app/shared/owner/owner-view.service';
+
+/** What a refused sync says when central sent no words of its own. */
+export const SYNC_REFUSED_MESSAGE = 'The sync was refused.';
 
 @Component({
     selector: 'app-school-index',
@@ -154,26 +158,43 @@ export class SchoolIndexComponent implements OnInit {
     this.studentService
       .synccloudStudent(schoolname)
       .pipe(first())
-      .subscribe(async (_res: any) => {
-        this.notification.create(
-          'success',
-          'Success',
-          `${schoolname} students synced sucessfully`
-        );
+      .subscribe({
+        next: async (_res: any) => {
+          this.notification.create(
+            'success',
+            'Success',
+            `${schoolname} students synced sucessfully`
+          );
+        },
+        error: (error: HttpErrorResponse) => this.syncRefused(error),
       });
 
-  /** Sends the school's teachers to the learning server. A refusal (such as "There are no teachers to sync.") is the error interceptor's notice. */
+  /** Sends the school's teachers to the learning server. A 409 is shown here; any other refusal (such as "There are no teachers to sync.") is the error interceptor's notice. */
   synccloudTeachers = (schoolname: string) =>
     this.teacherService
       .synccloudTeacher(schoolname)
       .pipe(first())
-      .subscribe(async (_res: any) => {
-        this.notification.create(
-          'success',
-          'Success',
-          `${schoolname} teachers synced successfully`
-        );
+      .subscribe({
+        next: async (_res: any) => {
+          this.notification.create(
+            'success',
+            'Success',
+            `${schoolname} teachers synced successfully`
+          );
+        },
+        error: (error: HttpErrorResponse) => this.syncRefused(error),
       });
+
+  /**
+   * Central answers a sync it cannot send with a 409 and says what to do first (the learning server lacks the school, a class
+   * or a curriculum). Shown as it is, and kept until closed, because the person has to act on it. The error interceptor says
+   * nothing for a 409, so this is the only notice; every other refusal is the interceptor's, as before.
+   */
+  private syncRefused(error: HttpErrorResponse): void {
+    if (error?.status !== 409) return;
+    const said = error.error?.errormessage;
+    this.notification.create('error', 'Error', typeof said === 'string' && said.trim() ? said : SYNC_REFUSED_MESSAGE, { nzDuration: 0 });
+  }
 
   reset(): void {
     this.searchValue = '';
