@@ -12,14 +12,16 @@ export const MOVE_FAILED = "The learner couldn't be moved. Try again.";
 export const MOVE_NO_ACCESS = "You don't have permission to move learners.";
 export const MOVE_SCHOOLS_FAILED = "The schools couldn't be loaded.";
 
-export type MoveFieldKey = 'schoolid' | 'standard' | 'curriculumids';
-export const MOVE_FIELD_ORDER: readonly MoveFieldKey[] = ['schoolid', 'standard', 'curriculumids'];
+export type MoveFieldKey = 'schoolid' | 'standard' | 'curriculumids' | 'gradeid';
+export const MOVE_FIELD_ORDER: readonly MoveFieldKey[] = ['schoolid', 'standard', 'curriculumids', 'gradeid'];
 
-/** The body of `PUT student/:schooluserid/school`: these three keys and no others, all always present. */
+/** The body of `PUT student/:schooluserid/school`: these three keys, and `gradeid` when the form has a grade to send. */
 export interface MoveLearnerBody {
   schoolid: string;
   standard: string;
   curriculumids: string[];
+  /** A grade of the learner's primary curriculum; left out when none is chosen (the server keeps the current one while it fits). */
+  gradeid?: string;
 }
 
 /** What the request answers on a 200. */
@@ -76,16 +78,22 @@ export function curriculaAfterPlacement(touched: boolean, picked: readonly strin
 }
 
 /** The request body for a form the caller has checked. */
-export function moveBody(schoolid: string, standard: string, curriculumids: readonly string[]): MoveLearnerBody {
-  return { schoolid, standard, curriculumids: [...curriculumids] };
+export function moveBody(schoolid: string, standard: string, curriculumids: readonly string[], gradeid?: string): MoveLearnerBody {
+  return { schoolid, standard, curriculumids: [...curriculumids], ...(gradeid ? { gradeid } : {}) };
 }
 
 /** What the form says beside a field before anything is sent; `null` for a field that is fine. */
-export function moveFormErrors(schoolid: string | null, standard: string | null, curriculumids: readonly string[]): Record<MoveFieldKey, string | null> {
+export function moveFormErrors(
+  schoolid: string | null,
+  standard: string | null,
+  curriculumids: readonly string[],
+  gradeProblem: string | null = null,
+): Record<MoveFieldKey, string | null> {
   return {
     schoolid: schoolid ? null : 'Choose a school.',
     standard: standard ? null : `Choose a ${CLASS_WORD.toLowerCase()}.`,
     curriculumids: curriculumids.length ? null : 'Choose at least one curriculum.',
+    gradeid: gradeProblem,
   };
 }
 

@@ -27,6 +27,8 @@ export interface StudentImport {
 
 export class StudentImportBody {
   curriculumid: string = '';
+  /** A grade of the first curriculum, for every learner of the file; left out when the form has none to send. */
+  gradeid?: string;
   schoolid: string = '';
   standard: string = '';
   students: Array<StudentImport> = [];
@@ -64,6 +66,8 @@ export interface StudentImportForEdit {
   type: string;
   isactive: number;
   is_teacher_acc: string;
+  /** The NAME of a grade of the learner's first curriculum; blank keeps the current grade. */
+  grade?: string;
 
   new_type: string;
   new_studentfirstname: string;

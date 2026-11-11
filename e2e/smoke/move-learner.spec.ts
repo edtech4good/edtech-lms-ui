@@ -1,5 +1,6 @@
 import { BrowserContext, Page, Route, expect, test } from '@playwright/test';
 import { API_URL, BASE_URL } from '../fixtures/env';
+import { MockGrade, grade, gradesAnswer } from '../fixtures/grades';
 
 /**
  * Move to another school on the Learners list, in a browser, with every answer from the API mocked: the sign-in is a token
@@ -76,6 +77,9 @@ interface Learner {
   standard: string;
   curriculumids: string[];
   isdisabled: boolean;
+  /** What central answers when it knows them. */
+  curriculumid?: string;
+  gradeid?: string;
 }
 const learner = (n: number, username: string, first: string, patch: Partial<Learner> = {}): Learner => ({
   schooluserid: `lu-${n}`,
@@ -127,6 +131,10 @@ interface Mock {
   /** Leaves `publicationstatus` off the curriculum rows (the pickers then offer everything: central still refuses an unpublished one). */
   statusMissing: boolean;
   unmocked: string[];
+  /** curriculumid → its grades; a curriculum not listed has one. */
+  grades: Record<string, MockGrade[]>;
+  /** What `GET grade/curriculum/:id` was asked for. */
+  gradeReads: string[];
 }
 
 function newMock(): Mock {
@@ -152,6 +160,8 @@ function newMock(): Mock {
     publicationReads: [],
     statusMissing: false,
     unmocked: [],
+    grades: {},
+    gradeReads: [],
   };
   return mock;
 }
@@ -225,6 +235,11 @@ async function answer(route: Route, mock: Mock): Promise<void> {
     // The state comes on the curriculum rows; a request to this route is a regression, and is recorded.
     mock.publicationReads.push(publication[1]);
     return route.fulfill(json(404, { error: true }));
+  }
+  const gradesOf = /^grade\/curriculum\/(.+)$/.exec(path);
+  if (method === 'GET' && gradesOf) {
+    mock.gradeReads.push(gradesOf[1]);
+    return route.fulfill(gradesAnswer(mock.grades, gradesOf[1]));
   }
   mock.unmocked.push(`${method} ${path}`);
   return route.fulfill(json(200, { data: [] }));
@@ -488,8 +503,8 @@ test.describe('Move to another school: moving', () => {
     expect(mock.requests).toHaveLength(1);
     expect(mock.requests[0].method).toBe('PUT');
     expect(mock.requests[0].path).toBe('student/lu-1/school');
-    expect(bodyOf(mock)).toEqual({ schoolid: 'school-b', standard: 'class-b6', curriculumids: ['cur-1', 'cur-4'] });
-    expect(Object.keys(bodyOf(mock)).sort()).toEqual(['curriculumids', 'schoolid', 'standard']);
+    expect(bodyOf(mock)).toEqual({ schoolid: 'school-b', standard: 'class-b6', curriculumids: ['cur-1', 'cur-4'], gradeid: 'gr-cur-1-1' });
+    expect(Object.keys(bodyOf(mock)).sort()).toEqual(['curriculumids', 'gradeid', 'schoolid', 'standard']);
     await expect(row(page, 'dara1')).toContainText('Lakeside School');
     await expect(row(page, 'dara1')).toContainText('Class 6B');
     expect(mock.listReads, 'the list page is read again').toBeGreaterThan(readsBefore);
@@ -752,7 +767,7 @@ test.describe('Move to another school: keyboard only', () => {
     await tabTo(move(page), 'Move');
     await page.keyboard.press('Enter');
     await expect(drawer(page)).toBeHidden();
-    expect(mock.requests).toEqual([{ method: 'PUT', path: 'student/lu-1/school', body: { schoolid: 'school-b', standard: 'class-b5', curriculumids: ['cur-1'] } }]);
+    expect(mock.requests).toEqual([{ method: 'PUT', path: 'student/lu-1/school', body: { schoolid: 'school-b', standard: 'class-b5', curriculumids: ['cur-1'], gradeid: 'gr-cur-1-1' } }]);
     await expect(toasts(page)).toHaveText(PUSHED('Lakeside School'));
     await expect(row(page, 'dara1')).toContainText('Lakeside School');
     await expect.poll(() => focusedLabel(page)).toBe('Manage dara1');
@@ -829,5 +844,86 @@ test.describe('only published curricula are offered', () => {
     await move(page).click();
     await expect(errorOf(page, '#move-learner-curricula')).toHaveText(SAYS);
     expect(await toasts(page).count(), 'a validation failure is not a toast').toBe(0);
+  });
+});
+
+test.describe('Move to another school: the grade', () => {
+  const gradeField = (page: Page) => page.locator('#move-learner-grade');
+  const MESSAGE = 'Choose a grade for this student.';
+
+  test('with the grade central knows, the learner\'s own grade is preselected and sent when the primary curriculum is kept', async ({ context }) => {
+    const mock = newMock();
+    mock.learners['lu-1'] = learner(1, 'dara1', 'Dara', { curriculumid: 'cur-1', gradeid: 'gr-cur-1-2' });
+    mock.grades['cur-1'] = [grade('cur-1', 1), grade('cur-1', 2)];
+    const page = await openLearners(context, mock);
+    await openMove(page);
+    await fill(page, 'Lakeside School', 'Class 6B');
+    await expect(gradeField(page)).toContainText('Grade 2');
+    await expect(page.getByTestId('grade-hint')).toHaveText('In Reading Basics');
+    await move(page).click();
+    await expect(drawer(page)).toBeHidden();
+    expect(bodyOf(mock).gradeid).toBe('gr-cur-1-2');
+  });
+
+  test('a learner with no grade on a several-grade primary curriculum that is kept must still choose one: required, blocked, then sent', async ({ context }) => {
+    const mock = newMock();
+    mock.learners['lu-1'] = learner(1, 'dara1', 'Dara', { curriculumid: 'cur-1', gradeid: null as never });
+    mock.grades['cur-1'] = [grade('cur-1', 1), grade('cur-1', 2)];
+    const page = await openLearners(context, mock);
+    await openMove(page);
+    await fill(page, 'Lakeside School', 'Class 6B');
+    await expect(page.locator('label[for="move-learner-grade-input"] .req')).toHaveCount(1);
+    await expect(gradeField(page)).not.toContainText('Keep the current grade');
+    mock.requests.length = 0;
+    await move(page).click();
+    await expect(page.getByTestId('grade-error')).toHaveText(MESSAGE);
+    expect(mock.requests, 'nothing is sent without a grade').toEqual([]);
+    await gradeField(page).locator('.ant-select-selector').click();
+    await page.locator('.ant-select-item-option', { hasText: 'Grade 2' }).click();
+    await move(page).click();
+    await expect(drawer(page)).toBeHidden();
+    expect(bodyOf(mock).gradeid).toBe('gr-cur-1-2');
+  });
+
+  test('a new primary curriculum with several grades needs a choice; none sends nothing and names the field', async ({ context }) => {
+    const mock = newMock();
+    mock.learners['lu-1'] = learner(1, 'dara1', 'Dara', { curriculumid: 'cur-1', gradeid: 'gr-cur-1-2', curriculumids: ['cur-1'] });
+    mock.grades['cur-1'] = [grade('cur-1', 1), grade('cur-1', 2)];
+    mock.grades['cur-4'] = [grade('cur-4', 1), grade('cur-4', 2)];
+    const page = await openLearners(context, mock);
+    await openMove(page);
+    await fill(page, 'Lakeside School', 'Class 6B');
+    // the school does not have Reading Basics for this learner: pick History Tales (two grades of its own), which is then primary
+    await pick(page, 'curricula', 'History Tales');
+    await page.locator('#move-learner-curricula .ant-select-selection-item', { hasText: 'Reading Basics' }).locator('.ant-select-selection-item-remove').click();
+    await expect(page.getByTestId('grade-hint')).toHaveText('In History Tales');
+    await expect(gradeField(page)).not.toContainText('Grade 2');
+    mock.requests.length = 0;
+    await move(page).click();
+    await expect(page.getByTestId('grade-error')).toHaveText(MESSAGE);
+    expect(mock.requests).toEqual([]);
+  });
+
+  test('the API refusing the grade shows under the curriculum field when the grade is not asked for', async ({ context }) => {
+    const mock = newMock();
+    mock.put = () => json(400, { error: true, code: 'INVALID_INPUT', errormessage: 'Check the highlighted fields.', fields: [{ field: 'gradeid', message: MESSAGE }] });
+    const page = await openLearners(context, mock);
+    await openMove(page);
+    await fill(page, 'Lakeside School', 'Class 6B');
+    await move(page).click();
+    await expect(page.getByTestId('grade-under-curriculum')).toHaveText(MESSAGE);
+    await expect(drawer(page)).toBeVisible();
+  });
+
+  test('a curriculum with no grade blocks the move and says so', async ({ context }) => {
+    const mock = newMock();
+    mock.grades['cur-1'] = [];
+    const page = await openLearners(context, mock);
+    await openMove(page);
+    await fill(page, 'Lakeside School', 'Class 6B');
+    await expect(page.getByTestId('grade-under-curriculum')).toHaveText("This curriculum has no grade yet, so a learner can't be put in it.");
+    mock.requests.length = 0;
+    await move(page).click();
+    expect(mock.requests).toEqual([]);
   });
 });

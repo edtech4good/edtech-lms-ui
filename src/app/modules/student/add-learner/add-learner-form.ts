@@ -38,6 +38,7 @@ export type FieldKey =
   | 'schoolid'
   | 'standard'
   | 'curriculumids'
+  | 'gradeid'
   | 'genderid'
   | 'dateofbirth';
 
@@ -49,6 +50,7 @@ export const FIELD_ORDER: readonly FieldKey[] = [
   'schoolid',
   'standard',
   'curriculumids',
+  'gradeid',
   'genderid',
   'dateofbirth',
 ];
@@ -167,6 +169,7 @@ const FALLBACK_FIELD_MESSAGES: Record<FieldKey, string> = {
   schoolid: 'Choose a school.',
   standard: `Choose a ${CLASS_WORD.toLowerCase()} of this school.`,
   curriculumids: 'Choose at least one curriculum of this school.',
+  gradeid: 'Choose a grade for this student.',
   genderid: GENDER_MESSAGE,
   dateofbirth: DATE_OF_BIRTH_MESSAGE,
 };
@@ -223,6 +226,8 @@ export interface AddLearnerBody {
   schoolid: string;
   standard: string;
   curriculumids: string[];
+  /** A grade of the first curriculum; left out when the form has none to send (the server then decides). */
+  gradeid?: string;
   studentfirstname: string;
   studentlastname?: string;
   schoolusername: string;

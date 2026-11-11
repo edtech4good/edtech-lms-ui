@@ -189,6 +189,9 @@ export const uploadEditedStudentsValidationSchema = joi
       isactive: joi.number().valid(1, 0).required(),
       is_teacher_acc: joi.string().valid("1", "0").allow("").optional(),
       curriculums: joi.string().required().label("Curriculums ID"),
+      // The grade's NAME (the download's `grade` column); blank keeps the learner's grade. A file saved before the column
+      // existed has none. Joi refuses a key it does not list, so it has to be listed to reach the API.
+      grade: joi.string().max(255).optional().allow('', null).default(''),
     })
   )
   .required()
