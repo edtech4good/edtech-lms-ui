@@ -799,6 +799,26 @@ test.describe('Move to another school: the grade', () => {
     expect(bodyOf(mock).gradeid).toBe('gr-cur-1-2');
   });
 
+  test('a learner with no grade on a several-grade primary curriculum that is kept must still choose one: required, blocked, then sent', async ({ context }) => {
+    const mock = newMock();
+    mock.learners['lu-1'] = learner(1, 'dara1', 'Dara', { curriculumid: 'cur-1', gradeid: null as never });
+    mock.grades['cur-1'] = [grade('cur-1', 1), grade('cur-1', 2)];
+    const page = await openLearners(context, mock);
+    await openMove(page);
+    await fill(page, 'Lakeside School', 'Class 6B');
+    await expect(page.locator('label[for="move-learner-grade-input"] .req')).toHaveCount(1);
+    await expect(gradeField(page)).not.toContainText('Keep the current grade');
+    mock.requests.length = 0;
+    await move(page).click();
+    await expect(page.getByTestId('grade-error')).toHaveText(MESSAGE);
+    expect(mock.requests, 'nothing is sent without a grade').toEqual([]);
+    await gradeField(page).locator('.ant-select-selector').click();
+    await page.locator('.ant-select-item-option', { hasText: 'Grade 2' }).click();
+    await move(page).click();
+    await expect(drawer(page)).toBeHidden();
+    expect(bodyOf(mock).gradeid).toBe('gr-cur-1-2');
+  });
+
   test('a new primary curriculum with several grades needs a choice; none sends nothing and names the field', async ({ context }) => {
     const mock = newMock();
     mock.learners['lu-1'] = learner(1, 'dara1', 'Dara', { curriculumid: 'cur-1', gradeid: 'gr-cur-1-2', curriculumids: ['cur-1'] });
