@@ -78,11 +78,11 @@ export class SchoolService {
     );
   }
   /**
-   * The school's curricula that learners can be placed in: `getCurriculums` without the ones never published or retired
-   * (see published-curricula.ts). Each curriculum's state is read on its own (the route is `curriculum/publication/:id`);
-   * a read that fails leaves that curriculum in, and central still refuses an unpublished one.
+   * The school's curricula, each row with its publication state added as `publicationstatus` (read on its own from
+   * `curriculum/publication/:id`; undefined when it could not be read or the row is deleted). The learner forms use it to
+   * offer published curricula for a new pick while keeping one the learner already has.
    */
-  getPublishedCurriculums(schoolid: string): Observable<any> {
+  getCurriculumsWithState(schoolid: string): Observable<any> {
     return this.getCurriculums(schoolid).pipe(
       switchMap((answer: any) => {
         const rows: any[] = Array.isArray(answer?.data) ? answer.data : [];
@@ -96,8 +96,18 @@ export class SchoolService {
             : of(undefined)
         );
         if (reads.length === 0) return of(answer);
-        return forkJoin(reads).pipe(map((states) => ({ ...answer, data: rows.filter((_row, i) => isOffered(states[i])) })));
+        return forkJoin(reads).pipe(map((states) => ({ ...answer, data: rows.map((row, i) => ({ ...row, publicationstatus: states[i] })) })));
       })
+    );
+  }
+
+  /**
+   * The curricula a learner can newly be placed in: `getCurriculumsWithState` without the ones never published or retired
+   * (see published-curricula.ts). A read that fails leaves the curriculum in; central still refuses an unpublished one.
+   */
+  getPublishedCurriculums(schoolid: string): Observable<any> {
+    return this.getCurriculumsWithState(schoolid).pipe(
+      map((answer: any) => (Array.isArray(answer?.data) ? { ...answer, data: answer.data.filter((row: any) => isOffered(row?.publicationstatus)) } : answer))
     );
   }
 

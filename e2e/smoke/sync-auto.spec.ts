@@ -261,7 +261,7 @@ test.describe('a school saved', () => {
   ] as const) {
     test(`${form}: a name a school held before is shown under the name field, in central's words, and nothing else`, async ({ context }) => {
       const mock = newMock();
-      const refusal = json(400, { error: true, code: 'INVALID_INPUT', errormessage: "Some of the information isn't valid.", fields: [{ field: 'schoolname', message: NAME_TAKEN }] });
+      const refusal = json(400, { error: true, code: 'INVALID_INPUT', errormessage: NAME_TAKEN, fields: [{ field: 'schoolname', message: NAME_TAKEN }] });
       if (button === 'create') mock.refuse.schoolCreate = refusal;
       else mock.refuse.schoolUpdate = refusal;
       const page = await open(context, mock, path, ready);

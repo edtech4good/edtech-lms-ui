@@ -720,19 +720,39 @@ test.describe('only published curricula are offered', () => {
     await expect.poll(() => offered(page)).toEqual(['Reading Basics']);
   });
 
-  test("a learner's own curriculum that is no longer published shows as not available and must be replaced before saving", async ({ context }) => {
+  test('a curriculum the learner already has that was retired is kept, labelled (retired), and saves without a change to it', async ({ context }) => {
     const mock = newMock();
     // maly3 holds cur-2.
     mock.publication = { 'cur-2': 'withdrawn' };
     const page = await openLearners(context, mock);
     await openEdit(page, 'maly3');
+    await expect(curriculaSelect(page)).toContainText('Number Skills (retired)');
+    await expect(curriculaSelect(page)).not.toContainText('(no longer available)');
+    await expect(page.getByTestId('curricula-gone')).toHaveCount(0);
+    await first(page).fill('Malia');
+    await expect(save(page)).toBeEnabled();
+    await save(page).click();
+    await expect(drawer(page)).toBeHidden();
+    expect(bodyOf(mock)).toMatchObject({ studentfirstname: 'Malia', curriculumids: ['cur-2'] });
+  });
+
+  test('a retired curriculum that is removed is not offered again, and a new pick never offers an unpublished one', async ({ context }) => {
+    const mock = newMock();
+    mock.publication = { 'cur-2': 'withdrawn', 'cur-3': 'never' };
+    const page = await openLearners(context, mock);
+    await openEdit(page, 'maly3');
+    await curriculaSelect(page).locator('.ant-select-selection-item', { hasText: '(retired)' }).locator('.ant-select-selection-item-remove').click();
+    await curriculaSelect(page).locator('.ant-select-selector').click();
+    await expect.poll(() => offered(page)).toEqual(['Reading Basics']);
+  });
+
+  test('a curriculum that is truly gone still shows as (no longer available)', async ({ context }) => {
+    const mock = newMock();
+    mock.details['lu-1'] = details(1, 'dara1', 'Dara', { curriculumids: ['cur-vanished'] });
+    const page = await openLearners(context, mock);
+    await openEdit(page, 'dara1');
     await expect(curriculaSelect(page)).toContainText('(no longer available)');
     await expect(page.getByTestId('curricula-gone')).toBeVisible();
-    await first(page).fill('Malia');
-    await expect(save(page)).toBeDisabled();
-    await choose(page, 'curricula', 'Reading Basics');
-    await curriculaSelect(page).locator('.ant-select-selection-item', { hasText: '(no longer available)' }).locator('.ant-select-selection-item-remove').click();
-    await expect(save(page)).toBeEnabled();
   });
 
   test("central's 400 on curriculumids is shown under the Curriculum field, in its own words", async ({ context }) => {

@@ -796,6 +796,23 @@ test.describe('only published curricula are offered', () => {
     await expect.poll(() => offered(page)).toEqual(['Reading Basics']);
   });
 
+  test('a retired curriculum the learner already has is kept across the move, labelled (retired); a new pick never offers an unpublished one', async ({ context }) => {
+    const mock = newMock();
+    // dara1 holds cur-1 and cur-2; the second school lists cur-1 and cur-4.
+    mock.publication = { 'cur-1': 'withdrawn', 'cur-4': 'never' };
+    const page = await openLearners(context, mock);
+    await openMove(page);
+    await pick(page, 'school', 'Lakeside School');
+    await pick(page, 'class', 'Class 5B');
+    await expect(curriculaSelect(page)).toContainText('Reading Basics (retired)');
+    await curriculaSelect(page).locator('.ant-select-selector').click();
+    await expect.poll(() => offered(page)).toEqual(['Reading Basics (retired)']);
+    await page.keyboard.press('Escape');
+    await move(page).click();
+    await expect(drawer(page)).toBeHidden();
+    expect(bodyOf(mock)).toMatchObject({ schoolid: 'school-b', curriculumids: ['cur-1'] });
+  });
+
   test("central's 400 on curriculumids is shown under the Curriculum field, in its own words", async ({ context }) => {
     const mock = newMock();
     const SAYS = 'Publish History Tales first, or choose another curriculum.';

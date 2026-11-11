@@ -62,10 +62,9 @@ export class StickyNoticeService {
 }
 
 /**
- * The `push` an answer carries: central puts it beside `data` (as the curriculum answers do); one placed inside `data` is read
- * as well, so the screens do not depend on which side of the body it lands.
+ * The `push` an answer carries. Central puts it beside `data` on school create, edit and delete, class create, edit and delete,
+ * and the organisation save (the last only when the quiz-pass switch was sent): `{ error, data, push }`. Absent otherwise.
  */
 export function pushOf(answer: unknown): PushOutcome | undefined {
-  const body = (answer && typeof answer === 'object' ? answer : {}) as { push?: PushOutcome; data?: { push?: PushOutcome } | null };
-  return body.push ?? (body.data && typeof body.data === 'object' ? body.data.push : undefined);
+  return answer && typeof answer === 'object' ? (answer as { push?: PushOutcome }).push : undefined;
 }

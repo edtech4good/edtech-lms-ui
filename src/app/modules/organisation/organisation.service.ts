@@ -71,7 +71,7 @@ export class OrganisationService {
         // reactivate (a toast with the API's words). So no gateway toast from the interceptor as well.
         context: new HttpContext().set(FIELD_ERRORS_INLINE, true).set(GATEWAY_HANDLED, true),
       })
-      // The answer carries `push`: how sending the organisation's set to the learning server went. Kept on the organisation.
+      // The answer carries `push` beside `data` (only when the quiz-pass switch was sent): how sending the set went. Kept on the organisation.
       .pipe(map((r) => {
         const push = pushOf(r);
         return push ? { ...r.data, push } : r.data;

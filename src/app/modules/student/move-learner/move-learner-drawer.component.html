@@ -109,7 +109,7 @@
               [class.invalid]="errors().curriculumids"
               [nzDisabled]="!schoolId()"
               [nzLoading]="placementState() === 'loading'"
-              [nzOptions]="curricula()"
+              [nzOptions]="curriculumOptions()"
               [ngModel]="curriculumIds()"
               (ngModelChange)="setCurricula($event)"
               [ngModelOptions]="{ standalone: true }"

@@ -1,4 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
+import { splitCurricula } from 'src/app/shared/publication/published-curricula';
 import { ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, input, output, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NzButtonModule } from 'ng-zorro-antd/button';
@@ -68,6 +69,9 @@ export class MoveLearnerDrawerComponent {
   readonly curriculumIds = signal<string[]>([]);
   readonly standards = signal<MoveOption[]>([]);
   readonly curricula = signal<MoveOption[]>([]);
+  /** Curricula the learner already has that are no longer published: shown while chosen, never offered as a new pick. */
+  private readonly heldUnpublished = signal<MoveOption[]>([]);
+  readonly curriculumOptions = computed(() => [...this.curricula(), ...this.heldUnpublished().filter((o) => this.curriculumIds().includes(o.value))]);
   readonly placementState = signal<LoadState>('idle');
 
   readonly submitting = signal(false);
@@ -147,6 +151,7 @@ export class MoveLearnerDrawerComponent {
     this.curriculaTouched = false;
     this.standards.set([]);
     this.curricula.set([]);
+    this.heldUnpublished.set([]);
     this.placementState.set('idle');
     this.submitting.set(false);
     this.submitted.set(false);
@@ -181,6 +186,7 @@ export class MoveLearnerDrawerComponent {
     this.curriculaTouched = false;
     this.standards.set([]);
     this.curricula.set([]);
+    this.heldUnpublished.set([]);
     this.clearServer('schoolid');
     this.clearServer('standard');
     this.clearServer('curriculumids');
@@ -204,7 +210,7 @@ export class MoveLearnerDrawerComponent {
     const finish = () => {
       if (read !== this.placementRead || --pending > 0) return;
       this.placementState.set(failed ? 'error' : 'ready');
-      if (!failed) this.curriculumIds.set(curriculaAfterPlacement(this.curriculaTouched, this.curriculumIds(), this.details()?.curriculumids ?? [], this.curricula()));
+      if (!failed) this.curriculumIds.set(curriculaAfterPlacement(this.curriculaTouched, this.curriculumIds(), this.details()?.curriculumids ?? [], [...this.curricula(), ...this.heldUnpublished()]));
     };
     this.standardService.getSchoolidStandard(schoolid).subscribe({
       next: (answer: any) => {
@@ -218,15 +224,14 @@ export class MoveLearnerDrawerComponent {
         finish();
       },
     });
-    this.schoolService.getPublishedCurriculums(schoolid).subscribe({
+    this.schoolService.getCurriculumsWithState(schoolid).subscribe({
       next: (answer: any) => {
         if (read !== this.placementRead) return;
-        // A deleted curriculum comes back without a name, so a missing name drops it.
-        this.curricula.set(
-          ((answer?.data as any[]) ?? [])
-            .filter((c) => c && !c.isdeleted && typeof c.curriculumname === 'string' && c.curriculumname.trim() !== '')
-            .map((c) => ({ label: c.curriculumname, value: c.curriculumid })),
-        );
+        // A deleted curriculum comes back without a name, so a missing name drops it. New picks are the published ones; one the
+        // learner already has stays (kept across the move when the school has it), labelled "(retired)" when it was retired.
+        const split = splitCurricula(((answer?.data as any[]) ?? []), this.details()?.curriculumids ?? []);
+        this.curricula.set(split.offered);
+        this.heldUnpublished.set(split.held);
         finish();
       },
       error: () => {
