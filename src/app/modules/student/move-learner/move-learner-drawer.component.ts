@@ -96,7 +96,7 @@ export class MoveLearnerDrawerComponent {
     return details ? currentPrimaryOf(details) : null;
   });
   readonly primaryCurriculumId = computed(() => primaryCurriculumId(this.curriculumIds(), this.currentPrimary()));
-  readonly primaryCurriculumName = computed(() => this.curricula().find((o) => o.value === this.primaryCurriculumId())?.label ?? '');
+  readonly primaryCurriculumName = computed(() => this.curriculumOptions().find((o) => o.value === this.primaryCurriculumId())?.label ?? '');
   private readonly formErrors = computed(() =>
     moveFormErrors(this.schoolId(), this.standardId(), this.curriculumIds(), gradeProblem(this.gradeState(), this.gradeId())),
   );

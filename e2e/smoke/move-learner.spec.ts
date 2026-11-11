@@ -835,6 +835,17 @@ test.describe('only published curricula are offered', () => {
     expect(bodyOf(mock)).toMatchObject({ schoolid: 'school-b', curriculumids: ['cur-1'] });
   });
 
+  test('the grade hint names a retired primary curriculum the learner already has, with its label', async ({ context }) => {
+    const mock = newMock();
+    mock.publication = { 'cur-1': 'withdrawn' };
+    mock.learners['lu-1'] = learner(1, 'dara1', 'Dara', { curriculumid: 'cur-1', gradeid: 'gr-cur-1-2', curriculumids: ['cur-1'] });
+    mock.grades['cur-1'] = [grade('cur-1', 1), grade('cur-1', 2)];
+    const page = await openLearners(context, mock);
+    await openMove(page);
+    await fill(page, 'Lakeside School', 'Class 5B');
+    await expect(page.getByTestId('grade-hint')).toHaveText('In Reading Basics (retired)');
+  });
+
   test("central's 400 on curriculumids is shown under the Curriculum field, in its own words", async ({ context }) => {
     const mock = newMock();
     const SAYS = 'Publish History Tales first, or choose another curriculum.';
