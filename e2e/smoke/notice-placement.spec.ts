@@ -4,13 +4,13 @@ import { API_URL, BASE_URL } from '../fixtures/env';
 /**
  * Every admin notice sits at the bottom right of the window, app-wide (one setting where ng-zorro is configured), so a notice
  * never covers the Create and Sync Content buttons at the top right of a list. Shown here on the Curriculum list with every
- * answer from the API mocked: a refused sync (409) and a plain success. Any other host is refused.
+ * answer from the API mocked: a Sync Content the API fails with its own words (the interceptor's error notice) and a plain success. Any other host is refused.
  *
  * Run it against a production or local build served on E2E_BASE_URL (E2E_API_URL, and E2E_ACCESS_KEYS as "algKey,payloadKey,hashKey").
  */
 const ACCESS_KEYS = (process.env.E2E_ACCESS_KEYS ?? 'lms_access_alg,lms_access_payload,lms_access_hash').split(',');
 const PERMISSIONS = ['view_curriculum', 'create_curriculum', 'sync_content'];
-const REFUSED = "The learning server doesn't have this school or one of its classes yet. Run Sync Content, then Sync Students.";
+const REFUSED = "The learning server did not accept this sync. Try again in a moment.";
 
 const b64 = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
 function sessionToken(): string {
@@ -70,14 +70,19 @@ async function expectBottomRight(page: Page, words: string): Promise<void> {
 }
 
 test.describe('notices sit at the bottom right', () => {
-  test('a refused sync shows at the bottom right and leaves Create and Sync Content uncovered', async ({ context }) => {
-    const page = await open(context, () => json(409, { error: true, errormessage: REFUSED }));
+  test('a failed Sync Content shows at the bottom right and leaves Create and Sync Content uncovered', async ({ context }) => {
+    const page = await open(context, () => json(500, { error: true, errormessage: REFUSED }));
     await pressSyncContent(page);
     await expectBottomRight(page, REFUSED);
     for (const button of [page.getByTestId('sync-content'), page.getByRole('link', { name: /create/i }).first()]) {
       const b = (await button.boundingBox())!;
       const at = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('.ant-notification') !== null, [b.x + b.width / 2, b.y + b.height / 2]);
       expect(at, 'a notice is not over the button').toBe(false);
+    }
+    if (process.env.E2E_NOTICE_SHOT) {
+      // After the open animation and the tooltips have settled.
+      await page.mouse.move(700, 600);
+      await page.waitForTimeout(1500);
     }
     if (process.env.E2E_NOTICE_SHOT) await page.screenshot({ path: process.env.E2E_NOTICE_SHOT });
   });
