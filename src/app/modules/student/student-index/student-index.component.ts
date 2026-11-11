@@ -7,11 +7,12 @@ import { NzNotificationService } from 'ng-zorro-antd/notification';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
 import { NzUploadChangeParam, NzUploadFile } from 'ng-zorro-antd/upload';
 import { BehaviorSubject, EMPTY, Observable, of, Subscription } from 'rxjs';
-import { catchError, debounceTime, filter, finalize, first, map, switchMap } from 'rxjs/operators';
+import { catchError, debounceTime, filter, finalize, first, map, shareReplay, switchMap } from 'rxjs/operators';
 import { CONFIRM_OK_SELECTOR, disableConfirmText, disableNotice, focusSoon, insideConfirmOrMenu, noticeOptions, restoreFocus, rowControl, withDisabled } from '../account-disable';
 import { canRemove, focusAfterRemove, removeConfirmText, removeFailureText, removedText } from '../account-remove';
 import { restoreFocusAfterDrawer } from '../reset-password/drawer-focus';
 import { EditLearnerResult, savedNotice } from '../edit-learner/edit-learner';
+import { MoveLearnerResult, MoveOption, NO_OTHER_SCHOOL_TOOLTIP, SchoolRow, movedNotice, schoolsToMoveTo } from '../move-learner/move-learner';
 import { IFilter } from 'src/app/models/IPaging';
 import { StudentImport, StudentImportForEdit } from 'src/app/models/studentimport';
 import { CoreService } from 'src/app/services/core.service';
@@ -135,12 +136,15 @@ export class StudentIndexComponent implements OnInit {
     private countryService: CountryService,
   ) {}
   ngOnInit() {
-    this.school$ = this.schoolService.getall({ pagesize: 200 }).pipe(
-      catchError((x: any) => []),
-      first(),
-      map((x: any) => x.data.data)
+    // One request for the schools list: the filter dropdown and the Move to another school list both read this answer.
+    this.schoolsAnswer$ = this.readSchools().pipe(shareReplay({ bufferSize: 1, refCount: false }));
+    // A failed shared answer is read again each time the dropdown or the Upload Users modal subscribes, so it recovers like a fresh request.
+    this.school$ = this.schoolsAnswer$.pipe(
+      switchMap((answer) => (answer.ok ? of(answer) : this.readSchools())),
+      filter((answer) => answer.ok),
+      map((answer) => answer.rows),
     );
-    this.school$.subscribe();
+    this.loadMoveSchools(false);
     this.resetForm();
     this.setupSearchCountry();
     this.setupSearchSchool();
@@ -327,7 +331,7 @@ export class StudentIndexComponent implements OnInit {
   onMenuVisible(visible: boolean, row: any) {
     this.menuOpen = visible ? row.schooluserid : this.menuOpen === row.schooluserid ? null : this.menuOpen;
     if (visible) focusSoon('.ant-dropdown [data-menu-action]');
-    else if (!this.confirming && this.resetFor === null && this.editFor === null) restoreFocus(row.schooluserid);
+    else if (!this.confirming && this.resetFor === null && this.editFor === null && this.moveFor === null) restoreFocus(row.schooluserid);
   }
   /** The schooluserid whose Reset password drawer is open, and its row (kept while the drawer slides away). */
   resetFor: string | null = null;
@@ -360,6 +364,63 @@ export class StudentIndexComponent implements OnInit {
     const id = this.editFor;
     this.editFor = null;
     const notice = savedNotice(event.result, event.fallbackName);
+    this.notification.create(notice.type, notice.title, notice.text, noticeOptions(notice));
+    this.loadDataFromServer(() => id && restoreFocusAfterDrawer(rowControl(id)));
+  }
+  // ---- Move to another school --------------------------------------------------------------------------------
+  readonly noOtherSchoolTooltip = NO_OTHER_SCHOOL_TOOLTIP;
+  /** The caller's schools as the schools list answers them (an organisation's staff, or a platform user acting as one, see only that organisation's). */
+  private moveSchools: SchoolRow[] = [];
+  moveSchoolsState: 'idle' | 'loading' | 'ready' | 'error' = 'idle';
+  private moveSchoolsRead = 0;
+  private schoolsAnswer$!: Observable<{ ok: boolean; rows: any[] }>;
+  private readSchools(): Observable<{ ok: boolean; rows: any[] }> {
+    return this.schoolService.getall({ pagesize: 200 }).pipe(
+      map((answer: any) => ({ ok: true, rows: (answer?.data?.data ?? []) as any[] })),
+      catchError(() => of({ ok: false, rows: [] as any[] })),
+    );
+  }
+  /** Reads the schools the page already asked for; `again` asks afresh (the retry after a failure). */
+  loadMoveSchools(again = true) {
+    const read = ++this.moveSchoolsRead;
+    this.moveSchoolsState = 'loading';
+    (again ? this.readSchools() : this.schoolsAnswer$).pipe(first()).subscribe((answer) => {
+      if (read !== this.moveSchoolsRead) return;
+      if (!answer.ok) {
+        this.moveSchoolsState = 'error';
+        return;
+      }
+      this.moveSchools = answer.rows as SchoolRow[];
+      this.moveSchoolsState = 'ready';
+      this.moveOptions = this.moveTargets(this.moveRow);
+    });
+  }
+  /** The schools this learner can move to. */
+  moveTargets = (row: any): MoveOption[] => schoolsToMoveTo(this.moveSchools, row);
+  /** Disabled only once the schools are known and none other is left: while they load the item stays usable and the drawer waits. */
+  noMoveTarget = (row: any): boolean => this.moveSchoolsState === 'ready' && this.moveTargets(row).length === 0;
+  /** The row of the Move to another school drawer (kept while the drawer slides away). */
+  moveRow: any = null;
+  /** The schools offered to the learner of `moveRow`, worked out once per opening and again when the schools arrive. */
+  moveOptions: MoveOption[] = [];
+  moveFor: string | null = null;
+  openMove(row: any) {
+    if (this.noMoveTarget(row)) return;
+    if (this.moveSchoolsState === 'error') this.loadMoveSchools();
+    this.moveRow = row;
+    this.moveOptions = this.moveTargets(row);
+    this.moveFor = row.schooluserid;
+  }
+  closeMove() {
+    const id = this.moveFor;
+    this.moveFor = null;
+    if (id) restoreFocusAfterDrawer(rowControl(id));
+  }
+  /** The learner was moved: the drawer closes, a notice gives central's sentence about the push, and the page of the list is read again. */
+  onMoved(result: MoveLearnerResult) {
+    const id = this.moveFor;
+    this.moveFor = null;
+    const notice = movedNotice(result);
     this.notification.create(notice.type, notice.title, notice.text, noticeOptions(notice));
     this.loadDataFromServer(() => id && restoreFocusAfterDrawer(rowControl(id)));
   }

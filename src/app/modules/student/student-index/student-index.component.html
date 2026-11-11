@@ -176,6 +176,23 @@
                       <li
                         nz-menu-item
                         role="menuitem"
+                        data-menu-action
+                        data-testid="move-school-item"
+                        nz-tooltip
+                        [nzTooltipTitle]="noMoveTarget(data) ? noOtherSchoolTooltip : null"
+                        tabindex="0"
+                        [nzDisabled]="noMoveTarget(data)"
+                        [attr.aria-disabled]="noMoveTarget(data)"
+                        [attr.aria-description]="noMoveTarget(data) ? noOtherSchoolTooltip : null"
+                        (click)="openMove(data)"
+                        (keydown.enter)="$any($event.currentTarget).click()"
+                        (keydown.space)="$event.preventDefault(); $any($event.currentTarget).click()"
+                      >
+                        Move to another school
+                      </li>
+                      <li
+                        nz-menu-item
+                        role="menuitem"
                         tabindex="0"
                         data-menu-action
                         data-testid="reset-password-item"
@@ -520,6 +537,16 @@
   (saved)="onDetailsSaved($event)"
   (closed)="closeEdit()"
 ></app-edit-learner-drawer>
+<app-move-learner-drawer
+  [open]="moveFor !== null"
+  [schooluserid]="moveFor ?? ''"
+  [username]="moveRow ? username(moveRow) : ''"
+  [schools]="moveOptions"
+  [schoolsState]="moveSchoolsState"
+  (moved)="onMoved($event)"
+  (closed)="closeMove()"
+  (retrySchools)="loadMoveSchools()"
+></app-move-learner-drawer>
 <app-reset-password-drawer
   [open]="resetFor !== null"
   kind="learner"

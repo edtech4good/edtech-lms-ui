@@ -482,6 +482,8 @@ for (const where of [LEARNER, TEACHER]) {
       if (where.kind === 'learner') {
         await expect(menuItem(page, 'Edit details')).toBeFocused();
         await page.keyboard.press('Tab');
+        await expect(menuItem(page, 'Move to another school')).toBeFocused();
+        await page.keyboard.press('Tab');
       }
       await expect(menuItem(page, 'Reset password')).toBeFocused();
       await page.keyboard.press('Enter');
@@ -529,10 +531,10 @@ test.describe('Reset password: the Learners menu', () => {
   test('Reset password is the item above Disable or Enable', async ({ context }) => {
     const page = await openLearners(context, newMock());
     await actions(page, 'dara1').click();
-    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Reset password', 'Disable']);
+    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Move to another school', 'Reset password', 'Disable']);
     await page.keyboard.press('Escape');
     await actions(page, 'sokha2').click();
-    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Reset password', 'Enable']);
+    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Move to another school', 'Reset password', 'Enable']);
   });
 
   test('Space on the item opens the drawer, and the menu closes', async ({ context }) => {
@@ -540,6 +542,8 @@ test.describe('Reset password: the Learners menu', () => {
     await actions(page, 'dara1').focus();
     await page.keyboard.press('Enter');
     await expect(menuItem(page, 'Edit details')).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(menuItem(page, 'Move to another school')).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(menuItem(page, 'Reset password')).toBeFocused();
     await page.keyboard.press('Space');

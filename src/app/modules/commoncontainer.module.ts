@@ -10,6 +10,7 @@ import { StudentIndexComponent } from './student/student-index/student-index.com
 import { StudentStatsComponent } from './student/student-stats/student-stats.component';
 import { AddTeacherDrawerComponent } from './teacher/add-teacher/add-teacher-drawer.component';
 import { EditLearnerDrawerComponent } from './student/edit-learner/edit-learner-drawer.component';
+import { MoveLearnerDrawerComponent } from './student/move-learner/move-learner-drawer.component';
 import { ResetPasswordDrawerComponent } from './student/reset-password/reset-password-drawer.component';
 import { TeacherIndexComponent } from './teacher/teacher-index/teacher-index.component';
 import { LessonModule } from "./lesson/lesson.module";
@@ -38,6 +39,7 @@ import { ShellNavComponent } from './shell/shell-nav.component';
         AddLearnerDrawerComponent,
         AddTeacherDrawerComponent,
         EditLearnerDrawerComponent,
+        MoveLearnerDrawerComponent,
         ResetPasswordDrawerComponent,
     ]
 })

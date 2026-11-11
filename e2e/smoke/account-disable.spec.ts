@@ -304,6 +304,8 @@ test.describe('Learners list: keyboard and focus', () => {
     await expect(button).toHaveAttribute('aria-expanded', 'true');
     await expect(menuItem(page, 'Edit details')).toBeFocused();
     await page.keyboard.press('Tab');
+    await expect(menuItem(page, 'Move to another school')).toBeFocused();
+    await page.keyboard.press('Tab');
     await expect(menuItem(page, 'Reset password')).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(menuItem(page, 'Disable')).toBeFocused();
@@ -321,6 +323,8 @@ test.describe('Learners list: keyboard and focus', () => {
     await page.keyboard.press('Enter');
     await expect(menuItem(page, 'Edit details')).toBeFocused();
     await page.keyboard.press('Tab');
+    await expect(menuItem(page, 'Move to another school')).toBeFocused();
+    await page.keyboard.press('Tab');
     await expect(menuItem(page, 'Reset password')).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(menuItem(page, 'Disable')).toBeFocused();
@@ -335,6 +339,8 @@ test.describe('Learners list: keyboard and focus', () => {
       await actions(page, 'dara1').focus();
       await page.keyboard.press('Enter');
       await expect(menuItem(page, 'Edit details')).toBeFocused();
+      await page.keyboard.press('Tab');
+      await expect(menuItem(page, 'Move to another school')).toBeFocused();
       await page.keyboard.press('Tab');
       await expect(menuItem(page, 'Reset password')).toBeFocused();
       await page.keyboard.press('Tab');
@@ -623,7 +629,7 @@ test.describe('Manage menu: the button', () => {
   test('the menus list their items in order, and the Teachers menu puts Delete after a divider', async ({ context }) => {
     const page = await openLearners(context, newMock());
     await actions(page, 'dara1').click();
-    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Reset password', 'Disable']);
+    await expect(page.getByRole('menuitem')).toHaveText(['Edit details', 'Move to another school', 'Reset password', 'Disable']);
     await expect(page.locator('.ant-dropdown-menu-item-divider')).toHaveCount(0);
     await page.keyboard.press('Escape');
     const teachers = await openTeachers(context, newMock());
@@ -650,6 +656,8 @@ test.describe('Manage menu: keyboard only, every action', () => {
     await page.keyboard.press('Enter');
     await expect(menuItem(page, 'Edit details')).toBeFocused();
     await page.keyboard.press('Tab');
+    await expect(menuItem(page, 'Move to another school')).toBeFocused();
+    await page.keyboard.press('Tab');
     await expect(menuItem(page, 'Reset password')).toBeFocused();
     await page.keyboard.press('Enter');
     await expect(dialogNamed(page, 'Reset password')).toBeVisible();
@@ -660,6 +668,8 @@ test.describe('Manage menu: keyboard only, every action', () => {
     await actions(page, 'dara1').focus();
     await page.keyboard.press('Enter');
     await expect(menuItem(page, 'Edit details')).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(menuItem(page, 'Move to another school')).toBeFocused();
     await page.keyboard.press('Tab');
     await expect(menuItem(page, 'Reset password')).toBeFocused();
     await page.keyboard.press('Tab');
