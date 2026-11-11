@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { serverFieldErrors } from '../../src/app/modules/student/add-learner/add-learner-form';
-import { editBody, editErrors, formFromDetails } from '../../src/app/modules/student/edit-learner/edit-learner';
+import { currentPrimaryOf, editBody, editErrors, formFromDetails } from '../../src/app/modules/student/edit-learner/edit-learner';
 import {
   GRADE_CHOOSE_MESSAGE,
   GRADE_NONE_MESSAGE,
@@ -43,9 +43,21 @@ test.describe('b. several grades', () => {
     expect(gradeProblem(state(TWO), 'g2')).toBeNull();
     expect(gradeToSend(state(TWO), 'g2')).toBe('g2');
   });
-  test('an edit or move that keeps the primary curriculum may leave it unchosen (the server keeps the current grade) and then sends none', () => {
-    expect(gradeProblem(state(TWO), null, true)).toBeNull();
+  test('an edit or move is no different: a learner with no grade must be given one, even when the primary curriculum is kept', () => {
+    expect(gradeProblem(state(TWO), reconcileGrade(null, TWO, null))).toBe(GRADE_CHOOSE_MESSAGE);
+    expect(gradeProblem(state(TWO), reconcileGrade(null, TWO, 'not-an-option'))).toBe(GRADE_CHOOSE_MESSAGE);
     expect(editBody(formFromDetails(DETAILS), gradeToSend(state(TWO), null))).not.toHaveProperty('gradeid');
+  });
+  test('a learner whose grade is one of the options has it preselected and sent (the server accepts what it would keep)', () => {
+    const kept = reconcileGrade(null, TWO, 'g2');
+    expect(kept).toBe('g2');
+    expect(gradeProblem(state(TWO), kept)).toBeNull();
+    expect(editBody(formFromDetails(DETAILS), gradeToSend(state(TWO), kept))).toHaveProperty('gradeid', 'g2');
+  });
+  test('the primary curriculum is the stored one, with no guess from the list when central does not say', () => {
+    expect(currentPrimaryOf({ curriculumid: null, curriculumids: ['c2', 'c1'] } as never)).toBeNull();
+    expect(currentPrimaryOf({ curriculumid: 'c1', curriculumids: ['c2', 'c1'] } as never)).toBe('c1');
+    expect(primaryCurriculumId(['c2', 'c1'], currentPrimaryOf({ curriculumid: null, curriculumids: ['c1', 'c2'] } as never))).toBe('c2');
   });
   test('the choice goes into the edit body', () => {
     expect(editBody(formFromDetails(DETAILS), gradeToSend(state(TWO), 'g2')).gradeid).toBe('g2');
@@ -78,7 +90,6 @@ test.describe('d. no grades', () => {
   test('says so under the curriculum at once and blocks a save', () => {
     expect(gradeKind('ready', [])).toBe('none');
     expect(gradeProblem(state([]), null)).toBe(GRADE_NONE_MESSAGE);
-    expect(gradeProblem(state([]), null, true)).toBe(GRADE_NONE_MESSAGE);
     expect(gradeMessages('none', GRADE_NONE_MESSAGE, null, false)).toEqual({ underGrade: null, underCurriculum: GRADE_NONE_MESSAGE });
   });
   test('grades that failed to load, or are still loading, also block a save', () => {

@@ -120,8 +120,6 @@ export class EditLearnerDrawerComponent {
   });
   readonly primaryCurriculumId = computed(() => primaryCurriculumId(this.curriculumIds(), this.currentPrimary()));
   readonly primaryCurriculumName = computed(() => this.curriculumOptions().find((o) => o.value === this.primaryCurriculumId())?.label ?? '');
-  /** The primary curriculum is the learner's own: choosing a grade is then optional, the server keeps the one they have. */
-  readonly gradeOptional = computed(() => this.primaryCurriculumId() === this.currentPrimary());
   /** A grade was chosen that is not the one the learner has. */
   private readonly gradeChanged = computed(() => this.gradeId() !== null && this.gradeId() !== (this.details()?.gradeid ?? null));
   readonly changed = computed(() => {
@@ -142,7 +140,7 @@ export class EditLearnerDrawerComponent {
     studentlastname: lastNameError(this.lastName()),
     standard: this.standardId() ? null : `Choose a ${this.classWord.toLowerCase()}.`,
     curriculumids: this.curriculumIds().length ? null : 'Choose at least one curriculum.',
-    gradeid: gradeProblem(this.gradeState(), this.gradeId(), this.gradeOptional()),
+    gradeid: gradeProblem(this.gradeState(), this.gradeId()),
     genderid: this.genderId() ? null : GENDER_MESSAGE,
     dateofbirth: dateOfBirthError(this.dateOfBirth(), this.dobBad()),
   }));

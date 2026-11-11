@@ -31,15 +31,13 @@ import { SelectInputAttrsDirective } from './select-input-attrs.directive';
         <div class="field" data-testid="grade-field">
           <label class="label" [attr.for]="idPrefix() + '-input'">
             Grade
-            @if (!optional()) {
-              <span class="req" aria-hidden="true">*</span>
-            }
+            <span class="req" aria-hidden="true">*</span>
           </label>
           <nz-select
             [id]="idPrefix()"
             [nzId]="idPrefix() + '-input'"
             class="wide"
-            [nzPlaceHolder]="optional() ? 'Keep the current grade' : 'Choose a grade'"
+            nzPlaceHolder="Choose a grade"
             [class.invalid]="error()"
             [nzOptions]="options()"
             [ngModel]="value()"
@@ -75,7 +73,6 @@ export class LearnerGradeFieldComponent {
   /** The learner's own grade, chosen when it belongs to the curriculum and nothing else is chosen. */
   readonly preferred = input<string | null>(null);
   /** Choosing is not required (an edit that keeps the primary curriculum: the server keeps the learner's grade). */
-  readonly optional = input(false);
   /** The message beside the select; shown only while the select is. */
   readonly error = input<string | null>(null);
   readonly idPrefix = input('learner-grade');
@@ -91,7 +88,7 @@ export class LearnerGradeFieldComponent {
   readonly hint = computed(() => gradeHint(this.curriculumName()));
   readonly inputAttrs = computed(() => ({
     'aria-describedby': [this.hint() ? this.idPrefix() + '-hint' : '', this.error() ? this.idPrefix() + '-error' : ''].filter(Boolean).join(' ') || null,
-    'aria-required': this.optional() ? null : 'true',
+    'aria-required': 'true',
     'aria-invalid': this.error() ? 'true' : null,
   }));
 

@@ -134,7 +134,6 @@
             [curriculumName]="primaryCurriculumName()"
             [(value)]="gradeId"
             [preferred]="details()?.gradeid ?? null"
-            [optional]="gradeOptional()"
             [error]="gradeMessages().underGrade"
             (valueChange)="onGradeChosen()"
             (stateChange)="gradeState.set($event)"

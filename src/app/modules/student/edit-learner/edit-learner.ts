@@ -95,9 +95,11 @@ export function editBody(form: EditForm, gradeid?: string): EditLearnerBody {
   };
 }
 
-/** The learner's primary curriculum as the form knows it: central's own when it says, else the first of their curricula. */
-export const currentPrimaryOf = (details: Pick<LearnerDetails, 'curriculumid' | 'curriculumids'>): string | null =>
-  details.curriculumid || details.curriculumids?.[0] || null;
+/**
+ * The learner's primary curriculum as central stores it, or null when it does not say. No guess from the list: the API
+ * picks the first of the NEW list when the stored one is null, so the form must do the same.
+ */
+export const currentPrimaryOf = (details: Pick<LearnerDetails, 'curriculumid' | 'curriculumids'>): string | null => details.curriculumid ?? null;
 
 const normal = (form: EditForm) => ({
   first: form.firstName.trim(),

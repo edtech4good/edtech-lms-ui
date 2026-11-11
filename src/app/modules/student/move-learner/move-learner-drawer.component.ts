@@ -93,10 +93,8 @@ export class MoveLearnerDrawerComponent {
   });
   readonly primaryCurriculumId = computed(() => primaryCurriculumId(this.curriculumIds(), this.currentPrimary()));
   readonly primaryCurriculumName = computed(() => this.curricula().find((o) => o.value === this.primaryCurriculumId())?.label ?? '');
-  /** The primary curriculum is the learner's own: choosing a grade is then optional, the server keeps the one they have. */
-  readonly gradeOptional = computed(() => this.primaryCurriculumId() === this.currentPrimary());
   private readonly formErrors = computed(() =>
-    moveFormErrors(this.schoolId(), this.standardId(), this.curriculumIds(), gradeProblem(this.gradeState(), this.gradeId(), this.gradeOptional())),
+    moveFormErrors(this.schoolId(), this.standardId(), this.curriculumIds(), gradeProblem(this.gradeState(), this.gradeId())),
   );
   /** The messages about the grade: beside the Grade select, or under the curriculum field when there is no select. */
   readonly gradeMessages = computed(() =>

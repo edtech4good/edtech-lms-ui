@@ -86,10 +86,11 @@ export function gradeToSend(state: Pick<GradeState, 'kind' | 'options'>, chosen:
 
 /**
  * What stops a save before anything is sent, in the server's words: a curriculum with no grade, grades that did not load
- * or are still loading, several grades with none chosen. `optional` is for an edit or a move that keeps the learner's
- * primary curriculum: the server then keeps the grade the learner has (and asks if it cannot).
+ * or are still loading, several grades with none chosen. An edit or a move is no different: the server keeps a learner's
+ * grade only when it is a live grade of the primary curriculum, which the form has already chosen for them in that case;
+ * a learner with no grade (most existing ones) must be given one.
  */
-export function gradeProblem(state: Pick<GradeState, 'kind' | 'options'>, chosen: string | null, optional = false): string | null {
+export function gradeProblem(state: Pick<GradeState, 'kind' | 'options'>, chosen: string | null): string | null {
   switch (state.kind) {
     case 'none':
       return GRADE_NONE_MESSAGE;
@@ -98,7 +99,7 @@ export function gradeProblem(state: Pick<GradeState, 'kind' | 'options'>, chosen
     case 'loading':
       return GRADE_LOADING_MESSAGE;
     case 'several':
-      return optional || (chosen && state.options.some((o) => o.value === chosen)) ? null : GRADE_CHOOSE_MESSAGE;
+      return chosen && state.options.some((o) => o.value === chosen) ? null : GRADE_CHOOSE_MESSAGE;
     default:
       return null;
   }
