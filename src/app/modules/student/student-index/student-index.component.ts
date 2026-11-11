@@ -138,7 +138,9 @@ export class StudentIndexComponent implements OnInit {
   ngOnInit() {
     // One request for the schools list: the filter dropdown and the Move to another school list both read this answer.
     this.schoolsAnswer$ = this.readSchools().pipe(shareReplay({ bufferSize: 1, refCount: false }));
+    // A failed shared answer is read again each time the dropdown or the Upload Users modal subscribes, so it recovers like a fresh request.
     this.school$ = this.schoolsAnswer$.pipe(
+      switchMap((answer) => (answer.ok ? of(answer) : this.readSchools())),
       filter((answer) => answer.ok),
       map((answer) => answer.rows),
     );

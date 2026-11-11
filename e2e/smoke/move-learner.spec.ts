@@ -312,12 +312,34 @@ test.describe('Move to another school: the menu item', () => {
 
   test('the Learners page asks for the schools once, however many things use them', async ({ context }) => {
     const mock = newMock();
-    const page = await openLearners(context, mock);
+    const page = await openLearners(context, mock, [...WITH, 'create_student']);
     expect(mock.gets.filter((g) => g === 'POST school')).toHaveLength(1);
     await openMove(page);
     await schoolSelect(page).locator('.ant-select-selector').click();
     await expect(page.locator('.ant-select-item-option')).toHaveText(['Lakeside School', 'Hilltop School']);
+    await page.keyboard.press('Escape');
+    await drawer(page).getByRole('button', { name: 'Cancel' }).click();
+    await page.getByRole('button', { name: 'Upload Users' }).click();
+    await page.locator('.ant-modal-content', { hasText: 'Upload Users' }).locator('.ant-select-selector').first().click();
+    await expect(page.locator('.ant-select-item-option')).toHaveText(['North Valley School', 'Lakeside School', 'Hilltop School', 'Far Away School']);
     expect(mock.gets.filter((g) => g === 'POST school')).toHaveLength(1);
+  });
+
+  test('after the first schools request failed, a successful Try again lets the Upload Users list show the schools', async ({ context }) => {
+    const mock = newMock();
+    mock.schools = 'fail';
+    const page = await openLearners(context, mock, [...WITH, 'create_student']);
+    await actions(page, 'dara1').click();
+    await menuItem(page, 'Move to another school').click();
+    await expect(page.getByTestId('move-learner-load-error')).toContainText("The schools couldn't be loaded.");
+    mock.schools = SCHOOLS;
+    await page.getByRole('button', { name: 'Try again' }).click();
+    await expect(schoolSelect(page)).toBeVisible();
+    await drawer(page).getByRole('button', { name: 'Cancel' }).click();
+    await expect(drawer(page)).toBeHidden();
+    await page.getByRole('button', { name: 'Upload Users' }).click();
+    await page.locator('.ant-modal-content', { hasText: 'Upload Users' }).locator('.ant-select-selector').first().click();
+    await expect(page.locator('.ant-select-item-option')).toHaveText(['North Valley School', 'Lakeside School', 'Hilltop School', 'Far Away School']);
   });
 
   test('when the schools cannot be read the item stays usable and the drawer says so, with Try again', async ({ context }) => {
