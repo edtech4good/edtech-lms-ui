@@ -8,7 +8,12 @@
         @if (link.route !== nav.homeRoute) {
           <li *ngxPermissionsOnly="link.permissions">
             <a class="link-card" [routerLink]="link.route" [queryParams]="link.queryParams">
-              <span>{{ link.label }}</span>
+              <span class="link-text">
+                <span>{{ link.label }}</span>
+                @if (link.description) {
+                  <small class="link-help">{{ link.description }}</small>
+                }
+              </span>
               <svg
                 width="16"
                 height="16"

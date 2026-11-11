@@ -5,6 +5,7 @@ import { first } from 'rxjs/operators';
 import { CurriculumService } from 'src/app/services/curriculum.service';
 import { StudentService } from 'src/app/services/student.service';
 import { UtilService } from 'src/app/services/util.service';
+import { AWARDS_OFFLINE_PERMISSIONS } from '../../awards/awards';
 @Component({
     selector: 'app-student-stats',
     templateUrl: './student-stats.component.html',
@@ -20,6 +21,8 @@ export class StudentStatsComponent implements OnInit {
   ) {}
   dataloading = false;
   studentdetails: any;
+  studentid = '';
+  readonly awardsPermissions = AWARDS_OFFLINE_PERMISSIONS;
   studentlevel: Array<any> = [];
   studentquiz: Array<any> = [];
   studentpractice: Array<any> = [];
@@ -27,6 +30,7 @@ export class StudentStatsComponent implements OnInit {
   async ngOnInit() {
     this.router.activatedRoute.params.pipe(first()).subscribe((route) => {
       if (route?.studentid) {
+        this.studentid = route.studentid;
         this._studentservice
           .getStudent(route.studentid)
           .pipe(first())

@@ -69,6 +69,8 @@
         </nz-descriptions>
       </nz-card>
 
+      <app-learner-awards *ngxPermissionsOnly="awardsPermissions" [studentid]="studentid"></app-learner-awards>
+
       <nz-collapse>
         <nz-collapse-panel nzHeader="Curriculum Progress">
           <nz-tree

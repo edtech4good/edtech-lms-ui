@@ -9,6 +9,7 @@ import { StudentActivityComponent } from './student-activity/student-activity.co
 import { StudentCompletedQuizComponent } from './student-completed-quiz/completed-quiz.component';
 import { StudentLastCompletedQuizComponent } from './student-last-completed-quiz/last-completed-quiz.component';
 import { StudentLevelQuizComponent } from './student-level-quiz/level-quiz.component';
+import { StudentAwardsComponent } from './student-awards/student-awards.component';
 import { StudentGradeProgressComponent } from './student-progress/student-grade-progress/grade.component';
 import { StudentLessonProgressComponent } from './student-progress/student-lesson-progress/lesson.component';
 import { StudentLevelProgressComponent } from './student-progress/student-level-progress/level.component';
@@ -178,6 +179,24 @@ const routes: Routes = [
         canActivate: [AuthGuard],
         data: {
           crumb: 'Level progress (online)',
+          roles: [Role.admin, Role.superadmin, Role.user],
+        },
+      },
+      {
+        path: 'student-awards',
+        component: StudentAwardsComponent,
+        canActivate: [AuthGuard],
+        data: {
+          crumb: 'Awards',
+          roles: [Role.admin, Role.superadmin, Role.user],
+        },
+      },
+      {
+        path: 'student-awards/online',
+        component: StudentAwardsComponent,
+        canActivate: [AuthGuard],
+        data: {
+          crumb: 'Awards (online)',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },

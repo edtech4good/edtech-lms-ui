@@ -1,0 +1,97 @@
+<div>
+  <nz-select
+    nzPlaceHolder="Select countries"
+    nzAllowClear
+    nzShowSearch
+    nzServerSearch
+    [(ngModel)]="searchFields.countryid"
+    (ngModelChange)="onSearchSchool('')"
+    (nzOnSearch)="onSearchCountry($event)"
+    style="width: 200px"
+    data-testid="awards-country"
+  >
+    <ng-container *ngFor="let o of countryList">
+      <nz-option *ngIf="!isCountryLoading" [nzValue]="o.countryid" [nzLabel]="o.countryname"></nz-option>
+    </ng-container>
+  </nz-select>
+  <nz-select
+    nzPlaceHolder="Select schools"
+    nzAllowClear
+    nzShowSearch
+    nzServerSearch
+    [(ngModel)]="searchFields.schoolname"
+    (ngModelChange)="onSearchUser('')"
+    (nzOnSearch)="onSearchSchool($event)"
+    style="width: 200px"
+    data-testid="awards-school"
+  >
+    <ng-container *ngFor="let o of schoolList">
+      <nz-option *ngIf="!isSchoolLoading" [nzValue]="o.schoolname" [nzLabel]="o.schoolname"></nz-option>
+    </ng-container>
+  </nz-select>
+  <nz-select
+    nzPlaceHolder="Select students"
+    [disabled]="searchFields.schoolname ? false : true"
+    nzAllowClear
+    nzShowSearch
+    nzServerSearch
+    [(ngModel)]="searchFields.studentid"
+    (ngModelChange)="onSearchGrade('')"
+    (nzOnSearch)="onSearchUser($event)"
+    style="width: 200px"
+    data-testid="awards-student"
+  >
+    <ng-container *ngFor="let o of userList">
+      <nz-option *ngIf="!isUserLoading" [nzValue]="o.studentid" [nzLabel]="o.schooluser.schoolusername"></nz-option>
+    </ng-container>
+  </nz-select>
+  <nz-select
+    [disabled]="searchFields.studentid ? false : true"
+    nzPlaceHolder="Select course"
+    nzAllowClear
+    nzShowSearch
+    nzServerSearch
+    [(ngModel)]="searchFields.gradeid"
+    (nzOnSearch)="onSearchGrade($event)"
+    style="width: 200px"
+    data-testid="awards-grade"
+  >
+    <ng-container *ngFor="let o of gradeList">
+      <nz-option *ngIf="!isGradeLoading" [nzValue]="o.gradeid" [nzLabel]="o.gradename"></nz-option>
+    </ng-container>
+  </nz-select>
+  <button
+    nz-button
+    nzType="primary"
+    (click)="search()"
+    [disabled]="searchFields.studentid ? false : true"
+    [nzLoading]="state === 'loading'"
+    data-testid="awards-search"
+  >
+    Search
+  </button>
+</div>
+<div nz-row>
+  <div nz-col nzSpan="24">
+    <nz-card [nzBordered]="true" nzTitle="Awards report">
+      @switch (state) {
+        @case ('idle') {
+          <p data-testid="awards-report-idle">Choose a learner and press Search.</p>
+        }
+        @case ('loading') {
+          <p data-testid="awards-report-loading">Loading awards…</p>
+        }
+        @case ('error') {
+          <p role="alert" data-testid="awards-report-error">{{ errorMessage }}</p>
+        }
+        @case ('empty') {
+          <p data-testid="awards-report-empty">{{ emptyMessage }}</p>
+        }
+        @default {
+          <p data-testid="awards-report-summary">{{ summary }}</p>
+          <app-awards-table [rows]="rows" [showGrade]="true"></app-awards-table>
+        }
+      }
+    </nz-card>
+  </div>
+</div>

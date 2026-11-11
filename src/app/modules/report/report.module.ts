@@ -5,6 +5,8 @@ import { ClassCompletedQuizComponent } from './class-completed-quiz/completed-qu
 import { ClassLevelQuizComponent } from './class-level-quiz/level-quiz.component';
 import { ReportIndexComponent } from './report-index/report-index.component';
 import { ReportRoutingModule } from './report-routing.module';
+import { AwardsTableComponent } from '../awards/awards-table.component';
+import { StudentAwardsComponent } from './student-awards/student-awards.component';
 import { StudentActivityComponent } from './student-activity/student-activity.component';
 import { StudentCompletedQuizComponent } from './student-completed-quiz/completed-quiz.component';
 import { StudentLastCompletedQuizComponent } from './student-last-completed-quiz/last-completed-quiz.component';
@@ -27,7 +29,8 @@ import { SyncRecordComponent } from './sync-record/sync-record.component';
     StudentGradeProgressComponent,
     StudentLevelProgressComponent,
     StudentLessonProgressComponent,
+    StudentAwardsComponent,
   ],
-  imports: [CommonModule, SharedModule, ReportRoutingModule],
+  imports: [CommonModule, SharedModule, ReportRoutingModule, AwardsTableComponent],
 })
 export class ReportModule {}
