@@ -902,7 +902,7 @@ test.describe('Add learner drawer', () => {
 });
 
 test.describe('only published curricula are offered', () => {
-  const offered = (page: Page) => page.locator('.ant-select-item-option').allTextContents();
+  const offered = (page: Page) => page.locator('.ant-select-item-option').allTextContents().then((t) => t.map((x) => x.trim()));
 
   async function openCurricula(page: Page): Promise<void> {
     await openDrawer(page);

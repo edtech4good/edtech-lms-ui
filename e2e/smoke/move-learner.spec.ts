@@ -782,7 +782,7 @@ test.describe('Move to another school: screenshots', () => {
 });
 
 test.describe('only published curricula are offered', () => {
-  const offered = (page: Page) => page.locator('.ant-select-item-option').allTextContents();
+  const offered = (page: Page) => page.locator('.ant-select-item-option').allTextContents().then((t) => t.map((x) => x.trim()));
 
   test('a curriculum never published or retired is not offered', async ({ context }) => {
     const mock = newMock();
