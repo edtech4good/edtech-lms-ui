@@ -1123,3 +1123,26 @@ test.describe('Add learner drawer: a refusal on both the grade and the curriculu
     await expect(drawer(page)).toBeVisible();
   });
 });
+
+test.describe('Add learner drawer: a notice raised while it is open', () => {
+  test('sits at the bottom left and does not cover the drawer\'s buttons', async ({ context }) => {
+    const mock = newMock();
+    mock.createAnswer = () => json(500, { error: true, errormessage: 'The server could not save this learner. Try again in a moment.' });
+    const page = await openLearners(context, mock);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openDrawer(page);
+    await fillRequired(page);
+    await page.getByRole('button', { name: 'Add learner', exact: true }).click();
+    const notice = page.locator('.ant-notification-bottomLeft .ant-notification-notice');
+    await expect(notice).toBeVisible();
+    await expect(drawer(page)).toBeVisible();
+    await page.mouse.move(700, 100);
+    await page.waitForTimeout(1000);
+    const n = (await notice.boundingBox())!;
+    for (const name of ['Add learner', 'Cancel']) {
+      const b = (await page.getByRole('button', { name, exact: true }).boundingBox())!;
+      const overlap = n.x < b.x + b.width && n.x + n.width > b.x && n.y < b.y + b.height && n.y + n.height > b.y;
+      expect(overlap, `the notice is not over ${name}`).toBe(false);
+    }
+  });
+});

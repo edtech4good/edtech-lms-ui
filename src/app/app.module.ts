@@ -37,8 +37,8 @@ export const jwtoptionsfactory = (
   skipWhenExpired: true,
   allowedDomains: [core.COREDOMAIN()],
 });
-/** Every admin notice sits at the bottom right, app-wide, so none covers the Create and Sync buttons at the top right of a list. No call sets its own placement. */
-const NOTICE_CONFIG: NzConfig = { notification: { nzPlacement: 'bottomRight' } };
+/** Every admin notice sits at the bottom left, app-wide, so none covers the Create and Sync buttons at the top right of a list. No call sets its own placement. */
+const NOTICE_CONFIG: NzConfig = { notification: { nzPlacement: 'bottomLeft' } };
 
 @NgModule({ declarations: [AppComponent, PageNotFoundComponent, UnAuthorizedComponent],
     bootstrap: [AppComponent],

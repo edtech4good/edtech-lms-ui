@@ -548,7 +548,7 @@ test.describe('Move to another school: moving', () => {
     await fill(page, 'Lakeside School', 'Class 5B');
     await move(page).click();
     await expect(toasts(page)).toHaveText(PUSHED('Lakeside School'));
-    // The notice opens at the bottom right, where the pressed button was: a notice under the pointer stays, so move it off.
+    // A notice under the pointer stays until the pointer leaves, so keep the pointer off the notices' corner.
     await page.mouse.move(5, 5);
     await expect(toasts(page)).toHaveCount(0, { timeout: 9000 });
   });

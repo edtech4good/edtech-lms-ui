@@ -2,7 +2,7 @@ import { BrowserContext, Page, Route, expect, test } from '@playwright/test';
 import { API_URL, BASE_URL } from '../fixtures/env';
 
 /**
- * Every admin notice sits at the bottom right of the window, app-wide (one setting where ng-zorro is configured), so a notice
+ * Every admin notice sits at the bottom left of the window, app-wide (one setting where ng-zorro is configured), so a notice
  * never covers the Create and Sync Content buttons at the top right of a list. Shown here on the Curriculum list with every
  * answer from the API mocked: a Sync Content the API fails with its own words (the interceptor's error notice) and a plain success. Any other host is refused.
  *
@@ -59,21 +59,22 @@ async function pressSyncContent(page: Page): Promise<void> {
 }
 
 /** The notice is inside the bottom-right container, and sits in the lower right quarter of the window. */
-async function expectBottomRight(page: Page, words: string): Promise<void> {
-  const notice = page.locator('.ant-notification-bottomRight .ant-notification-notice', { hasText: words });
+async function expectBottomLeft(page: Page, words: string): Promise<void> {
+  const notice = page.locator('.ant-notification-bottomLeft .ant-notification-notice', { hasText: words });
   await expect(notice).toBeVisible();
   await expect(page.locator('.ant-notification-topRight .ant-notification-notice')).toHaveCount(0);
+  await expect(page.locator('.ant-notification-bottomRight .ant-notification-notice')).toHaveCount(0);
   const box = (await notice.boundingBox())!;
   const view = page.viewportSize()!;
-  expect(box.x, 'in the right half').toBeGreaterThan(view.width / 2);
+  expect(box.x + box.width, 'in the left half').toBeLessThan(view.width / 2);
   expect(box.y, 'in the lower half').toBeGreaterThan(view.height / 2);
 }
 
-test.describe('notices sit at the bottom right', () => {
-  test('a failed Sync Content shows at the bottom right and leaves Create and Sync Content uncovered', async ({ context }) => {
+test.describe('notices sit at the bottom left', () => {
+  test('a failed Sync Content shows at the bottom left and leaves Create and Sync Content uncovered', async ({ context }) => {
     const page = await open(context, () => json(500, { error: true, errormessage: REFUSED }));
     await pressSyncContent(page);
-    await expectBottomRight(page, REFUSED);
+    await expectBottomLeft(page, REFUSED);
     for (const button of [page.getByTestId('sync-content'), page.getByRole('link', { name: /create/i }).first()]) {
       const b = (await button.boundingBox())!;
       const at = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('.ant-notification') !== null, [b.x + b.width / 2, b.y + b.height / 2]);
@@ -87,9 +88,9 @@ test.describe('notices sit at the bottom right', () => {
     if (process.env.E2E_NOTICE_SHOT) await page.screenshot({ path: process.env.E2E_NOTICE_SHOT });
   });
 
-  test('a plain success toast shows at the bottom right', async ({ context }) => {
+  test('a plain success toast shows at the bottom left', async ({ context }) => {
     const page = await open(context, () => json(200, { data: {} }));
     await pressSyncContent(page);
-    await expectBottomRight(page, 'Content synced to cloud sucessfully');
+    await expectBottomLeft(page, 'Content synced to cloud sucessfully');
   });
 });
