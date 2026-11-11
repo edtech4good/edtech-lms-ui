@@ -1,4 +1,4 @@
-import { Component, HostListener, OnInit, inject } from '@angular/core';
+import { Component, HostListener, OnInit, inject, signal } from '@angular/core';
 import { UntypedFormBuilder, UntypedFormGroup, Validators } from '@angular/forms';
 import * as csv from 'csvtojson';
 import { uniq } from 'lodash';
@@ -8,6 +8,7 @@ import { NzTableQueryParams } from 'ng-zorro-antd/table';
 import { NzUploadChangeParam, NzUploadFile } from 'ng-zorro-antd/upload';
 import { BehaviorSubject, EMPTY, Observable, of, Subscription } from 'rxjs';
 import { catchError, debounceTime, filter, finalize, first, map, shareReplay, switchMap } from 'rxjs/operators';
+import { GradeState, IDLE_GRADE_STATE, gradeMessages, gradeProblem, primaryCurriculumId, uploadGrade } from '../learner-grade/learner-grade';
 import { CONFIRM_OK_SELECTOR, disableConfirmText, disableNotice, focusSoon, insideConfirmOrMenu, noticeOptions, restoreFocus, rowControl, withDisabled } from '../account-disable';
 import { canRemove, focusAfterRemove, removeConfirmText, removeFailureText, removedText } from '../account-remove';
 import { restoreFocusAfterDrawer } from '../reset-password/drawer-focus';
@@ -48,6 +49,17 @@ export class StudentIndexComponent implements OnInit {
   school$?: Observable<any>;
   standard$?: Observable<any>;
   uploadForm!: UntypedFormGroup;
+  /** Upload Users: the grade of the first curriculum chosen, for every learner of the file. */
+  readonly uploadCurriculumIds = signal<string[]>([]);
+  readonly uploadGradeId = signal<string | null>(null);
+  readonly uploadGradeState = signal<GradeState>(IDLE_GRADE_STATE);
+  /** An upload was tried and stopped for want of a grade: the message then shows. */
+  readonly uploadGradeTried = signal(false);
+  private curriculumRows: Array<{ curriculumid: string; curriculumname: string }> = [];
+  uploadPrimaryId = () => primaryCurriculumId(this.uploadCurriculumIds());
+  uploadPrimaryName = () => this.curriculumRows.find((c) => c.curriculumid === this.uploadPrimaryId())?.curriculumname ?? '';
+  uploadGradeProblem = () => gradeProblem(this.uploadGradeState(), this.uploadGradeId());
+  uploadGradeMessages = () => gradeMessages(this.uploadGradeState().kind, this.uploadGradeProblem(), null, this.uploadGradeTried());
 
   selectStandard: boolean = true;
   showUpload: boolean = false;
@@ -156,6 +168,11 @@ export class StudentIndexComponent implements OnInit {
       schoolid: [null, [Validators.required]],
       standard: [null],
     });
+    this.uploadCurriculumIds.set([]);
+    this.uploadGradeId.set(null);
+    this.uploadGradeState.set(IDLE_GRADE_STATE);
+    this.uploadGradeTried.set(false);
+    this.uploadForm.get('curriculumid')!.valueChanges.subscribe((v) => this.uploadCurriculumIds.set(Array.isArray(v) ? v : []));
   };
   async search() {
     this.searchData[this.currentSearch].visible = false;
@@ -256,6 +273,13 @@ export class StudentIndexComponent implements OnInit {
         this.fileList = [];
         return;
       }
+      const gradeStopped = this.uploadGradeProblem();
+      if (gradeStopped) {
+        this.uploadGradeTried.set(true);
+        this.fileList = [];
+        this.notification.create('error', 'Error', gradeStopped);
+        return;
+      }
       try {
         const file = await this.utilService.readFileContent(
           info.file.originFileObj
@@ -284,6 +308,7 @@ export class StudentIndexComponent implements OnInit {
           .uploadStudent({
             students: data,
             curriculumid: this.uploadForm.getRawValue()['curriculumid'],
+            ...uploadGrade(this.uploadGradeState(), this.uploadGradeId()),
             schoolid: this.uploadForm.getRawValue()['schoolid'],
             standard: this.uploadForm.getRawValue()['standard'],
           })
@@ -544,6 +569,7 @@ export class StudentIndexComponent implements OnInit {
       catchError((x: any) => []),
       first(),
       map((x: any) => {
+        this.curriculumRows = x.data ?? [];
         return x.data;
       })
     );

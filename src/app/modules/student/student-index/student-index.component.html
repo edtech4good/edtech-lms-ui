@@ -449,6 +449,17 @@
           </nz-select>
         </nz-form-control>
       </nz-form-item>
+      <app-learner-grade-field
+        idPrefix="upload-grade"
+        [curriculumId]="uploadPrimaryId()"
+        [curriculumName]="uploadPrimaryName()"
+        [(value)]="uploadGradeId"
+        [error]="uploadGradeMessages().underGrade"
+        (stateChange)="uploadGradeState.set($event)"
+      />
+      @if (uploadGradeMessages().underCurriculum; as message) {
+        <p class="upload-grade-error" role="alert" data-testid="grade-under-curriculum">{{ message }}</p>
+      }
       <nz-form-item>
         <nz-form-label>Class</nz-form-label>
         <nz-form-control nzErrorTip="Please select class">

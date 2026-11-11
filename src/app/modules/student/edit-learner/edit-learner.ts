@@ -29,9 +29,15 @@ export interface LearnerDetails {
   standard: string;
   curriculumids: string[];
   isdisabled: boolean;
+  /**
+   * The learner's primary curriculum and current grade, when central answers them. Both are optional here: without them the
+   * form cannot preselect the grade, and the server keeps it while it still fits.
+   */
+  curriculumid?: string | null;
+  gradeid?: string | null;
 }
 
-/** The body of `PUT student/:schooluserid/details`: these six keys and no others, all always present. */
+/** The body of `PUT student/:schooluserid/details`: these six keys, and `gradeid` when the form has a grade to send. */
 export interface EditLearnerBody {
   studentfirstname: string;
   studentlastname: string;
@@ -39,6 +45,8 @@ export interface EditLearnerBody {
   dateofbirth: string | null;
   standard: string;
   curriculumids: string[];
+  /** A grade of the learner's primary curriculum; left out when none is chosen (the server keeps the current one while it fits). */
+  gradeid?: string;
 }
 
 export interface EditLearnerResult {
@@ -75,7 +83,7 @@ export function formFromDetails(details: LearnerDetails): EditForm {
 }
 
 /** The request body for a valid form (the caller has checked the form: gender and class are chosen). */
-export function editBody(form: EditForm): EditLearnerBody {
+export function editBody(form: EditForm, gradeid?: string): EditLearnerBody {
   return {
     studentfirstname: form.firstName.trim(),
     studentlastname: form.lastName.trim(),
@@ -83,8 +91,13 @@ export function editBody(form: EditForm): EditLearnerBody {
     dateofbirth: form.dateOfBirth ? form.dateOfBirth : null,
     standard: form.standardId as string,
     curriculumids: [...form.curriculumIds],
+    ...(gradeid ? { gradeid } : {}),
   };
 }
+
+/** The learner's primary curriculum as the form knows it: central's own when it says, else the first of their curricula. */
+export const currentPrimaryOf = (details: Pick<LearnerDetails, 'curriculumid' | 'curriculumids'>): string | null =>
+  details.curriculumid || details.curriculumids?.[0] || null;
 
 const normal = (form: EditForm) => ({
   first: form.firstName.trim(),

@@ -61,7 +61,7 @@ test.describe('keptCurricula', () => {
 });
 
 test.describe('moveBody and moveFormErrors', () => {
-  test('the body has exactly three keys and copies the list', () => {
+  test('the body has exactly three keys (and gradeid only when there is one) and copies the list', () => {
     const ids = ['1', '2'];
     const body = moveBody('b', 'class-1', ids);
     expect(body).toEqual({ schoolid: 'b', standard: 'class-1', curriculumids: ['1', '2'] });
@@ -70,8 +70,8 @@ test.describe('moveBody and moveFormErrors', () => {
     expect(body.curriculumids).toEqual(['1', '2']);
   });
   test('each empty field is named, each filled one is fine', () => {
-    expect(moveFormErrors(null, null, [])).toEqual({ schoolid: 'Choose a school.', standard: 'Choose a class.', curriculumids: 'Choose at least one curriculum.' });
-    expect(moveFormErrors('b', 'c', ['1'])).toEqual({ schoolid: null, standard: null, curriculumids: null });
+    expect(moveFormErrors(null, null, [])).toEqual({ schoolid: 'Choose a school.', standard: 'Choose a class.', curriculumids: 'Choose at least one curriculum.', gradeid: null });
+    expect(moveFormErrors('b', 'c', ['1'])).toEqual({ schoolid: null, standard: null, curriculumids: null, gradeid: null });
   });
 });
 
