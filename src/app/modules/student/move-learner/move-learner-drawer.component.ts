@@ -8,7 +8,9 @@ import { SchoolService } from 'src/app/services/school.service';
 import { StandardService } from 'src/app/services/standard.service';
 import { StudentService } from 'src/app/services/student.service';
 import { CLASS_WORD } from '../add-learner/add-learner-form';
-import { LearnerDetails } from '../edit-learner/edit-learner';
+import { LearnerDetails, currentPrimaryOf } from '../edit-learner/edit-learner';
+import { LearnerGradeFieldComponent } from '../learner-grade/learner-grade-field.component';
+import { GradeState, IDLE_GRADE_STATE, gradeMessages, gradeProblem, gradeToSend, primaryCurriculumId } from '../learner-grade/learner-grade';
 import {
   MOVE_FIELD_ORDER,
   MOVE_RESULTS_NOTE,
@@ -33,7 +35,7 @@ type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 @Component({
   selector: 'app-move-learner-drawer',
   standalone: true,
-  imports: [FormsModule, NzButtonModule, NzDrawerModule, NzSelectModule],
+  imports: [FormsModule, NzButtonModule, NzDrawerModule, NzSelectModule, LearnerGradeFieldComponent],
   templateUrl: './move-learner-drawer.component.html',
   styleUrls: ['../add-learner/add-learner-drawer.component.less', '../edit-learner/edit-learner-drawer.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -61,11 +63,14 @@ export class MoveLearnerDrawerComponent {
 
   readonly loadState = signal<LoadState>('idle');
   readonly loadMessage = signal('');
-  private readonly details = signal<LearnerDetails | null>(null);
+  readonly details = signal<LearnerDetails | null>(null);
 
   readonly schoolId = signal<string | null>(null);
   readonly standardId = signal<string | null>(null);
   readonly curriculumIds = signal<string[]>([]);
+  /** The grade chosen among the primary curriculum's grades (the grade field clears it when it does not belong). */
+  readonly gradeId = signal<string | null>(null);
+  readonly gradeState = signal<GradeState>(IDLE_GRADE_STATE);
   readonly standards = signal<MoveOption[]>([]);
   readonly curricula = signal<MoveOption[]>([]);
   readonly placementState = signal<LoadState>('idle');
@@ -81,8 +86,22 @@ export class MoveLearnerDrawerComponent {
   private placementRead = 0;
 
   readonly ready = computed(() => this.loadState() === 'ready' && this.schoolsState() === 'ready');
+  /** The learner's primary curriculum before the move; the API keeps it primary while it stays among the chosen ones. */
+  private readonly currentPrimary = computed(() => {
+    const details = this.details();
+    return details ? currentPrimaryOf(details) : null;
+  });
+  readonly primaryCurriculumId = computed(() => primaryCurriculumId(this.curriculumIds(), this.currentPrimary()));
+  readonly primaryCurriculumName = computed(() => this.curricula().find((o) => o.value === this.primaryCurriculumId())?.label ?? '');
+  private readonly formErrors = computed(() =>
+    moveFormErrors(this.schoolId(), this.standardId(), this.curriculumIds(), gradeProblem(this.gradeState(), this.gradeId())),
+  );
+  /** The messages about the grade: beside the Grade select, or under the curriculum field when there is no select. */
+  readonly gradeMessages = computed(() =>
+    gradeMessages(this.gradeState().kind, this.formErrors().gradeid, this.serverErrors().gradeid ?? null, this.submitted()),
+  );
   readonly errors = computed<Record<MoveFieldKey, string | null>>(() => {
-    const client = moveFormErrors(this.schoolId(), this.standardId(), this.curriculumIds());
+    const client = this.formErrors();
     const server = this.serverErrors();
     const out = {} as Record<MoveFieldKey, string | null>;
     for (const key of MOVE_FIELD_ORDER) out[key] = (this.submitted() ? client[key] : null) ?? server[key] ?? null;
@@ -144,6 +163,8 @@ export class MoveLearnerDrawerComponent {
     this.schoolId.set(null);
     this.standardId.set(null);
     this.curriculumIds.set([]);
+    this.gradeId.set(null);
+    this.gradeState.set(IDLE_GRADE_STATE);
     this.curriculaTouched = false;
     this.standards.set([]);
     this.curricula.set([]);
@@ -184,6 +205,7 @@ export class MoveLearnerDrawerComponent {
     this.clearServer('schoolid');
     this.clearServer('standard');
     this.clearServer('curriculumids');
+    this.clearServer('gradeid');
     const read = ++this.placementRead;
     if (!schoolid) {
       this.placementState.set('idle');
@@ -254,6 +276,11 @@ export class MoveLearnerDrawerComponent {
     this.curriculumIds.set(value ?? []);
     this.curriculaTouched = true;
     this.clearServer('curriculumids');
+    this.clearServer('gradeid');
+  }
+  /** A grade was chosen (or cleared with the curriculum it belonged to). */
+  onGradeChosen(): void {
+    this.clearServer('gradeid');
   }
 
   /** The drawer closed itself (the browser's Back disposes it): drop what is on its way and tell the parent. */
@@ -272,7 +299,7 @@ export class MoveLearnerDrawerComponent {
   submit(): void {
     if (!this.canMove()) return;
     this.submitted.set(true);
-    const client = moveFormErrors(this.schoolId(), this.standardId(), this.curriculumIds());
+    const client = this.formErrors();
     const first = MOVE_FIELD_ORDER.find((k) => client[k]);
     if (first) {
       this.focusField(first);
@@ -281,7 +308,7 @@ export class MoveLearnerDrawerComponent {
     const session = this.session;
     this.submitting.set(true);
     this.formError.set(null);
-    this.students.moveSchool(this.schooluserid(), moveBody(this.schoolId()!, this.standardId()!, this.curriculumIds())).subscribe({
+    this.students.moveSchool(this.schooluserid(), moveBody(this.schoolId()!, this.standardId()!, this.curriculumIds(), gradeToSend(this.gradeState(), this.gradeId()))).subscribe({
       next: (answer) => {
         // An answer for an opening that has since been closed is not shown.
         if (session !== this.session) return;
@@ -318,7 +345,13 @@ export class MoveLearnerDrawerComponent {
   }
 
   private focusField(key: MoveFieldKey): void {
-    const id = { schoolid: 'move-learner-school', standard: 'move-learner-class', curriculumids: 'move-learner-curricula' }[key];
+    // The Grade select is on the form only while the curriculum has several grades; otherwise its message is under Curricula.
+    const id = {
+      schoolid: 'move-learner-school',
+      standard: 'move-learner-class',
+      curriculumids: 'move-learner-curricula',
+      gradeid: document.getElementById('move-learner-grade') ? 'move-learner-grade' : 'move-learner-curricula',
+    }[key];
     setTimeout(() => {
       const el = document.getElementById(id);
       (el?.matches('input') ? el : el?.querySelector<HTMLElement>('input'))?.focus();

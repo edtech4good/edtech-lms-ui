@@ -9,6 +9,8 @@ import { StandardService } from 'src/app/services/standard.service';
 import { SchoolService } from 'src/app/services/school.service';
 import { StudentService } from 'src/app/services/student.service';
 import { confirmDialog } from '../../organisation/confirm-dialog';
+import { LearnerGradeFieldComponent } from '../learner-grade/learner-grade-field.component';
+import { GradeState, IDLE_GRADE_STATE, gradeMessages, gradeProblem, gradeToSend, primaryCurriculumId } from '../learner-grade/learner-grade';
 import {
   CLASS_WORD,
   DATE_OF_BIRTH_MIN,
@@ -28,6 +30,7 @@ import {
   EditLearnerResult,
   LearnerDetails,
   Option,
+  currentPrimaryOf,
   editBody,
   editErrors,
   formFromDetails,
@@ -47,7 +50,7 @@ type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 @Component({
   selector: 'app-edit-learner-drawer',
   standalone: true,
-  imports: [FormsModule, NzButtonModule, NzDrawerModule, NzSelectModule],
+  imports: [FormsModule, NzButtonModule, NzDrawerModule, NzSelectModule, LearnerGradeFieldComponent],
   templateUrl: './edit-learner-drawer.component.html',
   styleUrls: ['../add-learner/add-learner-drawer.component.less', './edit-learner-drawer.component.less'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -85,6 +88,9 @@ export class EditLearnerDrawerComponent {
   readonly dobBad = signal(false);
   readonly standardId = signal<string | null>(null);
   readonly curriculumIds = signal<string[]>([]);
+  /** The grade chosen among the primary curriculum's grades (the grade field clears it when it does not belong). */
+  readonly gradeId = signal<string | null>(null);
+  readonly gradeState = signal<GradeState>(IDLE_GRADE_STATE);
 
   readonly standards = signal<Option[]>([]);
   readonly curricula = signal<Option[]>([]);
@@ -107,9 +113,18 @@ export class EditLearnerDrawerComponent {
     standardId: this.standardId(),
     curriculumIds: this.curriculumIds(),
   }));
+  /** The learner's primary curriculum before any change; the API keeps it primary while it stays among the chosen ones. */
+  readonly currentPrimary = computed(() => {
+    const details = this.details();
+    return details ? currentPrimaryOf(details) : null;
+  });
+  readonly primaryCurriculumId = computed(() => primaryCurriculumId(this.curriculumIds(), this.currentPrimary()));
+  readonly primaryCurriculumName = computed(() => this.curriculumOptions().find((o) => o.value === this.primaryCurriculumId())?.label ?? '');
+  /** A grade was chosen that is not the one the learner has. */
+  private readonly gradeChanged = computed(() => this.gradeId() !== null && this.gradeId() !== (this.details()?.gradeid ?? null));
   readonly changed = computed(() => {
     const initial = this.initial();
-    return initial !== null && (isChanged(initial, this.current()) || this.dobBad());
+    return initial !== null && (isChanged(initial, this.current()) || this.gradeChanged() || this.dobBad());
   });
   private readonly placementReady = computed(() => this.placementState() === 'ready');
   readonly classOptions = computed(() => (this.placementReady() ? withUnavailable(this.standards(), [this.standardId()]) : this.standards()));
@@ -125,6 +140,7 @@ export class EditLearnerDrawerComponent {
     studentlastname: lastNameError(this.lastName()),
     standard: this.standardId() ? null : `Choose a ${this.classWord.toLowerCase()}.`,
     curriculumids: this.curriculumIds().length ? null : 'Choose at least one curriculum.',
+    gradeid: gradeProblem(this.gradeState(), this.gradeId()),
     genderid: this.genderId() ? null : GENDER_MESSAGE,
     dateofbirth: dateOfBirthError(this.dateOfBirth(), this.dobBad()),
   }));
@@ -137,6 +153,11 @@ export class EditLearnerDrawerComponent {
     for (const key of FIELD_ORDER) out[key] = (this.submitted() ? client[key] : null) ?? server[key] ?? null;
     return out;
   });
+
+  /** The messages about the grade: beside the Grade select, or under the curriculum field when there is no select. */
+  readonly gradeMessages = computed(() =>
+    gradeMessages(this.gradeState().kind, this.clientErrors().gradeid ?? null, this.serverErrors().gradeid ?? null, this.submitted()),
+  );
 
   readonly title = viewChild<ElementRef<HTMLElement>>('title');
   readonly closeButton = viewChild('closeButton', { read: ElementRef<HTMLButtonElement> });
@@ -192,6 +213,8 @@ export class EditLearnerDrawerComponent {
     this.dobBad.set(false);
     this.standardId.set(null);
     this.curriculumIds.set([]);
+    this.gradeId.set(null);
+    this.gradeState.set(IDLE_GRADE_STATE);
     this.standards.set([]);
     this.curricula.set([]);
     this.placementState.set('idle');
@@ -308,6 +331,11 @@ export class EditLearnerDrawerComponent {
   setCurricula(value: string[]): void {
     this.curriculumIds.set(value ?? []);
     this.clearServer('curriculumids');
+    this.clearServer('gradeid');
+  }
+  /** A grade was chosen (or cleared with the curriculum it belonged to). */
+  onGradeChosen(): void {
+    this.clearServer('gradeid');
   }
 
   // ---- Closing -----------------------------------------------------------------------------------------------
@@ -350,7 +378,7 @@ export class EditLearnerDrawerComponent {
     const session = this.session;
     this.submitting.set(true);
     this.formError.set(null);
-    this.students.updateDetails(id, editBody(form)).subscribe({
+    this.students.updateDetails(id, editBody(form, gradeToSend(this.gradeState(), this.gradeId()))).subscribe({
       next: (answer) => {
         // An answer for an opening that has since been closed is not shown.
         if (session !== this.session) return;
@@ -392,7 +420,13 @@ export class EditLearnerDrawerComponent {
       studentlastname: this.lastNameInput(),
       dateofbirth: this.dobInput(),
     } as Partial<Record<FieldKey, ElementRef<HTMLInputElement>>>;
-    const id = { standard: 'edit-learner-class', curriculumids: 'edit-learner-curricula', genderid: 'edit-learner-gender-female' }[key as string];
+    // The Grade select is on the form only while the curriculum has several grades; otherwise its message is under Curriculum.
+    const id = {
+      standard: 'edit-learner-class',
+      curriculumids: 'edit-learner-curricula',
+      gradeid: document.getElementById('edit-learner-grade') ? 'edit-learner-grade' : 'edit-learner-curricula',
+      genderid: 'edit-learner-gender-female',
+    }[key as string];
     // After the error text has rendered; the select's own input or the first radio takes focus.
     setTimeout(() => {
       if (direct[key]) direct[key]!.nativeElement.focus();

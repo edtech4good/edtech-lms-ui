@@ -1,5 +1,6 @@
 import { BrowserContext, Page, Route, expect, test } from '@playwright/test';
 import { API_URL, BASE_URL } from '../fixtures/env';
+import { MockGrade, grade, gradesAnswer } from '../fixtures/grades';
 
 /**
  * The Add learner drawer on the Learners screen, in a browser, with every answer from the API mocked: the sign-in is a
@@ -64,6 +65,10 @@ interface Mock {
   created: Array<Record<string, unknown>>;
   listCalls: number;
   unmocked: string[];
+  /** curriculumid → its grades; a curriculum not listed has one. */
+  grades: Record<string, MockGrade[]>;
+  /** What `GET grade/curriculum/:id` was asked for. */
+  gradeReads: string[];
 }
 
 function newMock(): Mock {
@@ -77,6 +82,8 @@ function newMock(): Mock {
     created: [],
     listCalls: 0,
     unmocked: [],
+    grades: {},
+    gradeReads: [],
   };
 }
 
@@ -138,6 +145,11 @@ async function answer(route: Route, mock: Mock): Promise<void> {
   if (method === 'GET' && standards) return route.fulfill(json(200, { data: CLASSES[standards[1]] ?? [] }));
   const curricula = path.match(/^school\/(.+)\/curriculums$/);
   if (method === 'GET' && curricula) return route.fulfill(json(200, { data: CURRICULA[curricula[1]] ?? [] }));
+  const gradesOf = /^grade\/curriculum\/(.+)$/.exec(path);
+  if (method === 'GET' && gradesOf) {
+    mock.gradeReads.push(gradesOf[1]);
+    return route.fulfill(gradesAnswer(mock.grades, gradesOf[1]));
+  }
   mock.unmocked.push(`${method} ${path}`);
   return route.fulfill(json(200, { data: [] }));
 }
@@ -168,6 +180,8 @@ async function fillRequired(page: Page, username = 'sokha1', password = 'riverla
   await choose(page, 'add-learner-class-input', 'Class 1A');
   await choose(page, 'add-learner-curricula-input', 'Reading Basics');
   await page.keyboard.press('Escape');
+  // The list closes with an animation; the next click waits for it so it lands on the form.
+  await expect(page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)')).toHaveCount(0);
   await page.getByRole('radio', { name: 'Female', exact: true }).check({ force: true });
 }
 
@@ -315,6 +329,8 @@ test.describe('Add learner drawer', () => {
       schoolusername: 'sokha1',
       password: 'riverlamp47',
       genderid: 2,
+      // Reading Basics has one grade, so the form sends it without asking.
+      gradeid: 'gr-cur-1-1',
     });
 
     await page.getByRole('button', { name: 'Done' }).click();
@@ -335,6 +351,7 @@ test.describe('Add learner drawer', () => {
       password: 'maplestone09',
       genderid: 1,
       dateofbirth: '2014-03-05',
+      gradeid: 'gr-cur-1-1',
     });
   });
 
@@ -883,5 +900,129 @@ test.describe('Add learner drawer', () => {
     const box = (await button.boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await expect(page.locator('.ant-tooltip:not(.ant-tooltip-hidden)')).toContainText('Choose an organisation to act in');
+  });
+});
+
+const GRADE_MESSAGE = 'Choose a grade for this student.';
+const NO_GRADE_MESSAGE = "This curriculum has no grade yet, so a learner can't be put in it.";
+const gradeSelect = (page: Page) => page.locator('#add-learner-grade');
+const gradeInput = (page: Page) => page.locator('#add-learner-grade-input');
+const addButton = (page: Page) => page.getByRole('button', { name: 'Add learner', exact: true });
+
+/** Everything but the curriculum, so a test can choose it itself. */
+async function fillAllButCurriculum(page: Page): Promise<void> {
+  await page.locator('#add-learner-first').fill(FIRST);
+  await page.locator('#add-learner-username').fill('sokha1');
+  await page.locator('#add-learner-password').fill('riverlamp47');
+  await choose(page, 'add-learner-school-input', 'North Valley School');
+  await choose(page, 'add-learner-class-input', 'Class 1A');
+  await page.getByRole('radio', { name: 'Female', exact: true }).check({ force: true });
+}
+async function pickCurricula(page: Page, ...names: string[]): Promise<void> {
+  // The list stays open between choices of a multiple select: open it once.
+  await page.locator('#add-learner-curricula .ant-select-selector').click();
+  for (const name of names) await page.locator('.ant-select-item-option', { hasText: name }).first().click();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.ant-select-dropdown:not(.ant-select-dropdown-hidden)')).toHaveCount(0);
+}
+
+test.describe('Add learner drawer: the grade', () => {
+  test('a curriculum with one grade shows it as text, has no select, and the request carries it', async ({ context }) => {
+    const mock = newMock();
+    const page = await openLearners(context, mock);
+    await openDrawer(page);
+    await fillAllButCurriculum(page);
+    await pickCurricula(page, 'Reading Basics');
+    await expect(page.getByTestId('grade-fixed')).toHaveText('Grade: Grade 1 (In Reading Basics)');
+    await expect(gradeSelect(page)).toHaveCount(0);
+    expect(mock.gradeReads).toEqual(['cur-1']);
+    await addButton(page).click();
+    await expect(page.getByTestId('done-username')).toBeVisible();
+    expect(mock.created[0].gradeid).toBe('gr-cur-1-1');
+  });
+
+  test('several grades: a required Grade select with its curriculum named, nothing sent until one is chosen, then the choice is sent', async ({ context }) => {
+    const mock = newMock();
+    mock.grades['cur-1'] = [grade('cur-1', 1), grade('cur-1', 2)];
+    const page = await openLearners(context, mock);
+    await openDrawer(page);
+    await fillAllButCurriculum(page);
+    await pickCurricula(page, 'Reading Basics');
+    await expect(gradeSelect(page)).toBeVisible();
+    await expect(page.locator('label[for="add-learner-grade-input"]')).toContainText('Grade');
+    await expect(page.getByTestId('grade-hint')).toHaveText('In Reading Basics');
+    // the description is on the select's own input, the element that has focus, not on its host
+    await expect(gradeInput(page)).toHaveAttribute('aria-describedby', 'add-learner-grade-hint');
+    await expect(gradeSelect(page)).not.toHaveAttribute('aria-describedby', /.+/);
+    await addButton(page).click();
+    await expect(page.getByTestId('grade-error')).toHaveText(GRADE_MESSAGE);
+    await expect(gradeInput(page)).toHaveAttribute('aria-describedby', 'add-learner-grade-hint add-learner-grade-error');
+    await expect(gradeInput(page)).toBeFocused();
+    expect(mock.created, 'nothing is sent without a grade').toEqual([]);
+    await page.locator('#add-learner-grade .ant-select-selector').click();
+    await page.locator('.ant-select-item-option', { hasText: 'Grade 2' }).click();
+    await addButton(page).click();
+    await expect(page.getByTestId('done-username')).toBeVisible();
+    expect(mock.created[0].gradeid).toBe('gr-cur-1-2');
+  });
+
+  test('a curriculum with no grade says so under Curriculum at once and nothing is sent', async ({ context }) => {
+    const mock = newMock();
+    mock.grades['cur-1'] = [];
+    const page = await openLearners(context, mock);
+    await openDrawer(page);
+    await fillAllButCurriculum(page);
+    await pickCurricula(page, 'Reading Basics');
+    await expect(page.getByTestId('grade-under-curriculum')).toHaveText(NO_GRADE_MESSAGE);
+    await expect(gradeSelect(page)).toHaveCount(0);
+    await addButton(page).click();
+    await expect(page.getByTestId('grade-under-curriculum')).toHaveText(NO_GRADE_MESSAGE);
+    expect(mock.created).toEqual([]);
+  });
+
+  test('the API refusing the grade shows beside the Grade select, or under Curriculum when there is no select', async ({ context }) => {
+    const mock = newMock();
+    mock.createAnswer = () => invalid([{ field: 'gradeid', message: GRADE_MESSAGE }]);
+    const page = await openLearners(context, mock);
+    await openDrawer(page);
+    await fillAllButCurriculum(page);
+    await pickCurricula(page, 'Reading Basics');
+    await addButton(page).click();
+    await expect(page.getByTestId('grade-under-curriculum')).toHaveText(GRADE_MESSAGE);
+    await expect(toasts(page)).toHaveCount(0);
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await page.getByRole('button', { name: 'Discard' }).click();
+
+    mock.grades['cur-1'] = [grade('cur-1', 1), grade('cur-1', 2)];
+    await openDrawer(page);
+    await fillAllButCurriculum(page);
+    await pickCurricula(page, 'Reading Basics');
+    await page.locator('#add-learner-grade .ant-select-selector').click();
+    await page.locator('.ant-select-item-option', { hasText: 'Grade 1' }).click();
+    await addButton(page).click();
+    await expect(page.getByTestId('grade-error')).toHaveText(GRADE_MESSAGE);
+    await expect(page.getByTestId('grade-under-curriculum')).toHaveCount(0);
+  });
+
+  test('changing the primary curriculum reads its grades and clears a grade that does not belong', async ({ context }) => {
+    const mock = newMock();
+    mock.grades['cur-1'] = [grade('cur-1', 1), grade('cur-1', 2)];
+    mock.grades['cur-2'] = [grade('cur-2', 1), grade('cur-2', 2)];
+    const page = await openLearners(context, mock);
+    await openDrawer(page);
+    await fillAllButCurriculum(page);
+    await pickCurricula(page, 'Reading Basics', 'Number Skills');
+    await page.locator('#add-learner-grade .ant-select-selector').click();
+    await page.locator('.ant-select-item-option', { hasText: 'Grade 2' }).click();
+    await expect(gradeSelect(page)).toContainText('Grade 2');
+    expect(mock.gradeReads, 'the grades are those of the first curriculum only').toEqual(['cur-1']);
+    // remove Reading Basics: Number Skills becomes primary and the old choice is gone
+    await page.locator('#add-learner-curricula .ant-select-selection-item', { hasText: 'Reading Basics' }).locator('.ant-select-selection-item-remove').click();
+    await expect(page.getByTestId('grade-hint')).toHaveText('In Number Skills');
+    await expect(gradeSelect(page)).not.toContainText('Grade 2');
+    expect(mock.gradeReads).toEqual(['cur-1', 'cur-2']);
+    await addButton(page).click();
+    await expect(page.getByTestId('grade-error')).toHaveText(GRADE_MESSAGE);
+    expect(mock.created).toEqual([]);
   });
 });

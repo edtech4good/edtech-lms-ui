@@ -123,7 +123,21 @@
             @if (errors().curriculumids; as message) {
               <p class="field-error" role="alert">{{ message }}</p>
             }
+            @if (gradeMessages().underCurriculum; as message) {
+              <p class="field-error" role="alert" data-testid="grade-under-curriculum">{{ message }}</p>
+            }
           </div>
+
+          <app-learner-grade-field
+            idPrefix="move-learner-grade"
+            [curriculumId]="primaryCurriculumId()"
+            [curriculumName]="primaryCurriculumName()"
+            [(value)]="gradeId"
+            [preferred]="details()?.gradeid ?? null"
+            [error]="gradeMessages().underGrade"
+            (valueChange)="onGradeChosen()"
+            (stateChange)="gradeState.set($event)"
+          />
         </form>
 
         <footer class="foot">

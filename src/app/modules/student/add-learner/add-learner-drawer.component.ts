@@ -26,6 +26,8 @@ import { SchoolService } from 'src/app/services/school.service';
 import { StandardService } from 'src/app/services/standard.service';
 import { StudentService } from 'src/app/services/student.service';
 import { confirmDialog } from '../../organisation/confirm-dialog';
+import { LearnerGradeFieldComponent } from '../learner-grade/learner-grade-field.component';
+import { GradeState, IDLE_GRADE_STATE, gradeMessages, gradeProblem, gradeToSend, primaryCurriculumId } from '../learner-grade/learner-grade';
 import {
   AddLearnerBody,
   CLASS_WORD,
@@ -73,7 +75,7 @@ const DEBOUNCE_MS = 350;
 @Component({
   selector: 'app-add-learner-drawer',
   standalone: true,
-  imports: [FormsModule, NzButtonModule, NzDrawerModule, NzSelectModule],
+  imports: [FormsModule, NzButtonModule, NzDrawerModule, NzSelectModule, LearnerGradeFieldComponent],
   templateUrl: './add-learner-drawer.component.html',
   styleUrl: './add-learner-drawer.component.less',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -106,6 +108,10 @@ export class AddLearnerDrawerComponent {
   readonly schoolId = signal<string | null>(null);
   readonly standardId = signal<string | null>(null);
   readonly curriculumIds = signal<string[]>([]);
+  /** The grade chosen among the primary curriculum's grades (the grade field clears it when it does not belong). */
+  readonly gradeId = signal<string | null>(null);
+  /** What the grade field found for the primary curriculum. */
+  readonly gradeState = signal<GradeState>(IDLE_GRADE_STATE);
   readonly genderId = signal<1 | 2 | null>(null);
   readonly dateOfBirth = signal('');
   /** The date input holds something that is not a date (partly typed): it reports an empty value and `badInput`. */
@@ -145,6 +151,7 @@ export class AddLearnerDrawerComponent {
     schoolid: this.schoolId() ? null : 'Choose a school.',
     standard: this.standardId() ? null : `Choose a ${this.classWord.toLowerCase()}.`,
     curriculumids: this.curriculumIds().length ? null : 'Choose at least one curriculum.',
+    gradeid: gradeProblem(this.gradeState(), this.gradeId()),
     genderid: this.genderId() ? null : GENDER_MESSAGE,
     dateofbirth: dateOfBirthError(this.dateOfBirth(), this.dobBad()),
   }));
@@ -159,6 +166,14 @@ export class AddLearnerDrawerComponent {
     }
     return out;
   });
+
+  /** The grades belong to the first curriculum chosen. */
+  readonly primaryCurriculumId = computed(() => primaryCurriculumId(this.curriculumIds()));
+  readonly primaryCurriculumName = computed(() => this.curricula().find((o) => o.value === this.primaryCurriculumId())?.label ?? '');
+  /** The messages about the grade: beside the Grade select, or under the curriculum field when there is no select. */
+  readonly gradeMessages = computed(() =>
+    gradeMessages(this.gradeState().kind, this.clientErrors().gradeid, this.serverErrors().gradeid ?? null, this.submitted()),
+  );
 
   /** The line under the username: the API's refusal of a save, else what the availability check found. */
   readonly usernameNote = computed<{ tone: 'ok' | 'error' | 'info'; text: string }>(() => {
@@ -187,6 +202,7 @@ export class AddLearnerDrawerComponent {
         this.schoolId() !== this.presetSchool() ||
         this.standardId() !== null ||
         this.curriculumIds().join('|') !== this.presetCurricula().join('|') ||
+        this.gradeId() !== null ||
         this.genderId() !== null ||
         this.dateOfBirth() !== '' ||
         this.dobBad()),
@@ -269,6 +285,8 @@ export class AddLearnerDrawerComponent {
     this.schoolId.set(null);
     this.standardId.set(null);
     this.curriculumIds.set([]);
+    this.gradeId.set(null);
+    this.gradeState.set(IDLE_GRADE_STATE);
     this.genderId.set(null);
     this.dateOfBirth.set('');
     this.dobBad.set(false);
@@ -320,6 +338,7 @@ export class AddLearnerDrawerComponent {
     this.clearServer('schoolid');
     this.clearServer('standard');
     this.clearServer('curriculumids');
+    this.clearServer('gradeid');
     const read = ++this.placementRead;
     if (!schoolid) {
       this.placementState.set('idle');
@@ -401,6 +420,11 @@ export class AddLearnerDrawerComponent {
   setCurricula(value: string[]): void {
     this.curriculumIds.set(value ?? []);
     this.clearServer('curriculumids');
+    this.clearServer('gradeid');
+  }
+  /** A grade was chosen (or cleared with the curriculum it belonged to). */
+  onGradeChosen(): void {
+    this.clearServer('gradeid');
   }
   setGender(value: 1 | 2): void {
     this.genderId.set(value);
@@ -457,12 +481,14 @@ export class AddLearnerDrawerComponent {
       this.focusField(first);
       return;
     }
+    const gradeid = gradeToSend(this.gradeState(), this.gradeId());
     const last = this.lastName().trim();
     const dob = this.dateOfBirth();
     const body: AddLearnerBody = {
       schoolid: this.schoolId()!,
       standard: this.standardId()!,
       curriculumids: [...this.curriculumIds()],
+      ...(gradeid ? { gradeid } : {}),
       studentfirstname: this.firstName().trim(),
       ...(last ? { studentlastname: last } : {}),
       schoolusername: this.username().trim(),
@@ -527,7 +553,14 @@ export class AddLearnerDrawerComponent {
       password: this.passwordInput(),
       dateofbirth: this.dobInput(),
     } as Partial<Record<FieldKey, ElementRef<HTMLInputElement>>>;
-    const id = { schoolid: 'add-learner-school', standard: 'add-learner-class', curriculumids: 'add-learner-curricula', genderid: 'add-learner-gender-female' }[key as string];
+    // The Grade select is on the form only while the curriculum has several grades; otherwise its message is under Curriculum.
+    const id = {
+      schoolid: 'add-learner-school',
+      standard: 'add-learner-class',
+      curriculumids: 'add-learner-curricula',
+      gradeid: document.getElementById('add-learner-grade') ? 'add-learner-grade' : 'add-learner-curricula',
+      genderid: 'add-learner-gender-female',
+    }[key as string];
     // After the error text has rendered; the select's own input or the first radio takes focus.
     setTimeout(() => {
       if (direct[key]) direct[key]!.nativeElement.focus();

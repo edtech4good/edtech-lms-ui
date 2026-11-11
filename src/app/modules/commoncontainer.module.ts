@@ -6,6 +6,7 @@ import { CommonRoutingModule } from './common-routing.module';
 import { CommonComponent } from './common.component';
 import { StudentDetailsComponent } from './student/student-details/student-details.component';
 import { AddLearnerDrawerComponent } from './student/add-learner/add-learner-drawer.component';
+import { LearnerGradeFieldComponent } from './student/learner-grade/learner-grade-field.component';
 import { StudentIndexComponent } from './student/student-index/student-index.component';
 import { StudentStatsComponent } from './student/student-stats/student-stats.component';
 import { AddTeacherDrawerComponent } from './teacher/add-teacher/add-teacher-drawer.component';
@@ -37,6 +38,7 @@ import { ShellNavComponent } from './shell/shell-nav.component';
         CommonRoutingModule,
         SharedModule,
         AddLearnerDrawerComponent,
+        LearnerGradeFieldComponent,
         AddTeacherDrawerComponent,
         EditLearnerDrawerComponent,
         MoveLearnerDrawerComponent,
