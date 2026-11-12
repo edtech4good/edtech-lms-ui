@@ -35,6 +35,11 @@ const routes: Routes = [
     loadComponent: () => import('./modules/certificate/certificate-check.component').then((m) => m.CertificateCheckComponent),
   },
   {
+    // The printable page of a valid certificate: public too (it asks only the public check).
+    path: 'v/:shortcode/certificate',
+    loadComponent: () => import('./modules/certificate/certificate-public-print.component').then((m) => m.CertificatePublicPrintComponent),
+  },
+  {
     path: '',
     loadChildren: () =>
       import('./modules/commoncontainer.module').then(
