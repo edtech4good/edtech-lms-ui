@@ -6,6 +6,7 @@ import { CurriculumService } from 'src/app/services/curriculum.service';
 import { StudentService } from 'src/app/services/student.service';
 import { UtilService } from 'src/app/services/util.service';
 import { learnerAwardsPermissions } from '../../awards/awards';
+import { LIST_CERTIFICATE_PERMISSIONS } from '../../certificate/certificate';
 @Component({
     selector: 'app-student-stats',
     templateUrl: './student-stats.component.html',
@@ -23,6 +24,7 @@ export class StudentStatsComponent implements OnInit {
   studentdetails: any;
   studentid = '';
   readonly awardsPermissions = learnerAwardsPermissions();
+  readonly certificatePermissions = LIST_CERTIFICATE_PERMISSIONS;
   studentlevel: Array<any> = [];
   studentquiz: Array<any> = [];
   studentpractice: Array<any> = [];

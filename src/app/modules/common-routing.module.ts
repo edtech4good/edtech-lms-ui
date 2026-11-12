@@ -268,6 +268,17 @@ const routes: Routes = [
         },
       },
       {
+        path: 'certificates',
+        loadChildren: () => import('./certificate/certificate.routes').then((m) => m.CERTIFICATE_ROUTES),
+        canActivate: [AuthGuard, requirePermission('list_certificate')],
+        data: {
+          group: 'People',
+          crumb: 'Certificates',
+          crumbLink: '/certificates',
+          role: [],
+        },
+      },
+      {
         path: 'report',
         loadChildren: () =>
           import('./report/report.module').then((m) => m.ReportModule),
