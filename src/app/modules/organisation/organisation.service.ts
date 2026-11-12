@@ -1,7 +1,7 @@
 import { HttpClient, HttpContext, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import { FIELD_ERRORS_INLINE, FORBIDDEN_HANDLED, GATEWAY_HANDLED, NOT_FOUND_HANDLED } from 'src/app/interceptors/error-context';
+import { FAILURES_SHOWN_BY_CALLER, FIELD_ERRORS_INLINE, FORBIDDEN_HANDLED, GATEWAY_HANDLED, NOT_FOUND_HANDLED } from 'src/app/interceptors/error-context';
 import { CoreService } from 'src/app/services/core.service';
 import { pushOf } from 'src/app/shared/notices/sticky-notice.service';
 import {
@@ -83,6 +83,16 @@ export class OrganisationService {
       // A 404 is said by the list ("It no longer exists."), a 403 too.
       context: new HttpContext().set(FORBIDDEN_HANDLED, true).set(NOT_FOUND_HANDLED, true),
     });
+  }
+
+  /**
+   * The organisation the token acts in (its preset is what a new curriculum's recognition defaults follow). `null` for a platform
+   * account that is not acting as one. The caller says any failure itself, so the interceptor stays quiet.
+   */
+  mine(): Observable<Organisation | null> {
+    return this.http
+      .get<{ data: Organisation | null }>(this.url('/mine'), { context: new HttpContext().set(FAILURES_SHOWN_BY_CALLER, true) })
+      .pipe(map((r) => r.data));
   }
 
   /** The platform's countries, for the multi-select. */

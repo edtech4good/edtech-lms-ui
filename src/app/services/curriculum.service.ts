@@ -1,9 +1,10 @@
 import { HttpClient, HttpContext } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, map } from 'rxjs';
-import { FAILURES_SHOWN_BY_CALLER } from 'src/app/interceptors/error-context';
+import { FAILURES_SHOWN_BY_CALLER, FIELD_ERRORS_INLINE } from 'src/app/interceptors/error-context';
 import { IPaging } from 'src/app/models/IPaging';
 import { CoreService } from 'src/app/services/core.service';
+import { Recognition } from 'src/app/modules/curriculum/curriculum-recognition';
 import { PublicationOverview, PublishAnswer, PushOutcome, RetireAnswer } from 'src/app/shared/publication/publication.model';
 
 /** What the curriculum delete answers (central: `DELETE curriculum/:id`). */
@@ -84,7 +85,8 @@ export class CurriculumService {
     );
   }
 
-  update(curriculum: any) {
+  /** `recognition` carries only the tiers named; a 400 on one is shown beside its select, so the interceptor does not toast it. */
+  update(curriculum: any, recognition: Partial<Recognition> = {}) {
     return this.http.put(
       `${this.coreService.CORE_API()}curriculum/${curriculum.curriculumid}`,
       {
@@ -92,20 +94,22 @@ export class CurriculumService {
         curriculumdescription: curriculum.curriculumdescription,
         countryid: curriculum.countryid,
         subjectid: curriculum.subjectid,
+        ...recognition,
       },
-      this.coreService.jsonhttpOptions
+      { ...this.coreService.jsonhttpOptions, context: new HttpContext().set(FIELD_ERRORS_INLINE, true) }
     );
   }
-  create(curriculumname: string, curriculumdescription: string, countryid: [string], subjectid: string) {
+  create(curriculumname: string, curriculumdescription: string, countryid: [string], subjectid: string, recognition: Partial<Recognition> = {}) {
     return this.http.post(
       `${this.coreService.CORE_API()}curriculum/create`,
       {
         curriculumname,
         curriculumdescription,
         countryid,
-        subjectid
+        subjectid,
+        ...recognition,
       },
-      this.coreService.jsonhttpOptions
+      { ...this.coreService.jsonhttpOptions, context: new HttpContext().set(FIELD_ERRORS_INLINE, true) }
     );
   }
   get(curriculumid: string) {
