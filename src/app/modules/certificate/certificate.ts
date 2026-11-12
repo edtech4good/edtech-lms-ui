@@ -90,6 +90,8 @@ export interface VerifyValid {
   organisationname: string;
   issuedat: string;
   shortcode: string;
+  /** The school's name, as the snapshot has it; absent on older answers. */
+  schoolname?: string;
   /** The look of the organisation's certificates; on a valid answer only. */
   look?: CertificateLook;
 }
@@ -441,7 +443,7 @@ export function recordFromVerify(v: VerifyValid): CertificateRecord {
       tierlabel: v.tierlabel,
       classname: v.classname,
       organisationname: v.organisationname,
-      schoolname: '',
+      schoolname: v.schoolname ?? '',
       quizcount: 0,
     },
   };

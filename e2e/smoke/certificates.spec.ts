@@ -692,7 +692,7 @@ test.describe('the printed page (a real PDF)', () => {
 
 // ---- Slice 2: the public printable page, the "Show certificate" link, and the learning-server note ----------------------------
 
-const PUBLIC_VALID = { status: 'valid', learnername: 'សុខា ចាន់', scope: 'curriculum', tierlabel: 'Programme', scopename: 'Digital Skills for Small Business', curriculumname: 'Digital Skills for Small Business', classname: 'Cohort II', organisationname: 'Example Trading Co', issuedat: '2026-11-12T05:00:00.000Z', shortcode: '7F3K-92QD', look: 'corporate' };
+const PUBLIC_VALID = { status: 'valid', learnername: 'សុខា ចាន់', scope: 'curriculum', tierlabel: 'Programme', scopename: 'Digital Skills for Small Business', curriculumname: 'Digital Skills for Small Business', classname: 'Cohort II', organisationname: 'Example Trading Co', issuedat: '2026-11-12T05:00:00.000Z', shortcode: '7F3K-92QD', schoolname: 'North Valley School', look: 'corporate' };
 const PUBLIC_LEVEL = { ...PUBLIC_VALID, scope: 'level', tierlabel: 'Module', scopename: 'Pricing and Costs' };
 const PUBLIC_REVOKED = { status: 'revoked', revokedat: '2026-11-20T05:00:00.000Z', shortcode: '7F3K-92QD' };
 const NO_SUCH_CODE = json(404, { error: true, errormessage: 'That code does not match a certificate.' });
@@ -711,8 +711,8 @@ test.describe('the public certificate page', () => {
         await expect(page.getByTestId('sheet-class')).toHaveText('Cohort II');
         await expect(page.getByTestId('sheet-issued')).toHaveText('12 November 2026');
         await expect(page.getByTestId('sheet-code')).toHaveText('7F3K-92QD');
-        // the corporate sheet names the issuing organisation; the school look names the school, which the public answer does not carry
-        if (look === 'corporate') await expect(page.getByTestId('sheet')).toContainText('Example Trading Co');
+        // the corporate sheet names the issuing organisation; the school look names the school
+        await expect(page.getByTestId('sheet')).toContainText(look === 'corporate' ? 'Example Trading Co' : 'North Valley School');
         await expect(page.getByTestId('sheet-title')).toHaveText(look === 'corporate' ? 'Certificate of Completion' : 'Certificate of Achievement');
         await expect(page.getByTestId('qr')).toHaveAttribute('data-qr-text', `${ORIGIN}/v/7F3K-92QD`);
         await fence(page);
