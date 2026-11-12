@@ -168,12 +168,18 @@ export class SchoolIndexComponent implements OnInit {
       .synccloudStudent(schoolname)
       .pipe(first())
       .subscribe({
-        next: async (_res: any) => {
+        next: async (res: any) => {
+          // central's answer also says what became of the learners' certificates (pushed, skipped or failed); the roster went through either way
+          const certificates = (res?.data ?? res)?.certificates;
           this.notification.create(
             'success',
             'Success',
-            `${schoolname} students synced sucessfully`
+            `${schoolname} students synced successfully.${certificates?.status === 'pushed' ? ' Certificates sent to the learning server.' : ''}`
           );
+          if (certificates?.status === 'failed') {
+            const said = certificates.message;
+            this.notification.create('warning', 'Warning', typeof said === 'string' && said.trim() ? said : 'The certificates could not be sent to the learning server.');
+          }
         },
         error: (error: HttpErrorResponse) => this.syncRefused(error),
       });

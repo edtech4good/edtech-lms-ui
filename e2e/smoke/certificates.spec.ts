@@ -1,8 +1,12 @@
 import { BrowserContext, Page, Request, Route, expect, test } from '@playwright/test';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { API_URL, BASE_URL } from '../fixtures/env';
 
 /**
- * Certificates, slice 1, in a browser with every answer from the API mocked (none is real, so it runs against any build served on
+ * Certificates, slices 1 and 2 (admin), in a browser with every answer from the API mocked (none is real, so it runs against any build served on
  * E2E_BASE_URL; E2E_ACCESS_KEYS is "algKey,payloadKey,hashKey" as in learner-awards.spec.ts). Any other host is refused.
  *
  * The answers are what central answers (edtech-lms-api src/modules/certificate, src/business/certificate.business.ts), wrapped
@@ -682,6 +686,201 @@ test.describe('the printed page (a real PDF)', () => {
       }
       const pdf = await page.pdf({ preferCSSPageSize: true });
       expect(pagesOf(pdf), `${paper}: one page`).toBe(1);
+    });
+  }
+});
+
+// ---- Slice 2: the public printable page, the "Show certificate" link, and the learning-server note ----------------------------
+
+const PUBLIC_VALID = { status: 'valid', learnername: 'សុខា ចាន់', scope: 'curriculum', tierlabel: 'Programme', scopename: 'Digital Skills for Small Business', curriculumname: 'Digital Skills for Small Business', classname: 'Cohort II', organisationname: 'Example Trading Co', issuedat: '2026-11-12T05:00:00.000Z', shortcode: '7F3K-92QD', schoolname: 'North Valley School', look: 'corporate' };
+const PUBLIC_LEVEL = { ...PUBLIC_VALID, scope: 'level', tierlabel: 'Module', scopename: 'Pricing and Costs' };
+const PUBLIC_REVOKED = { status: 'revoked', revokedat: '2026-11-20T05:00:00.000Z', shortcode: '7F3K-92QD' };
+const NO_SUCH_CODE = json(404, { error: true, errormessage: 'That code does not match a certificate.' });
+const publicUrl = '/v/7F3K-92QD/certificate';
+
+test.describe('the public certificate page', () => {
+  test('a. valid, corporate and school looks: the sheet, with no Authorization header and exactly one request, signed in or not', async ({ context, browser }) => {
+    for (const signedIn of [true, false]) {
+      for (const look of ['corporate', 'school']) {
+        const ctx = signedIn && look === 'corporate' ? context : await browser.newContext();
+        const mock = newMock({ verify: () => ok({ ...PUBLIC_VALID, look }) });
+        await open(ctx, ALL, mock, signedIn);
+        const page = await newPage(ctx, publicUrl);
+        await expect(page.getByTestId('sheet')).toHaveAttribute('data-look', look);
+        await expect(page.getByTestId('sheet-name')).toHaveText('សុខា ចាន់');
+        await expect(page.getByTestId('sheet-class')).toHaveText('Cohort II');
+        await expect(page.getByTestId('sheet-issued')).toHaveText('12 November 2026');
+        await expect(page.getByTestId('sheet-code')).toHaveText('7F3K-92QD');
+        // the corporate sheet names the issuing organisation; the school look names the school
+        await expect(page.getByTestId('sheet')).toContainText(look === 'corporate' ? 'Example Trading Co' : 'North Valley School');
+        await expect(page.getByTestId('sheet-title')).toHaveText(look === 'corporate' ? 'Certificate of Completion' : 'Certificate of Achievement');
+        await expect(page.getByTestId('qr')).toHaveAttribute('data-qr-text', `${ORIGIN}/v/7F3K-92QD`);
+        await fence(page);
+        expect(mock.calls.map((c) => c.path), `signed in: ${signedIn}, ${look}: the only call`).toEqual(['certificates/verify/7F3K-92QD']);
+        expect(mock.calls[0].authorization, `signed in: ${signedIn}, ${look}`).toBeUndefined();
+        expect(page.url()).toBe(`${ORIGIN}${publicUrl}`);
+        if (ctx !== context) await ctx.close();
+      }
+    }
+  });
+
+  test('a. a programme reads as the programme; a level or grade by its name, with its tier label only in the eyebrow', async ({ context }) => {
+    await open(context, ALL, newMock({ verify: () => ok(PUBLIC_VALID) }), false);
+    const programme = await newPage(context, publicUrl);
+    await expect(programme.getByTestId('sheet-eyebrow')).toHaveText('Certificate of completion');
+    await expect(programme.getByTestId('sheet-subject')).toHaveText('Digital Skills for Small Business');
+    await expect(programme.getByTestId('sheet-partof')).toHaveCount(0);
+    const second = await context.browser()!.newContext();
+    await open(second, ALL, newMock({ verify: () => ok(PUBLIC_LEVEL) }), false);
+    const level = await newPage(second, publicUrl);
+    await expect(level.getByTestId('sheet-eyebrow')).toHaveText('Module certificate');
+    await expect(level.getByTestId('sheet-subject')).toHaveText('Pricing and Costs');
+    await expect(level.getByTestId('sheet-partof')).toHaveText(', part of Digital Skills for Small Business');
+    await second.close();
+  });
+
+  test('a. a withdrawn certificate says so with the date and shows no sheet', async ({ context }) => {
+    const mock = newMock({ verify: () => ok(PUBLIC_REVOKED) });
+    await open(context, ALL, mock, false);
+    const page = await newPage(context, publicUrl);
+    await expect(page.getByTestId('public-revoked')).toHaveText('This certificate was withdrawn on 20 November 2026.');
+    await fence(page);
+    await expect(page.getByTestId('sheet')).toHaveCount(0);
+    await expect(page.getByTestId('print-button')).toHaveCount(0);
+    expect(mock.calls.map((c) => c.path)).toEqual(['certificates/verify/7F3K-92QD']);
+  });
+
+  test('a. an unknown code says so, links back to /v, and is not a toast', async ({ context }) => {
+    const mock = newMock({ verify: () => NO_SUCH_CODE });
+    await open(context, ALL, mock, false);
+    const page = await newPage(context, '/v/ZZZZ-ZZZZ/certificate');
+    await expect(page.getByTestId('public-missing')).toHaveText('No certificate has this code');
+    await expect(page.getByTestId('sheet')).toHaveCount(0);
+    await fence(page);
+    expect(await page.locator('.ant-notification-notice').count()).toBe(0);
+    await page.getByTestId('public-back').click();
+    await expect(page).toHaveURL(`${ORIGIN}/v`);
+    await expect(page.getByTestId('check-input')).toBeVisible();
+  });
+
+  test('a. the A4 and A3 toggle follows the paper rule, and Print / Save PDF prints', async ({ context }) => {
+    await open(context, ALL, newMock({ verify: () => ok(PUBLIC_VALID) }), false);
+    const page = await newPage(context, publicUrl);
+    const rule = () => page.locator('style#certificate-page-rule').textContent();
+    await expect(page.getByTestId('sheet')).toBeVisible();
+    expect(await rule()).toContain('size: A4 landscape');
+    await page.getByTestId('paper-A3').click();
+    await expect.poll(rule).toContain('size: A3 landscape');
+    await expect(page.getByTestId('paper')).toHaveAttribute('data-paper', 'A3');
+    expect(await page.evaluate(() => (window as any).__prints)).toBe(0);
+    await page.getByTestId('print-button').click();
+    expect(await page.evaluate(() => (window as any).__prints)).toBe(1);
+  });
+
+  test('e. the public route works signed in and signed out, and the staff print route still needs sign-in', async ({ context, browser }) => {
+    const signedOut = await browser.newContext();
+    await open(signedOut, ALL, newMock({ verify: () => ok(PUBLIC_VALID) }), false);
+    const out = await newPage(signedOut, publicUrl);
+    await expect(out.getByTestId('sheet')).toBeVisible();
+    await expect(out).toHaveURL(`${ORIGIN}${publicUrl}`);
+    await open(context, ALL, newMock({ verify: () => ok(PUBLIC_VALID) }), true);
+    const inn = await newPage(context, publicUrl);
+    await expect(inn.getByTestId('sheet')).toBeVisible();
+    await expect(inn).toHaveURL(`${ORIGIN}${publicUrl}`);
+    // nothing else became public: a signed-out browser is sent to sign in from the staff print page
+    const staff = await newPage(signedOut, '/certificates/cert-1/print');
+    await expect(staff).toHaveURL(/\/auth\/login/);
+    await signedOut.close();
+  });
+
+  for (const [paper, wide, high] of [['A4', 297, 210], ['A3', 420, 297]] as const) {
+    test(`b. ${paper} prints as exactly one page, with the code and QR on it and no placeholder text in the PDF`, async ({ context }) => {
+      await open(context, ALL, newMock({ verify: () => ok(PUBLIC_VALID) }), false);
+      const page = await newPage(context, publicUrl);
+      await expect(page.getByTestId('sheet')).toBeVisible();
+      if (paper === 'A3') await page.getByTestId('paper-A3').click();
+      await expect.poll(() => page.locator('style#certificate-page-rule').textContent()).toContain(`size: ${paper} landscape`);
+      await page.emulateMedia({ media: 'print' });
+      const mm = (n: number) => (n / 25.4) * 96;
+      const sheet = (await page.getByTestId('sheet').boundingBox())!;
+      expect(Math.abs(sheet.width - mm(wide)), 'the sheet is as wide as the page').toBeLessThan(1);
+      expect(sheet.height, 'and no taller').toBeLessThanOrEqual(mm(high) + 0.5);
+      for (const id of ['sheet-code', 'sheet-url', 'qr']) {
+        const box = (await page.getByTestId(id).boundingBox())!;
+        expect(box.y + box.height, `${id} is inside the page`).toBeLessThanOrEqual(mm(high) + 0.5);
+      }
+      await expect(page.getByTestId('print-toolbar')).toBeHidden();
+      const pdf = await page.pdf({ preferCSSPageSize: true });
+      expect((pdf.toString('latin1').match(/\/Type\s*\/Page(?![a-z])/g) ?? []).length, `${paper}: one page`).toBe(1);
+      // the words the PDF actually holds (pdftotext reads the file, nothing is piped in)
+      const dir = mkdtempSync(join(tmpdir(), 'cert-pdf-'));
+      try {
+        const file = join(dir, 'c.pdf');
+        writeFileSync(file, pdf);
+        const text = spawnSync('pdftotext', [file, '-'], { encoding: 'utf8', input: '' }).stdout;
+        expect(text, 'the certificate is in the PDF').toContain('7F3K-92QD');
+        for (const label of ['LOGO', 'KHMER TITLE', 'SIGNATURE', 'Signatory name', 'Title, organisation']) expect(text, `${label} is not printed`).not.toContain(label);
+      } finally {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    });
+  }
+});
+
+test.describe('the public check page links to the printable one', () => {
+  test('c. a valid code shows "Show certificate" to /v/<code>/certificate; revoked, unknown and the empty page do not', async ({ context }) => {
+    const code = { v: ok(PUBLIC_VALID), r: ok(PUBLIC_REVOKED), u: NO_SUCH_CODE };
+    await open(context, ALL, newMock({ verify: (c) => (c === '7F3K-92QD' ? code.v : c === 'Q2MD-8TXA' ? code.r : code.u) }), false);
+    const valid = await newPage(context, '/v/7F3K-92QD');
+    const link = valid.getByTestId('check-show');
+    await expect(link).toHaveText('Show certificate');
+    await expect(link).toHaveAttribute('href', '/v/7F3K-92QD/certificate');
+    await link.click();
+    await expect(valid).toHaveURL(`${ORIGIN}/v/7F3K-92QD/certificate`);
+    await expect(valid.getByTestId('sheet')).toBeVisible();
+    const revoked = await newPage(context, '/v/Q2MD-8TXA');
+    await expect(revoked.getByTestId('check-status')).toHaveText('Revoked');
+    await expect(revoked.getByTestId('check-show')).toHaveCount(0);
+    const unknown = await newPage(context, '/v/ZZZZ-ZZZZ');
+    await expect(unknown.getByTestId('check-status')).toHaveText('No certificate has this code');
+    await expect(unknown.getByTestId('check-show')).toHaveCount(0);
+    const blank = await newPage(context, '/v');
+    await expect(blank.getByTestId('check-input')).toBeVisible();
+    await expect(blank.getByTestId('check-show')).toHaveCount(0);
+  });
+});
+
+test.describe('the learning-server note after an issue or a revoke', () => {
+  const NOTE = 'The learning server will get it at the next Sync Students.';
+  const issued = [record({ certificateid: 'cert-2', shortcode: 'Q2MD-8TXA', studentid: 'stu-chenda' }, { learnername: 'Chenda Rith' })];
+
+  for (const pushed of [false, true, undefined]) {
+    test(`d. an issue answered pushed:${pushed} ${pushed === false ? 'says the learning server will get it later' : 'says nothing of the learning server'}`, async ({ context }) => {
+      const mock = newMock({ candidates: () => ok(MIXED), issue: () => ok({ issued, refused: [], ...(pushed === undefined ? {} : { pushed }) }) });
+      const page = await openCurriculumTier(context, mock);
+      await page.getByTestId('issue-all').click();
+      await expect(page.getByTestId('issue-headline')).toHaveText('1 certificate issued.');
+      if (pushed === false) await expect(page.getByTestId('push-note')).toHaveText(NOTE);
+      else {
+        await fence(page);
+        await expect(page.getByTestId('push-note')).toHaveCount(0);
+      }
+    });
+
+    test(`d. a revoke answered pushed:${pushed} ${pushed === false ? 'says the learning server will get it later' : 'says nothing of the learning server'}`, async ({ context }) => {
+      const mock = newMock({ candidates: () => ok(MIXED), revoke: () => ok({ ...record({ revokedat: '2026-11-13T05:00:00.000Z' }), ...(pushed === undefined ? {} : { pushed }) }) });
+      const page = await openCurriculumTier(context, mock);
+      await page.getByTestId('cert-row').nth(0).getByTestId('revoke-one').click();
+      await page.getByTestId('revoke-reason').fill('Issued to the wrong learner');
+      await page.getByRole('button', { name: 'Revoke certificate', exact: true }).click();
+      await expect(page.getByTestId('cert-notice')).toContainText('was revoked.');
+      if (pushed === false) {
+        await expect(page.getByTestId('push-note')).toHaveText(NOTE);
+        await expect(page.getByTestId('cert-notice')).toContainText('A new certificate can be issued if they are still ready.');
+      } else {
+        await fence(page);
+        await expect(page.getByTestId('push-note')).toHaveCount(0);
+      }
     });
   }
 });

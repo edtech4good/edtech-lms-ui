@@ -28,6 +28,7 @@ import {
   IssueAnswer,
   issueAllLabel,
   issueSummary,
+  NOT_PUSHED_NOTE,
   offeredTiers,
   readyIds,
   revokeReasonToSend,
@@ -135,11 +136,19 @@ const LOAD_FAILED = 'The learners could not be loaded. Try again in a moment.';
             }
           </ul>
         }
+        @if (s.notPushed) {
+          <p class="push-note" data-testid="push-note">{{ notPushedNote }}</p>
+        }
         <button type="button" class="link" (click)="summary.set(null)">Dismiss</button>
       </div>
     }
     @if (notice()) {
-      <div class="summary" role="status" data-testid="cert-notice">{{ notice() }}</div>
+      <div class="summary" role="status" data-testid="cert-notice">
+        {{ notice() }}
+        @if (noticeNotPushed()) {
+          <p class="push-note" data-testid="push-note">{{ notPushedNote }}</p>
+        }
+      </div>
     }
 
     @if (scopeid() && loadFailed()) {
@@ -273,6 +282,10 @@ const LOAD_FAILED = 'The learners could not be loaded. Try again in a moment.';
       .refusals {
         color: #6b4b00;
       }
+      .push-note {
+        margin: 6px 0 0;
+        color: #6b4b00;
+      }
       .bar {
         display: flex;
         justify-content: space-between;
@@ -400,6 +413,9 @@ export class CertificatesPageComponent {
   readonly error = signal('');
   readonly summary = signal<IssueSummary | null>(null);
   readonly notice = signal('');
+  /** The revoke went through but central could not tell the learning server. */
+  readonly noticeNotPushed = signal(false);
+  readonly notPushedNote = NOT_PUSHED_NOTE;
   /** A failure that must outlive the refresh that follows it (a later batch of an issue failed after earlier ones went through). */
   private kept = '';
 
@@ -532,6 +548,7 @@ export class CertificatesPageComponent {
     this.error.set('');
     this.summary.set(null);
     this.notice.set('');
+    this.noticeNotPushed.set(false);
   }
 
   private request(): (ScopeRequest & { standardid?: string }) | null {
@@ -556,6 +573,7 @@ export class CertificatesPageComponent {
     if (!request || studentids.length === 0 || this.busy()) return;
     this.busy.set(true);
     this.notice.set('');
+    this.noticeNotPushed.set(false);
     this.kept = '';
     void this.issueInBatches({ curriculumid: request.curriculumid, scope: request.scope, scopeid: request.scopeid }, studentids);
   }
@@ -594,11 +612,12 @@ export class CertificatesPageComponent {
     if (!row?.certificate || !reason || this.busy()) return;
     this.busy.set(true);
     this.api.revoke(row.certificate.certificateid, reason).subscribe({
-      next: () => {
+      next: (answer) => {
         this.busy.set(false);
         this.revoking.set(null);
         this.summary.set(null);
         this.kept = '';
+        this.noticeNotPushed.set(answer?.pushed === false);
         this.notice.set(`The certificate ${row.certificate?.shortcode} of ${row.student.name} was revoked. A new certificate can be issued if they are still ready.`);
         this.refresh();
       },

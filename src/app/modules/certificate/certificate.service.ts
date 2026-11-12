@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { FAILURES_SHOWN_BY_CALLER } from 'src/app/interceptors/error-context';
 import { CoreService } from 'src/app/services/core.service';
-import { Candidate, CertificateRecord, CertificateScope, IssueAnswer, VerifyAnswer } from './certificate';
+import { Candidate, CertificateRecord, CertificateScope, IssueAnswer, RevokeAnswer, VerifyAnswer } from './certificate';
 
 export interface ScopeRequest {
   curriculumid: string;
@@ -33,9 +33,9 @@ export class CertificateService {
     return this.http.post<{ data: IssueAnswer }>(`${this.core.CORE_API()}certificate/issue`, request, this.quiet()).pipe(map((r) => r.data));
   }
 
-  revoke(certificateid: string, reason: string): Observable<CertificateRecord> {
+  revoke(certificateid: string, reason: string): Observable<RevokeAnswer> {
     return this.http
-      .post<{ data: CertificateRecord }>(`${this.core.CORE_API()}certificate/${certificateid}/revoke`, { reason }, this.quiet())
+      .post<{ data: RevokeAnswer }>(`${this.core.CORE_API()}certificate/${certificateid}/revoke`, { reason }, this.quiet())
       .pipe(map((r) => r.data));
   }
 

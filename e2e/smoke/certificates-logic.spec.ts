@@ -124,6 +124,14 @@ test.describe('issuing in batches', () => {
     expect(merged.issued).toHaveLength(2);
     expect(merged.refused).toHaveLength(1);
   });
+
+  test('merged batches say pushed:false if any batch missed the learning server, true only when all did not', () => {
+    const batch = (pushed?: boolean) => ({ issued: [], refused: [], ...(pushed === undefined ? {} : { pushed }) });
+    expect(mergeIssued([batch(false), batch(true)]).pushed).toBe(false);
+    expect(mergeIssued([batch(true), batch(false)]).pushed).toBe(false);
+    expect(mergeIssued([batch(true), batch(true)]).pushed).toBe(true);
+    expect(mergeIssued([batch(true), batch()]).pushed, 'an answer without the field is not a miss').toBe(true);
+  });
 });
 
 test.describe('revoking and errors', () => {

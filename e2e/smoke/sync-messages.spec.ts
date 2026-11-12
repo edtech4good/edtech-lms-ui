@@ -133,8 +133,36 @@ test.describe('the other outcomes are as before', () => {
     const page = await open(context, newMock(() => json(200, { data: { status: 'pushed' } })));
     await press(page, 'sync-students');
     await expect(notices(page)).toHaveCount(1);
-    await expect(notices(page).first()).toContainText('North Valley School students synced sucessfully');
+    await expect(notices(page).first()).toContainText('North Valley School students synced successfully.');
+    await expect(notices(page).first()).not.toContainText('Certificates sent');
     await expect(notices(page)).toHaveCount(0, { timeout: 10_000 });
+  });
+
+  test('Sync Students also says certificates were sent when central pushed them', async ({ context }) => {
+    const page = await open(context, newMock(() => json(200, { data: { status: 'pushed', certificates: { status: 'pushed', upserted: 3, deleted: 0, message: 'Certificates sent to the learning server.' } } })));
+    await press(page, 'sync-students');
+    await expect(notices(page)).toHaveCount(1);
+    await expect(notices(page).first()).toHaveText(/North Valley School students synced successfully\. Certificates sent to the learning server\./);
+  });
+
+  test('Sync Students shows central\'s warning when the certificates failed, beside the roster success', async ({ context }) => {
+    const message = 'The certificates could not be sent. Sync Students again.';
+    const page = await open(context, newMock(() => json(200, { data: { status: 'pushed', certificates: { status: 'failed', message } } })));
+    await press(page, 'sync-students');
+    await expect(notices(page).filter({ hasText: message })).toHaveCount(1);
+    await expect(notices(page).filter({ hasText: 'students synced successfully.' })).toHaveCount(1);
+    await expect(notices(page).filter({ hasText: message }).locator('.ant-notification-notice-message')).toHaveText('Warning');
+    await expect(notices(page).filter({ hasText: 'students synced successfully.' })).not.toContainText('Certificates sent');
+  });
+
+  test('a skipped certificates outcome adds nothing', async ({ context }) => {
+    const page = await open(context, newMock(() => json(200, { data: { status: 'pushed', certificates: { status: 'skipped', message: 'No learners, so no certificates were sent.' } } })));
+    await press(page, 'sync-students');
+    await expect(notices(page).first()).toContainText('students synced successfully.');
+    await page.waitForTimeout(800);
+    expect(await notices(page).count()).toBe(1);
+    await expect(notices(page).first()).not.toContainText('Certificates');
+    await expect(notices(page).first()).not.toContainText('No learners');
   });
 
   test('a teachers success says so', async ({ context }) => {

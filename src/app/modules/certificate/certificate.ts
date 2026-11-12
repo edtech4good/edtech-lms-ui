@@ -69,7 +69,14 @@ export interface Refusal {
 export interface IssueAnswer {
   issued: CertificateRecord[];
   refused: Refusal[];
+  /** false when central could not tell the learning server (it will get it at the next Sync Students); absent from older answers. */
+  pushed?: boolean;
 }
+
+/** Said after an issue or a revoke whose answer has `pushed: false`: the staff action went through, only the learning server is behind. */
+export const NOT_PUSHED_NOTE = 'The learning server will get it at the next Sync Students.';
+/** A revoke answers the certificate and whether the learning server was told. */
+export type RevokeAnswer = CertificateRecord & { pushed?: boolean };
 
 /** What the public check answers (`GET certificates/verify/:shortcode`). */
 export interface VerifyValid {
@@ -83,6 +90,10 @@ export interface VerifyValid {
   organisationname: string;
   issuedat: string;
   shortcode: string;
+  /** The school's name, as the snapshot has it; absent on older answers. */
+  schoolname?: string;
+  /** The look of the organisation's certificates; on a valid answer only. */
+  look?: CertificateLook;
 }
 export interface VerifyRevoked {
   status: 'revoked';
@@ -222,6 +233,8 @@ export interface IssueSummary {
   headline: string;
   issued: Array<{ certificateid: string; name: string; shortcode: string }>;
   refusals: string[];
+  /** The learning server was not told (central answered `pushed: false`). */
+  notPushed: boolean;
 }
 
 export function issueSummary(answer: IssueAnswer, nameOf: (studentid: string) => string): IssueSummary {
@@ -231,6 +244,7 @@ export function issueSummary(answer: IssueAnswer, nameOf: (studentid: string) =>
     headline: issued.length === 0 ? 'No certificates were issued.' : `${issued.length} ${issued.length === 1 ? 'certificate' : 'certificates'} issued.`,
     issued,
     refusals: refused.map((r) => refusalText(r, nameOf(r.studentid))),
+    notPushed: answer.pushed === false,
   };
 }
 
@@ -294,6 +308,8 @@ export function inBatches<T>(items: readonly T[], size = ISSUE_BATCH): T[][] {
 export const mergeIssued = (answers: readonly IssueAnswer[]): IssueAnswer => ({
   issued: answers.flatMap((a) => a.issued ?? []),
   refused: answers.flatMap((a) => a.refused ?? []),
+  // one batch the learning server missed is enough to say so
+  pushed: answers.every((a) => a.pushed !== false),
 });
 
 // ---- The certificate page ------------------------------------------------------
@@ -400,4 +416,35 @@ export function qrDrawing(text: string, margin = 2): QrDrawing {
     }
   }
   return { size: count + margin * 2, path };
+}
+
+// ---- The public printable page -------------------------------------------------
+
+/** The public check's valid answer as the sheet component draws it: the same drawing as the staff print page, from what the check says. */
+export function recordFromVerify(v: VerifyValid): CertificateRecord {
+  return {
+    certificateid: '',
+    shortcode: v.shortcode,
+    organisationid: '',
+    studentid: '',
+    curriculumid: '',
+    scope: v.scope,
+    scopeid: '',
+    standardid: null,
+    issuedat: v.issuedat,
+    issuedby: '',
+    revokedat: null,
+    revokedby: null,
+    revokereason: null,
+    snapshot: {
+      learnername: v.learnername,
+      curriculumname: v.curriculumname,
+      scopename: v.scopename,
+      tierlabel: v.tierlabel,
+      classname: v.classname,
+      organisationname: v.organisationname,
+      schoolname: v.schoolname ?? '',
+      quizcount: 0,
+    },
+  };
 }

@@ -1,7 +1,7 @@
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { switchMap, of, catchError, map, startWith } from 'rxjs';
 import { VerifyAnswer, longDate, tidyCode } from './certificate';
 import { CertificateService } from './certificate.service';
@@ -18,7 +18,7 @@ type CheckState = { kind: 'ask' } | { kind: 'loading' } | { kind: 'answer'; answ
 @Component({
   selector: 'app-certificate-check',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   template: `
     <main class="page">
       <div class="card" data-testid="check-card">
@@ -47,6 +47,7 @@ type CheckState = { kind: 'ask' } | { kind: 'loading' } | { kind: 'answer'; answ
             <dt>Issued on</dt><dd data-testid="check-issued">{{ date(v.issuedat) }}</dd>
             <dt>Code</dt><dd class="mono" data-testid="check-code">{{ v.shortcode }}</dd>
           </dl>
+          <p class="lede"><a [routerLink]="['/v', v.shortcode, 'certificate']" data-testid="check-show">Show certificate</a></p>
         }
         @if (revoked(); as r) {
           <div class="status"><span class="dot bad"></span><span data-testid="check-status">Revoked</span></div>

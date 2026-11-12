@@ -16,6 +16,9 @@ test.describe('public auth paths', () => {
     '/auth/changepassword',
     '/auth/verify/abc',
     '/auth/verify',
+    '/v',
+    '/v/7F3K-92QD',
+    '/v/7F3K-92QD/certificate',
   ];
   const NOT_PUBLIC = [
     '/auth/loginx',
@@ -25,6 +28,9 @@ test.describe('public auth paths', () => {
     '/auth/changepasswordx',
     '/auth/changepasswordx/abc',
     '/auth',
+    '/vx/certificate',
+    '/certificates/cert-1/print',
+    '/certificates',
     '/auth/blocked',
     '/auth/Login',
     '/login',
