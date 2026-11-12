@@ -166,3 +166,27 @@
 // ng-zorro restyle layer (buttons, fields, tables, cards, modals, ...).
 @import "styles/zorro-overrides.less";
 @import "styles/auth-form.less";
+
+// A certificate's print page: the admin shell (menu, breadcrumb) is not part of the paper. The page adds `cert-print` to <body>
+// while it is open (certificate-print.component.ts); its own @page rule sets the paper size.
+@media print {
+  body.cert-print {
+    background: #fff;
+    .skip-link,
+    app-shell-nav,
+    app-shell-breadcrumb,
+    ngx-spinner,
+    .ant-notification {
+      display: none !important;
+    }
+    .shell {
+      display: block;
+      padding: 0;
+      background: #fff;
+      min-height: 0;
+    }
+    .main-column {
+      overflow: visible;
+    }
+  }
+}

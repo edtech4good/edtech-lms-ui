@@ -71,6 +71,8 @@
 
       <app-learner-awards *ngxPermissionsOnly="awardsPermissions" [studentid]="studentid"></app-learner-awards>
 
+      <app-learner-certificates *ngxPermissionsOnly="certificatePermissions" [studentid]="studentid"></app-learner-certificates>
+
       <nz-collapse>
         <nz-collapse-panel nzHeader="Curriculum Progress">
           <nz-tree

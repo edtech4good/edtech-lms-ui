@@ -314,6 +314,7 @@ export const SHELL_GROUPS: ShellNavGroup[] = [
     item('schools', link('school', 'Schools', '/school/index', ['view_school'])),
     item('classes', link('standard', 'Classes', '/standard/index', ['view_standard'])),
     item('learners', link('student', 'Learners', '/student/index', ['view_student'])),
+    item('certificates', link('certificate', 'Certificates', '/certificates', ['list_certificate'])),
     item('teachers', link('teacher', 'Teachers', '/teacher/index', ['view_teacher'])),
   ]),
   group('reports', 'Reports and settings', 'reports', [

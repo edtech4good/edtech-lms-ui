@@ -107,6 +107,7 @@ test('every link navigates and becomes the one current page', async () => {
     ['Schools', /\/school\/index$/],
     ['Classes', /\/standard\/index$/],
     ['Learners', /\/student\/index$/],
+    ['Certificates', /\/certificates$/],
     ['Teachers', /\/teacher\/index$/],
     ['Reports', /\/report$/],
   ];
@@ -355,6 +356,7 @@ test.describe('shell, signed in as a role-limited user', () => {
     { label: 'Schools', keys: ['view_school'] },
     { label: 'Classes', keys: ['view_standard'] },
     { label: 'Learners', keys: ['view_student'] },
+    { label: 'Certificates', keys: ['list_certificate'] },
     { label: 'Teachers', keys: ['view_teacher'] },
     { label: 'Staff accounts', keys: ['view_user'], parent: 'Administration' },
     { label: 'Roles', keys: ['view_role'], parent: 'Administration' },

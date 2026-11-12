@@ -26,6 +26,15 @@ const routes: Routes = [
     component: UnAuthorizedComponent
   },
   {
+    // The public certificate check: outside the authenticated shell and its guards.
+    path: 'v',
+    loadComponent: () => import('./modules/certificate/certificate-check.component').then((m) => m.CertificateCheckComponent),
+  },
+  {
+    path: 'v/:shortcode',
+    loadComponent: () => import('./modules/certificate/certificate-check.component').then((m) => m.CertificateCheckComponent),
+  },
+  {
     path: '',
     loadChildren: () =>
       import('./modules/commoncontainer.module').then(

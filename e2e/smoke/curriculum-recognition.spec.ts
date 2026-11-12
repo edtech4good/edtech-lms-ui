@@ -139,14 +139,14 @@ test.describe('edit', () => {
     const page = await openPage(context, mock, `/curriculum/update/${CUR}`);
     await expect(shown(page, 'levelrecognition')).toHaveText('Award');
     await expect(shown(page, 'graderecognition')).toHaveText('Nothing');
-    await expect(shown(page, 'curriculumrecognition')).toHaveText('Certificate (not issued yet)');
+    await expect(shown(page, 'curriculumrecognition')).toHaveText('Certificate');
     await expect(page.getByTestId('recognition-level-certificate')).toHaveCount(0);
     await expect(page.getByTestId('recognition-help')).toHaveText('Learners see a change after this curriculum is published again.');
     await expect(page.getByTestId('recognition-help-awards')).toHaveText('Switching awards off keeps the awards learners already earned.');
 
     await choose(page, 'levelrecognition', 'Certificate');
-    await expect(shown(page, 'levelrecognition')).toHaveText('Certificate (not issued yet)');
-    await expect(page.getByTestId('recognition-level-certificate')).toHaveText('No awards are given for this level, and certificates are not issued yet.');
+    await expect(shown(page, 'levelrecognition')).toHaveText('Certificate');
+    await expect(page.getByTestId('recognition-level-certificate')).toHaveText('No awards are given for this level. Staff issue certificates on the Certificates page.');
 
     await page.getByRole('button', { name: 'Submit' }).click();
     await expect.poll(() => mock.calls.length).toBe(1);
@@ -163,7 +163,7 @@ test.describe('edit', () => {
   test('an untouched edit sends no recognition at all', async ({ context }) => {
     const mock = newMock();
     const page = await openPage(context, mock, `/curriculum/update/${CUR}`);
-    await expect(shown(page, 'graderecognition')).toHaveText('Certificate (not issued yet)');
+    await expect(shown(page, 'graderecognition')).toHaveText('Certificate');
     await page.getByRole('button', { name: 'Submit' }).click();
     await expect.poll(() => mock.calls.length).toBe(1);
     expect(Object.keys(mock.calls[0].body).sort()).toEqual(['countryid', 'curriculumdescription', 'curriculumname', 'subjectid']);
@@ -172,9 +172,9 @@ test.describe('edit', () => {
   test('b. Level offers Nothing, Award, Certificate; Grade and Curriculum never offer Award', async ({ context }) => {
     const page = await openPage(context, newMock(), `/curriculum/update/${CUR}`);
     await expect(shown(page, 'levelrecognition')).toHaveText('Award');
-    expect(await offered(page, 'levelrecognition')).toEqual(['Nothing', 'Award', 'Certificate (not issued yet)']);
-    expect(await offered(page, 'graderecognition')).toEqual(['Nothing', 'Certificate (not issued yet)']);
-    expect(await offered(page, 'curriculumrecognition')).toEqual(['Nothing', 'Certificate (not issued yet)']);
+    expect(await offered(page, 'levelrecognition')).toEqual(['Nothing', 'Award', 'Certificate']);
+    expect(await offered(page, 'graderecognition')).toEqual(['Nothing', 'Certificate']);
+    expect(await offered(page, 'curriculumrecognition')).toEqual(['Nothing', 'Certificate']);
   });
 
   test('d. a 400 on graderecognition shows beside the Grade select, once, and the form stays', async ({ context }) => {
@@ -217,7 +217,7 @@ test.describe('add', () => {
     const page = await openPage(context, mock, '/curriculum/create');
     await expect(shown(page, 'levelrecognition')).toHaveText('Award');
     await expect(shown(page, 'graderecognition')).toHaveText('Nothing');
-    await expect(shown(page, 'curriculumrecognition')).toHaveText('Certificate (not issued yet)');
+    await expect(shown(page, 'curriculumrecognition')).toHaveText('Certificate');
     await page.getByPlaceholder('Enter curriculum name').fill('Workplace Skills');
     await chooseOther(page, 'countryid', 'Testland');
     await chooseOther(page, 'subjectid', 'Design');
@@ -230,7 +230,7 @@ test.describe('add', () => {
   test('c. under a school network the selects start at award / certificate / none', async ({ context }) => {
     const page = await openPage(context, newMock({ preset: 'schoolnetwork' }), '/curriculum/create');
     await expect(shown(page, 'levelrecognition')).toHaveText('Award');
-    await expect(shown(page, 'graderecognition')).toHaveText('Certificate (not issued yet)');
+    await expect(shown(page, 'graderecognition')).toHaveText('Certificate');
     await expect(shown(page, 'curriculumrecognition')).toHaveText('Nothing');
   });
 

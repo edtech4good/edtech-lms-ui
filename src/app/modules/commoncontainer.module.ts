@@ -3,6 +3,7 @@ import { NgModule } from '@angular/core';
 import { NgxPermissionsModule } from 'ngx-permissions';
 import { SharedModule } from '../shared/shared.module';
 import { LearnerAwardsComponent } from './awards/learner-awards.component';
+import { LearnerCertificatesComponent } from './certificate/learner-certificates.component';
 import { CommonRoutingModule } from './common-routing.module';
 import { CommonComponent } from './common.component';
 import { StudentDetailsComponent } from './student/student-details/student-details.component';
@@ -39,6 +40,7 @@ import { ShellNavComponent } from './shell/shell-nav.component';
         CommonRoutingModule,
         SharedModule,
         LearnerAwardsComponent,
+        LearnerCertificatesComponent,
         AddLearnerDrawerComponent,
         LearnerGradeFieldComponent,
         AddTeacherDrawerComponent,
