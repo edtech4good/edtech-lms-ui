@@ -158,6 +158,8 @@ export interface ReportHubLink {
   label: string;
   route: string;
   queryParams?: Record<string, string>;
+  /** One line under the label, for a report whose name alone does not say what it is. */
+  description?: string;
   /** Already includes `superadmin`. */
   permissions: string[];
 }
@@ -175,7 +177,8 @@ const hubLink = (
   route: string,
   perms: string[],
   queryParams?: Record<string, string>,
-): ReportHubLink => ({ label, route, queryParams, permissions: sidebarPerm(...perms) });
+  description?: string,
+): ReportHubLink => ({ label, route, queryParams, description, permissions: sidebarPerm(...perms) });
 
 const hubSection = (
   key: string,
@@ -191,6 +194,7 @@ const hubSection = (
 });
 
 const ONLINE = { online: 'true' };
+const AWARDS_HELP = 'Which learners have earned which module awards, and when';
 
 export const REPORT_HUB: ReportHubSection[] = [
   hubSection(
@@ -214,6 +218,7 @@ export const REPORT_HUB: ReportHubSection[] = [
       hubLink('Current level', '/report/student-last-completed-quiz', ['view_current_level']),
       hubLink('Active status', '/report/student-activity', ['view_active_status']),
       hubLink('Level quiz', '/report/student-level-quiz', ['view_student_level_quiz', 'view_class_level_quiz']),
+      hubLink('Awards', '/report/student-awards', ['view_offline_report'], undefined, AWARDS_HELP),
     ],
   ),
   hubSection(
@@ -225,6 +230,7 @@ export const REPORT_HUB: ReportHubSection[] = [
       hubLink('Current level', '/report/student-last-completed-quiz/online', ['view_online_current_level'], ONLINE),
       hubLink('Active status', '/report/student-activity/online', ['view_online_active_status'], ONLINE),
       hubLink('Level quiz', '/report/student-level-quiz/online', ['view_online_student_level_quiz', 'view_online_class_level_quiz'], ONLINE),
+      hubLink('Awards', '/report/student-awards/online', ['view_online_report'], ONLINE, AWARDS_HELP),
     ],
   ),
   hubSection('sync', 'Sync record', 'When schools last synced their data to the server.', [

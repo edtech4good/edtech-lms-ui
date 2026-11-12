@@ -1,4 +1,5 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpContext } from '@angular/common/http';
+import { FAILURES_SHOWN_BY_CALLER } from '../interceptors/error-context';
 import { Injectable } from '@angular/core';
 import { CoreService } from 'src/app/services/core.service';
 import { IMultiPaging } from '../models/IPaging';
@@ -151,6 +152,22 @@ export class ReportService {
       `${this.coreService.CORE_API()}${endpoint}`,
       paging,
       this.coreService.jsonhttpOptions
+    );
+  }
+
+  /**
+   * One learner's level awards (the offline and the online route answer the same rows). The screens that call this say a
+   * failure themselves, so the error interceptor stays quiet for it: a failure is one message, never two.
+   */
+  getStudentAwards(paging: IMultiPaging, online: boolean = false) {
+    const endpoint = online ? 'report/online/student-awards' : 'report/student-awards';
+    return this.http.post(
+      `${this.coreService.CORE_API()}${endpoint}`,
+      paging,
+      {
+        ...this.coreService.jsonhttpOptions,
+        context: new HttpContext().set(FAILURES_SHOWN_BY_CALLER, true),
+      }
     );
   }
 
