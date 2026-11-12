@@ -30,9 +30,9 @@ test.describe('the tiers', () => {
     expect(RECOGNITION_TIERS.map((t) => t.label)).toEqual(['Level', 'Grade', 'Curriculum']);
   });
 
-  test('a certificate is labelled as not issued yet', () => {
+  test('a certificate is labelled plainly', () => {
     for (const tier of RECOGNITION_TIERS) {
-      expect(tier.options.find((o) => o.value === 'certificate')?.label).toBe('Certificate (not issued yet)');
+      expect(tier.options.find((o) => o.value === 'certificate')?.label).toBe('Certificate');
     }
   });
 

@@ -574,7 +574,7 @@ export class CertificatesPageComponent {
         this.busy.set(false);
         this.revoking.set(null);
         this.summary.set(null);
-        this.notice.set(`The certificate ${row.certificate?.shortcode} of ${row.student.name} was revoked.`);
+        this.notice.set(`The certificate ${row.certificate?.shortcode} of ${row.student.name} was revoked. A new certificate can be issued if they are still ready.`);
         this.refresh();
       },
       error: (err) => {

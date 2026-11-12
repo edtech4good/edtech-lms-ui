@@ -318,7 +318,7 @@ test.describe('the Certificates page', () => {
     await expect(confirm).toBeEnabled();
     expect(paths(mock, 'certificate/cert-1/revoke'), 'nothing sent before the confirm').toHaveLength(0);
     await confirm.click();
-    await expect(page.getByTestId('cert-notice')).toContainText('The certificate 7F3K-92QD of សុខា ចាន់ was revoked.');
+    await expect(page.getByTestId('cert-notice')).toContainText('The certificate 7F3K-92QD of សុខា ចាន់ was revoked. A new certificate can be issued if they are still ready.');
     const sent = paths(mock, 'certificate/cert-1/revoke');
     expect(sent).toHaveLength(1);
     expect(sent[0].body).toEqual({ reason: 'Issued to the wrong learner' });

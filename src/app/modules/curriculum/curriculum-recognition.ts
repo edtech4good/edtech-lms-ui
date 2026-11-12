@@ -20,8 +20,8 @@ export interface RecognitionOption {
 
 const NOTHING: RecognitionOption = { value: 'none', label: 'Nothing' };
 const AWARD: RecognitionOption = { value: 'award', label: 'Award' };
-/** Certificates are not issued yet: the setting is stored for the certificates work. */
-const CERTIFICATE: RecognitionOption = { value: 'certificate', label: 'Certificate (not issued yet)' };
+/** Staff issue certificates on the Certificates page for a tier set to this. */
+const CERTIFICATE: RecognitionOption = { value: 'certificate', label: 'Certificate' };
 
 export interface RecognitionTier {
   field: RecognitionField;
@@ -39,7 +39,7 @@ export const RECOGNITION_TIERS: readonly RecognitionTier[] = [
 
 export const HELP_REPUBLISH = 'Learners see a change after this curriculum is published again.';
 export const HELP_AWARDS_KEPT = 'Switching awards off keeps the awards learners already earned.';
-export const HELP_LEVEL_CERTIFICATE = 'No awards are given for this level, and certificates are not issued yet.';
+export const HELP_LEVEL_CERTIFICATE = 'No awards are given for this level. Staff issue certificates on the Certificates page.';
 
 /** The defaults of an organisation's preset (central's `recognitionDefaultsFor`): `company` has its own, any other preset is a school's. */
 export function recognitionDefaultsFor(preset: string | null | undefined): Recognition {
