@@ -508,6 +508,7 @@ export class CertificatesPageComponent {
 
   pickClass(id: string | null): void {
     this.standardid.set(id ?? null);
+    this.kept = '';
     this.refresh();
   }
 
@@ -589,6 +590,7 @@ export class CertificatesPageComponent {
         this.busy.set(false);
         this.revoking.set(null);
         this.summary.set(null);
+        this.kept = '';
         this.notice.set(`The certificate ${row.certificate?.shortcode} of ${row.student.name} was revoked. A new certificate can be issued if they are still ready.`);
         this.refresh();
       },
