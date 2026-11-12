@@ -13,7 +13,9 @@ import { catchError, first, map } from 'rxjs/operators';
 import { CountryService } from 'src/app/services/country.service';
 import { CurriculumService } from 'src/app/services/curriculum.service';
 import { SubjectService } from 'src/app/services/subject.service';
+import { NOT_FOUND_TOAST_KEY } from 'src/app/interceptors/error.interceptor';
 import { UtilService } from 'src/app/services/util.service';
+import { RecognitionField, changedRecognition, readFailure, storedRecognition } from '../curriculum-recognition';
 import { Pill, pillOf } from 'src/app/shared/publication/publication.model';
 
 @Component({
@@ -34,21 +36,41 @@ export class CurriculumUpdateComponent implements OnInit, OnDestroy {
   /** The state could not be read: the header says a dash, quietly. */
   publicationUnknown = false;
   private publicationRead?: Subscription;
+  /** The API's sentence for a tier it refused, shown beside that select. */
+  recognitionErrors: Partial<Record<RecognitionField, string>> = {};
+  /** What the curriculum read carried; only a tier changed from it is sent. */
+  private storedRecognition = storedRecognition(null);
   async submiteditForm() {
     this.restrictSpecialCharecter();
     this.utilservice.checkFormDirty(this.editForm);
     if (this.editForm.valid && this.valid) {
-      await this.dts
-        .update({
-          curriculumdescription:
-            this.editForm.getRawValue()['curriculumdescription'] || '',
-          curriculumname: this.editForm.getRawValue()['curriculumname'],
-          curriculumid: this.curriculum.curriculumid,
-          countryid: this.editForm.getRawValue()['countryid'],
-          subjectid: this.editForm.getRawValue()['subjectid'],
-        })
-        .pipe(first())
-        .toPromise();
+      this.recognitionErrors = {};
+      const raw = this.editForm.getRawValue();
+      try {
+        await this.dts
+          .update(
+            {
+              curriculumdescription: raw['curriculumdescription'] || '',
+              curriculumname: raw['curriculumname'],
+              curriculumid: this.curriculum.curriculumid,
+              countryid: raw['countryid'],
+              subjectid: raw['subjectid'],
+            },
+            changedRecognition(this.storedRecognition, {
+              levelrecognition: raw['levelrecognition'],
+              graderecognition: raw['graderecognition'],
+              curriculumrecognition: raw['curriculumrecognition'],
+            }),
+          )
+          .pipe(first())
+          .toPromise();
+      } catch (failure: any) {
+        // Stay on the form: a tier the API refused is shown beside its select, anything else it silenced is one toast.
+        const read = readFailure(failure ?? {}, NOT_FOUND_TOAST_KEY);
+        this.recognitionErrors = read.fields;
+        if (read.toast) this.notification.create('error', 'Error', read.toast, read.toastKey ? { nzKey: read.toastKey } : undefined);
+        return;
+      }
       setTimeout(() => {
         this.notification.create(
           'success',
@@ -91,6 +113,9 @@ export class CurriculumUpdateComponent implements OnInit, OnDestroy {
       ],
       countryid: [null, [Validators.required]],
       subjectid: [null, [Validators.required]],
+      levelrecognition: [null],
+      graderecognition: [null],
+      curriculumrecognition: [null],
     });
     const curriculumid = this.route.snapshot.paramMap.get('curriculumid') ?? '';
     if ((curriculumid || '').trim().length <= 0) {
@@ -146,6 +171,8 @@ export class CurriculumUpdateComponent implements OnInit, OnDestroy {
         this.editForm
           .get('subjectid')
           ?.setValue(this.curriculum.subjectid);
+        this.storedRecognition = storedRecognition(this.curriculum);
+        this.editForm.patchValue(this.storedRecognition);
       },
       (error) => {
         if(error) {
