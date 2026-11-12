@@ -13,6 +13,7 @@ import { catchError, first, map } from 'rxjs/operators';
 import { CountryService } from 'src/app/services/country.service';
 import { CurriculumService } from 'src/app/services/curriculum.service';
 import { SubjectService } from 'src/app/services/subject.service';
+import { NOT_FOUND_TOAST_KEY } from 'src/app/interceptors/error.interceptor';
 import { UtilService } from 'src/app/services/util.service';
 import { RecognitionField, changedRecognition, readFailure, storedRecognition } from '../curriculum-recognition';
 import { Pill, pillOf } from 'src/app/shared/publication/publication.model';
@@ -65,9 +66,9 @@ export class CurriculumUpdateComponent implements OnInit, OnDestroy {
           .toPromise();
       } catch (failure: any) {
         // Stay on the form: a tier the API refused is shown beside its select, anything else it silenced is one toast.
-        const read = readFailure(failure ?? {});
+        const read = readFailure(failure ?? {}, NOT_FOUND_TOAST_KEY);
         this.recognitionErrors = read.fields;
-        if (read.toast) this.notification.create('error', 'error', read.toast);
+        if (read.toast) this.notification.create('error', 'Error', read.toast, read.toastKey ? { nzKey: read.toastKey } : undefined);
         return;
       }
       setTimeout(() => {

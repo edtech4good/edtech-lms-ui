@@ -100,6 +100,16 @@ test.describe('a refused save', () => {
     expect(read.toast).toBe("Some of the information isn't valid.");
   });
 
+  test('a 409 (a duplicate name) is a toast with the API sentence, its own words or the default', () => {
+    const body = { error: true, data: false, code: 'ALREADY_EXISTS', errormessage: 'That curriculum already exists.' };
+    expect(readFailure({ status: 409, error: body })).toEqual({ fields: {}, toast: 'That curriculum already exists.' });
+    expect(readFailure({ status: 409, error: {} }).toast).toBe('That curriculum already exists.');
+  });
+
+  test('a 404 toast carries the interceptor\'s key, so a repeat replaces it', () => {
+    expect(readFailure({ status: 404, error: {} }, 'http-404').toastKey).toBe('http-404');
+  });
+
   test('a 403 and a 404 are said here (the opt-out silenced the interceptor); 0, 429, 500 and gateway failures are left to it', () => {
     expect(readFailure({ status: 403, error: {} }).toast).toBe("You don't have permission to do that.");
     expect(readFailure({ status: 404, error: { errormessage: 'No such curriculum.' } }).toast).toBe('No such curriculum.');

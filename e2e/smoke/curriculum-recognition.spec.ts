@@ -197,6 +197,20 @@ test.describe('edit', () => {
   });
 });
 
+test.describe('a duplicate name', () => {
+  test('a 409 on edit is one toast with the API sentence, titled Error, and the form stays', async ({ context }) => {
+    const body = { error: true, data: false, code: 'ALREADY_EXISTS', errormessage: 'That curriculum already exists.' };
+    const mock = newMock({ save: () => json(409, body) });
+    const page = await openPage(context, mock, `/curriculum/update/${CUR}`);
+    await page.getByRole('button', { name: 'Submit' }).click();
+    const toast = page.locator('.ant-notification-notice');
+    await expect(toast).toHaveCount(1);
+    await expect(toast.locator('.ant-notification-notice-message')).toHaveText('Error');
+    await expect(toast.locator('.ant-notification-notice-description')).toHaveText('That curriculum already exists.');
+    expect(new URL(page.url()).pathname).toBe(`/curriculum/update/${CUR}`);
+  });
+});
+
 test.describe('add', () => {
   test('c. under a company organisation the selects start at award / none / certificate, and those are sent', async ({ context }) => {
     const mock = newMock({ preset: 'company' });

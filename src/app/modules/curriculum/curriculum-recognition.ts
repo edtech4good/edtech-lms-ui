@@ -87,6 +87,8 @@ export interface RecognitionFailure {
 }
 
 export interface FailureReading {
+  /** The ng-zorro key of the toast when the interceptor's own notice for it has one (a 404), so a repeat replaces the one showing. */
+  toastKey?: string;
   /** The API's sentence for each recognition field it named, shown beside that select. */
   fields: Partial<Record<RecognitionField, string>>;
   /** The sentence for a toast when a 400 names another field, or a 403 or 404 (which the opt-out silenced); null when nothing is left to say. */
@@ -96,9 +98,9 @@ export interface FailureReading {
 /**
  * What a refused create or update means for the form. A 400 is `{ error, code: 'INVALID_INPUT', errormessage, hint, fields: [{ field, message }] }`
  * (central's validator): a field of the three shows its message beside its select; any other field's 400 is a toast with the API's
- * sentence, as before. The caller opts out of the interceptor's own toasts for these requests, so this says everything once.
+ * sentence, as before. `notFoundKey` is the interceptor's own 404 de-duplication key (passed in so this file stays free of Angular). The caller opts out of the interceptor's own toasts for these requests, so this says everything once.
  */
-export function readFailure(failure: RecognitionFailure): FailureReading {
+export function readFailure(failure: RecognitionFailure, notFoundKey?: string): FailureReading {
   const out: FailureReading = { fields: {}, toast: null };
   const status = failure.status ?? 0;
   const body = (failure.error && typeof failure.error === 'object' ? failure.error : {}) as { errormessage?: unknown; fields?: unknown };
@@ -118,6 +120,12 @@ export function readFailure(failure: RecognitionFailure): FailureReading {
   }
   // The interceptor still says 0, 429, 500 and a gateway failure; FIELD_ERRORS_INLINE silences only a 400, a 403 and a 404.
   if (status === 403) out.toast = "You don't have permission to do that.";
-  else if (status === 404) out.toast = said ?? 'That record was not found. It may have been removed, or it may not be yours to see.';
+  else if (status === 404) {
+    out.toast = said ?? 'That record was not found. It may have been removed, or it may not be yours to see.';
+    out.toastKey = notFoundKey;
+  } else if (status === 409) {
+    // A duplicate curriculum name (central: 409 ALREADY_EXISTS, "That curriculum already exists."). The interceptor has no 409 branch.
+    out.toast = said ?? 'That curriculum already exists.';
+  }
   return out;
 }
