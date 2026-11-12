@@ -43,7 +43,7 @@ import { CertificateService } from './certificate.service';
     @if (certificate(); as cert) {
       @if (lookKnown()) {
       <div class="paperwrap" [class.revoked]="revoked()" [class.a3]="paper() === 'A3'" data-testid="paper" [attr.data-paper]="paper()">
-        <app-certificate-sheet [certificate]="cert" [look]="look()" [origin]="origin"></app-certificate-sheet>
+        <app-certificate-sheet [certificate]="cert" [look]="look()" [origin]="origin" [paper]="paper()"></app-certificate-sheet>
       </div>
       }
     } @else if (!error()) {

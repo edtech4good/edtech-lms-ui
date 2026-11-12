@@ -12,18 +12,18 @@ import { CertificateLook, CertificateRecord, longDate, qrDrawing, verifyUrl, wor
   selector: 'app-certificate-sheet',
   standalone: true,
   template: `
-    <div class="sheet" [class.corporate]="look() === 'corporate'" [class.school]="look() === 'school'" data-testid="sheet" [attr.data-look]="look()">
+    <div class="sheet" [class.corporate]="look() === 'corporate'" [class.school]="look() === 'school'" [class.a3]="paper() === 'A3'" data-testid="sheet" [attr.data-look]="look()">
       @if (look() === 'corporate') {
         <div class="corp">
           <div class="top">
             <div class="logos">
-              <div class="logo slot" data-testid="slot">ORGANISATION LOGO</div>
-              <div class="logo slot" data-testid="slot">PARTNER / FUNDER LOGO</div>
+              <div class="logo slot" data-testid="slot"><span class="slot-label">ORGANISATION LOGO</span></div>
+              <div class="logo slot" data-testid="slot"><span class="slot-label">PARTNER / FUNDER LOGO</span></div>
             </div>
             <div class="no">No. {{ certificate().shortcode }}</div>
           </div>
           <div class="eyebrow" data-testid="sheet-eyebrow">{{ words().eyebrow }}</div>
-          <div><span class="km-title slot km-slot" data-testid="slot">KHMER TITLE — supplied by the client, reviewed by a native speaker</span></div>
+          <div><span class="km-title slot km-slot" data-testid="slot"><span class="slot-label">KHMER TITLE — supplied by the client, reviewed by a native speaker</span></span></div>
           <div class="title" data-testid="sheet-title">{{ words().title }}</div>
           <div class="given">{{ words().given }}</div>
           <div><div class="name" data-testid="sheet-name">{{ certificate().snapshot.learnername }}</div></div>
@@ -45,8 +45,8 @@ import { CertificateLook, CertificateRecord, longDate, qrDrawing, verifyUrl, wor
           </div>
           <div class="bottom">
             <div class="sigs">
-              <div class="sig"><div class="line slot" data-testid="slot">SIGNATURE</div><div class="who slot" data-testid="slot">Signatory name</div><div class="role slot" data-testid="slot">Title, organisation</div></div>
-              <div class="sig"><div class="line slot" data-testid="slot">SIGNATURE</div><div class="who slot" data-testid="slot">Signatory name</div><div class="role slot" data-testid="slot">Title, organisation</div></div>
+              <div class="sig"><div class="line slot" data-testid="slot"><span class="slot-label">SIGNATURE</span></div><div class="who slot" data-testid="slot"><span class="slot-label">Signatory name</span></div><div class="role slot" data-testid="slot"><span class="slot-label">Title, organisation</span></div></div>
+              <div class="sig"><div class="line slot" data-testid="slot"><span class="slot-label">SIGNATURE</span></div><div class="who slot" data-testid="slot"><span class="slot-label">Signatory name</span></div><div class="role slot" data-testid="slot"><span class="slot-label">Title, organisation</span></div></div>
             </div>
             <ng-container *ngTemplateOutlet="verify"></ng-container>
           </div>
@@ -54,7 +54,7 @@ import { CertificateLook, CertificateRecord, longDate, qrDrawing, verifyUrl, wor
       } @else {
         <div class="sch">
           <div class="top">
-            <div class="logo slot" data-testid="slot">SCHOOL LOGO</div>
+            <div class="logo slot" data-testid="slot"><span class="slot-label">SCHOOL LOGO</span></div>
             <div class="no">No. {{ certificate().shortcode }}</div>
           </div>
           <svg class="seal" viewBox="0 0 100 100" aria-hidden="true">
@@ -65,7 +65,7 @@ import { CertificateLook, CertificateRecord, longDate, qrDrawing, verifyUrl, wor
             <circle cx="50" cy="50" r="31" fill="#fff" />
             <path d="M50 30l5.9 12 13.1 1.9-9.5 9.3 2.2 13.1L50 60.1l-11.7 6.2 2.2-13.1-9.5-9.3 13.1-1.9z" fill="#FF640D" />
           </svg>
-          <div><span class="km-title slot km-slot" data-testid="slot">KHMER TITLE — supplied by the school</span></div>
+          <div><span class="km-title slot km-slot" data-testid="slot"><span class="slot-label">KHMER TITLE — supplied by the school</span></span></div>
           <div class="title" data-testid="sheet-title">{{ words().title }}</div>
           <div class="given">{{ words().given }}</div>
           <div class="name" data-testid="sheet-name">{{ certificate().snapshot.learnername }}</div>
@@ -86,7 +86,7 @@ import { CertificateLook, CertificateRecord, longDate, qrDrawing, verifyUrl, wor
             <span data-testid="sheet-issued">{{ issued() }}</span>
           </div>
           <div class="bottom">
-            <div class="sig"><div class="line slot" data-testid="slot">SIGNATURE</div><div class="who slot" data-testid="slot">Teacher name</div><div class="role slot" data-testid="slot">Class teacher</div></div>
+            <div class="sig"><div class="line slot" data-testid="slot"><span class="slot-label">SIGNATURE</span></div><div class="who slot" data-testid="slot"><span class="slot-label">Teacher name</span></div><div class="role slot" data-testid="slot"><span class="slot-label">Class teacher</span></div></div>
             <div></div>
             <ng-container *ngTemplateOutlet="verify"></ng-container>
           </div>
@@ -152,6 +152,14 @@ import { CertificateLook, CertificateRecord, longDate, qrDrawing, verifyUrl, wor
         font-family: var(--mono);
         font-size: 1cqw;
         letter-spacing: 0.04em;
+        min-width: 34cqw;
+        min-height: 2.4cqw;
+      }
+      .sig .who.slot {
+        min-height: 1.3cqw;
+      }
+      .sig .role.slot {
+        min-height: 1.2cqw;
       }
       .corp {
         padding: 5.2cqw 6cqw 4.4cqw 8.4cqw;
@@ -428,14 +436,30 @@ import { CertificateLook, CertificateRecord, longDate, qrDrawing, verifyUrl, wor
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
         }
+        /* the sheet IS the page, in physical units, so it always fits one page whatever the window was (a px size left a fraction
+           of a pixel over the page and pushed the bottom row onto a second, clipped one) */
         .sheet {
+          width: 297mm;
+          height: 210mm;
+          max-width: none;
+          aspect-ratio: auto;
+          overflow: hidden;
           box-shadow: none;
+          break-inside: avoid;
+          page-break-inside: avoid;
+          break-after: avoid;
         }
-        /* a slot is blank space on paper: no outline, no stripes, no words */
+        .sheet.a3 {
+          width: 420mm;
+          height: 297mm;
+        }
+        /* a slot is blank space on paper: no outline, no stripes, and no text at all (not even invisible text in the PDF) */
         .slot {
           outline: none;
           background: none;
-          color: transparent;
+        }
+        .slot-label {
+          display: none;
         }
       }
     `,
@@ -446,6 +470,8 @@ export class CertificateSheetComponent {
   readonly look = input.required<CertificateLook>();
   /** The origin the QR points at (the admin's own: `location.origin`). */
   readonly origin = input.required<string>();
+  /** The paper it is printed on; only the print size follows it. */
+  readonly paper = input<'A4' | 'A3'>('A4');
 
   readonly revoked = computed(() => !!this.certificate().revokedat);
   readonly words = computed(() => wordingFor(this.look(), this.certificate().scope, this.certificate().snapshot));

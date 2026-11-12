@@ -55,7 +55,7 @@ const BAD_GATEWAY = {
   reference: 'ref-123',
   hint: 'Nothing was changed. If it keeps happening, contact support with the reference.',
 };
-const BAD_GATEWAY_TEXT = `${BAD_GATEWAY.errormessage} ${BAD_GATEWAY.hint} Reference: ref-123.`;
+const BAD_GATEWAY_TEXT = `${BAD_GATEWAY.errormessage} Reference: ref-123.`;
 
 const quiz = (state: string, best: number | null, kind = 'level', name = 'Module 2', lesson?: string) => ({
   quiz: { id: `q-${name}-${kind}`, kind, name: kind === 'level' ? `${name} final` : `${lesson} quiz raw` },
@@ -405,9 +405,17 @@ test.describe('the Certificates page', () => {
     down = true;
     await choose(page, 'pick-class', 'Cohort II');
     await expect(page.getByTestId('cert-error')).toHaveText(BAD_GATEWAY_TEXT);
-    await expect(page.getByTestId('cert-row'), 'the table is kept').toHaveCount(8);
+    await expect(page.getByTestId('cert-row'), 'no table over rows that may be stale').toHaveCount(0);
+    await expect(page.getByTestId('issue-all'), 'no "Issue to 0 ready"').toHaveCount(0);
+    await expect(page.getByTestId('cert-retry')).toBeVisible();
     await fence(page);
     expect(await page.locator('.ant-notification-notice').count(), 'one message, not a banner and a toast').toBe(0);
+    // Retry asks again, and the table comes back
+    down = false;
+    await page.getByTestId('cert-retry').click();
+    await expect(page.getByTestId('cert-row')).toHaveCount(8);
+    await expect(page.getByTestId('cert-error')).toHaveCount(0);
+    await expect(page.getByTestId('cert-retry')).toHaveCount(0);
   });
 
   test('g. a 502 on the first load shows the banner and no table', async ({ context }) => {
@@ -416,6 +424,8 @@ test.describe('the Certificates page', () => {
     await expect(page.getByTestId('cert-error')).toHaveText(BAD_GATEWAY_TEXT);
     await expect(page.getByTestId('cert-row')).toHaveCount(0);
     await expect(page.getByTestId('cert-none')).toHaveCount(0);
+    await expect(page.getByTestId('issue-all')).toHaveCount(0);
+    await expect(page.getByTestId('cert-retry')).toBeVisible();
   });
 
   test('the nav offers Certificates only with list_certificate, and the page is closed without it', async ({ context }) => {
@@ -466,7 +476,7 @@ test.describe('the print page', () => {
     await open(second, ALL, newMock({ uitheme: 'corporate', certificate: LEVEL }));
     const level = await newPage(second, printUrl);
     await expect(level.getByTestId('sheet-eyebrow')).toHaveText('Module certificate');
-    await expect(level.getByTestId('sheet-subject')).toHaveText('Module Pricing and Costs');
+    await expect(level.getByTestId('sheet-subject')).toHaveText('Pricing and Costs');
     await expect(level.getByTestId('sheet-partof')).toHaveText(', part of Digital Skills for Small Business');
     await expect(level.getByTestId('sheet-intro')).toContainText('has completed and passed the quizzes of');
     await second.close();
@@ -554,8 +564,12 @@ test.describe('the print page', () => {
     await page.emulateMedia({ media: 'print' });
     expect(await slot.evaluate((el) => getComputedStyle(el).outlineStyle)).toBe('none');
     expect(await slot.evaluate((el) => getComputedStyle(el).backgroundImage)).toBe('none');
-    expect(await slot.evaluate((el) => getComputedStyle(el).color)).toBe('rgba(0, 0, 0, 0)');
+    expect(await slot.locator('.slot-label').evaluate((el) => getComputedStyle(el).display), 'the label is not printed').toBe('none');
     expect(await page.locator('app-shell-nav').evaluate((el) => getComputedStyle(el).display)).toBe('none');
+    // and no placeholder wording is left on the paper (display:none leaves no text for a PDF either)
+    const printed = await page.getByTestId('sheet').evaluate((el) => (el as HTMLElement).innerText);
+    for (const label of ['LOGO', 'KHMER TITLE', 'SIGNATURE', 'Signatory name', 'Title, organisation']) expect(printed, label).not.toContain(label);
+    expect(printed).toContain('7F3K-92QD');
     expect(await page.locator('app-shell-breadcrumb').evaluate((el) => getComputedStyle(el).display)).toBe('none');
     await expect(page.getByTestId('print-toolbar')).toBeHidden();
   });
@@ -623,7 +637,7 @@ test.describe('the learner page: Certificates', () => {
     const section = page.getByTestId('learner-certificates');
     await expect(section.getByRole('heading', { name: 'Certificates' })).toBeVisible();
     await expect(section.getByTestId('cert-state')).toHaveText(['Issued 12 Nov 2026', 'Revoked 5 Oct 2026']);
-    await expect(section.getByTestId('cert-what')).toHaveText(['Digital Skills for Small Business', 'Module Module 1 — Digital Skills for Small Business']);
+    await expect(section.getByTestId('cert-what')).toHaveText(['Digital Skills for Small Business', 'Module 1 — Digital Skills for Small Business']);
     await expect(section.getByTestId('cert-view')).toHaveText(['View', 'View']);
     await expect(section.getByTestId('cert-view').first()).toHaveAttribute('href', '/certificates/cert-new/print');
   });
@@ -643,4 +657,31 @@ test.describe('the learner page: Certificates', () => {
     expect(paths(none, 'certificate/student')).toEqual([]);
     await second.close();
   });
+});
+
+test.describe('the printed page (a real PDF)', () => {
+  /** Pages of a PDF: its page objects (/Type /Page, not /Pages). */
+  const pagesOf = (pdf: Buffer): number => (pdf.toString('latin1').match(/\/Type\s*\/Page(?![a-z])/g) ?? []).length;
+
+  for (const [paper, wide, high] of [['A4', 297, 210], ['A3', 420, 297]] as const) {
+    test(`e. ${paper} prints as exactly one page with the whole bottom row on it`, async ({ context }) => {
+      await open(context, ALL, newMock({ uitheme: 'corporate' }));
+      const page = await newPage(context, '/certificates/cert-1/print');
+      await expect(page.getByTestId('sheet')).toBeVisible();
+      if (paper === 'A3') await page.getByTestId('paper-A3').click();
+      await expect.poll(() => page.locator('style#certificate-page-rule').textContent()).toContain(`size: ${paper} landscape`);
+      // what the browser lays out for print: the sheet is the page (physical units), and the signatures, code and QR are on it
+      await page.emulateMedia({ media: 'print' });
+      const mm = (n: number) => (n / 25.4) * 96;
+      const sheet = (await page.getByTestId('sheet').boundingBox())!;
+      expect(Math.abs(sheet.width - mm(wide)), 'the sheet is as wide as the page').toBeLessThan(1);
+      expect(sheet.height, 'and no taller').toBeLessThanOrEqual(mm(high) + 0.5);
+      for (const id of ['sheet-code', 'sheet-url', 'qr']) {
+        const box = (await page.getByTestId(id).boundingBox())!;
+        expect(box.y + box.height, `${id} is inside the page`).toBeLessThanOrEqual(mm(high) + 0.5);
+      }
+      const pdf = await page.pdf({ preferCSSPageSize: true });
+      expect(pagesOf(pdf), `${paper}: one page`).toBe(1);
+    });
+  }
 });

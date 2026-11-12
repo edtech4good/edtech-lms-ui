@@ -147,13 +147,13 @@ test.describe('the printed certificate', () => {
     expect(lookFor('corporate')).toBe('corporate');
     for (const other of ['kids', '', null, undefined, 'Corporate']) expect(lookFor(other as string)).toBe('school');
   });
-  test('a whole curriculum uses the programme wording, a level or grade names its tier as the snapshot gives it', () => {
+  test('a whole curriculum uses the programme wording, a level or grade is named by its own name (the tier is only in the eyebrow)', () => {
     const programme = wordingFor('corporate', 'curriculum', snap);
     expect(programme.subject).toBe('Digital Skills for Small Business');
     expect(programme.intro).toContain('programme');
     expect(programme.partOf).toBe('');
     const part = wordingFor('corporate', 'level', snap);
-    expect(part.subject).toBe('Module Pricing and Costs');
+    expect(part.subject).toBe('Pricing and Costs');
     expect(part.partOf).toBe('part of Digital Skills for Small Business');
     expect(part.eyebrow).toBe('Module certificate');
     expect(wordingFor('school', 'grade', snap).title).toBe('Certificate of Achievement');

@@ -92,7 +92,7 @@ export class LearnerCertificatesComponent implements OnChanges {
 
   /** A whole curriculum is just its name; a level or grade is "<tier> <name> — <curriculum>". */
   what(c: CertificateRecord): string {
-    return c.scope === 'curriculum' ? c.snapshot.curriculumname : `${c.snapshot.tierlabel} ${c.snapshot.scopename} — ${c.snapshot.curriculumname}`;
+    return c.scope === 'curriculum' ? c.snapshot.curriculumname : `${c.snapshot.scopename} — ${c.snapshot.curriculumname}`;
   }
   readonly date = shortDate;
 

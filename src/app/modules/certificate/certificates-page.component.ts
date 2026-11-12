@@ -57,7 +57,7 @@ const LOAD_FAILED = 'The learners could not be loaded. Try again in a moment.';
  * level or grade (or the curriculum itself) and, if wanted, a class. The table lists who is ready, who is not and why (the learning
  * server's answer, relayed by central), and who already holds a certificate. Staff issue to one learner or to every ready one, view
  * an issued certificate (its print page) and revoke it with a reason; nothing is automatic. A failure to ask the learning server
- * (502) is one banner; the table already shown is kept.
+ * (502) is one banner with Retry, and no table.
  */
 @Component({
   selector: 'app-certificates-page',
@@ -142,7 +142,10 @@ const LOAD_FAILED = 'The learners could not be loaded. Try again in a moment.';
       <div class="summary" role="status" data-testid="cert-notice">{{ notice() }}</div>
     }
 
-    @if (scopeid()) {
+    @if (scopeid() && loadFailed()) {
+      <button type="button" class="primary" data-testid="cert-retry" (click)="refresh()">Retry</button>
+    }
+    @if (scopeid() && !loadFailed()) {
       <div class="bar">
         <span class="count" data-testid="cert-count">{{ loading() ? 'Loading…' : rows().length + (rows().length === 1 ? ' learner' : ' learners') }}</span>
         <button *ngxPermissionsOnly="createPermissions" type="button" class="primary" data-testid="issue-all" [disabled]="ready().length === 0 || busy()" (click)="issue(ready())">{{ issueAllLabel(ready().length) }}</button>
@@ -391,6 +394,8 @@ export class CertificatesPageComponent {
 
   readonly rows = signal<Candidate[]>([]);
   readonly loading = signal(false);
+  /** The learners could not be loaded: the banner and Retry show, and no table (nor an Issue button) over rows that may be stale. */
+  readonly loadFailed = signal(false);
   readonly busy = signal(false);
   readonly error = signal('');
   readonly summary = signal<IssueSummary | null>(null);
@@ -448,10 +453,12 @@ export class CertificatesPageComponent {
       .subscribe((result) => {
         this.loading.set(false);
         if ('rows' in result) {
+          this.loadFailed.set(false);
           this.error.set(this.kept);
           this.rows.set(Array.isArray(result.rows) ? result.rows : []);
         } else {
-          // one banner; whatever table is showing stays
+          this.loadFailed.set(true);
+          this.rows.set([]);
           this.error.set(result.failure);
         }
       });
@@ -520,6 +527,7 @@ export class CertificatesPageComponent {
     }
     this.standardid.set(null);
     this.rows.set([]);
+    this.loadFailed.set(false);
     this.kept = '';
     this.error.set('');
     this.summary.set(null);

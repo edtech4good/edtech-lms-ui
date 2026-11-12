@@ -324,7 +324,8 @@ export interface CertificateWording {
  * (C2). The school look is S1 whichever the scope.
  */
 export function wordingFor(look: CertificateLook, scope: CertificateScope, snapshot: Pick<CertificateSnapshot, 'tierlabel' | 'scopename' | 'curriculumname'>): CertificateWording {
-  const part = `${snapshot.tierlabel} ${snapshot.scopename}`.trim();
+  // the sentence names the level or grade by its own name; the tier is only in the eyebrow
+  const part = snapshot.scopename;
   if (look === 'school') {
     return scope === 'curriculum'
       ? { eyebrow: '', title: 'Certificate of Achievement', given: 'This is presented to', intro: 'for completing', subject: snapshot.curriculumname, partOf: '' }

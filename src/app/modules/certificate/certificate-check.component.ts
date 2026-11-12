@@ -220,7 +220,7 @@ export class CertificateCheckComponent {
 
   /** "Digital Skills for Small Business (programme)" for the whole curriculum; "Module 3 · Pricing, part of ..." for a level or a grade. */
   forText(v: { scope: 'level' | 'grade' | 'curriculum'; tierlabel: string; scopename: string; curriculumname: string }): string {
-    return v.scope === 'curriculum' ? `${v.curriculumname} (programme)` : `${v.tierlabel} ${v.scopename}, part of ${v.curriculumname}`;
+    return v.scope === 'curriculum' ? `${v.curriculumname} (programme)` : `${v.scopename}, part of ${v.curriculumname}`;
   }
 
   go(): void {
