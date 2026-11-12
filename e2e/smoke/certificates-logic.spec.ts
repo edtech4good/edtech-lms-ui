@@ -17,6 +17,10 @@ import {
   wordingFor,
   lookFor,
   failureText,
+  ISSUE_BATCH,
+  inBatches,
+  mergeIssued,
+  scopeOptionsFrom,
   issueSummary,
   NO_CERTIFICATES_MESSAGE,
 } from '../../src/app/modules/certificate/certificate';
@@ -82,6 +86,46 @@ test.describe('issuing', () => {
   });
 });
 
+test.describe('which levels and grades are offered', () => {
+  const tree = {
+    grades: [
+      {
+        gradeid: 'g1', gradename: 'Grade 1', isdeleted: false, gradestatus: true,
+        levels: [
+          { levelid: 'l1', levelname: 'Module 1', isdeleted: false, levelstatus: true },
+          { levelid: 'l-del', levelname: 'Deleted module', isdeleted: true, levelstatus: true },
+          { levelid: 'l-off', levelname: 'Switched-off module', isdeleted: false, levelstatus: false },
+        ],
+      },
+      { gradeid: 'g-del', gradename: 'Deleted grade', isdeleted: true, gradestatus: true, levels: [{ levelid: 'l-under-del', levelname: 'Under deleted', isdeleted: false, levelstatus: true }] },
+      { gradeid: 'g-off', gradename: 'Off grade', isdeleted: false, gradestatus: false, levels: [{ levelid: 'l-under-off', levelname: 'Under off', isdeleted: false, levelstatus: true }] },
+    ],
+  };
+  test('deleted and switched-off grades and levels, and the levels under a dropped grade, are not offered', () => {
+    expect(scopeOptionsFrom(tree, 'grade')).toEqual([{ id: 'g1', label: 'Grade 1' }]);
+    expect(scopeOptionsFrom(tree, 'level')).toEqual([{ id: 'l1', label: 'Module 1' }]);
+    expect(scopeOptionsFrom(null, 'level')).toEqual([]);
+  });
+  test('with more than one live grade a level carries its grade', () => {
+    const two = { grades: [{ gradeid: 'a', gradename: 'A', levels: [{ levelid: 'x', levelname: 'X' }] }, { gradeid: 'b', gradename: 'B', levels: [{ levelid: 'y', levelname: 'Y' }] }] };
+    expect(scopeOptionsFrom(two, 'level').map((o) => o.label)).toEqual(['X (A)', 'Y (B)']);
+  });
+});
+
+test.describe('issuing in batches', () => {
+  test('central takes 200 at a time: 250 ids are two batches, in order; the answers merge', () => {
+    const ids = Array.from({ length: 250 }, (_, i) => `s${i}`);
+    const batches = inBatches(ids);
+    expect(ISSUE_BATCH).toBe(200);
+    expect(batches.map((b) => b.length)).toEqual([200, 50]);
+    expect(batches.flat()).toEqual(ids);
+    expect(inBatches([])).toEqual([]);
+    const merged = mergeIssued([{ issued: [{ shortcode: 'A' } as never], refused: [] }, { issued: [{ shortcode: 'B' } as never], refused: [{ studentid: 'x', status: 'issued', reasons: [] }] }]);
+    expect(merged.issued).toHaveLength(2);
+    expect(merged.refused).toHaveLength(1);
+  });
+});
+
 test.describe('revoking and errors', () => {
   test('a reason is trimmed, and blank or over 500 characters is not sent', () => {
     expect(revokeReasonToSend('  issued by mistake  ')).toBe('issued by mistake');
@@ -90,9 +134,7 @@ test.describe('revoking and errors', () => {
     expect(revokeReasonToSend('x'.repeat(500))).toHaveLength(500);
     expect(revokeReasonToSend('x'.repeat(501))).toBeNull();
   });
-  test('a 502 carries central\'s own sentence; a 403 is a permission line', () => {
-    expect(failureText({ status: 502, error: { errormessage: 'The learning server could not be asked. Nothing was changed.' } }, 'x')).toBe('The learning server could not be asked. Nothing was changed.');
-    expect(failureText({ status: 502, error: {} }, 'x')).toContain('Nothing was changed');
+  test('a 403 is a permission line, a 400 and 409 carry the API sentence', () => {
     expect(failureText({ status: 403 }, 'x')).toBe("You don't have permission to do that.");
     expect(failureText({ status: 500 }, 'fallback')).toBe('fallback');
     expect(failureText({ status: 409, error: { errormessage: 'This certificate has already been revoked.' } }, 'x')).toBe('This certificate has already been revoked.');

@@ -1,6 +1,8 @@
 import { Component, Input, OnChanges } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { CertificateRecord, failureText, isRevoked, shortDate } from './certificate';
+import { Subscription } from 'rxjs';
+import { CertificateRecord, isRevoked, shortDate } from './certificate';
+import { sayFailure } from './certificate-errors';
 import { CertificateService } from './certificate.service';
 
 /**
@@ -28,7 +30,7 @@ import { CertificateService } from './certificate.service';
           <ul>
             @for (c of rows; track c.certificateid) {
               <li data-testid="cert-item">
-                <span class="what" data-testid="cert-what">{{ c.snapshot.tierlabel }} {{ c.snapshot.scopename }} — {{ c.snapshot.curriculumname }}</span>
+                <span class="what" data-testid="cert-what">{{ what(c) }}</span>
                 <span class="sub">
                   <span data-testid="cert-state">{{ isRevoked(c) ? 'Revoked ' + date(c.revokedat) : 'Issued ' + date(c.issuedat) }}</span>
                   · <span class="mono">{{ c.shortcode }}</span>
@@ -86,6 +88,12 @@ export class LearnerCertificatesComponent implements OnChanges {
   rows: CertificateRecord[] = [];
   errorMessage = '';
   readonly isRevoked = isRevoked;
+  private loading: Subscription | null = null;
+
+  /** A whole curriculum is just its name; a level or grade is "<tier> <name> — <curriculum>". */
+  what(c: CertificateRecord): string {
+    return c.scope === 'curriculum' ? c.snapshot.curriculumname : `${c.snapshot.tierlabel} ${c.snapshot.scopename} — ${c.snapshot.curriculumname}`;
+  }
   readonly date = shortDate;
 
   constructor(private readonly certificates: CertificateService) {}
@@ -93,7 +101,9 @@ export class LearnerCertificatesComponent implements OnChanges {
   ngOnChanges(): void {
     if (!this.studentid) return;
     this.state = 'loading';
-    this.certificates.forStudent(this.studentid).subscribe({
+    // an earlier learner's answer must not land on this one
+    this.loading?.unsubscribe();
+    this.loading = this.certificates.forStudent(this.studentid).subscribe({
       next: (rows) => {
         // newest first, whatever order they came in
         this.rows = [...(Array.isArray(rows) ? rows : [])].sort((a, b) => new Date(b.issuedat).getTime() - new Date(a.issuedat).getTime());
@@ -101,7 +111,7 @@ export class LearnerCertificatesComponent implements OnChanges {
       },
       error: (err) => {
         this.rows = [];
-        this.errorMessage = failureText(err, 'Certificates could not be loaded. Try again in a moment.');
+        this.errorMessage = sayFailure(err, 'Certificates could not be loaded. Try again in a moment.');
         this.state = 'error';
       },
     });

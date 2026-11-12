@@ -6,7 +6,7 @@ import { NgxPermissionsModule } from 'ngx-permissions';
 import { NzModalModule } from 'ng-zorro-antd/modal';
 import { NzSelectModule } from 'ng-zorro-antd/select';
 import { NzTableModule } from 'ng-zorro-antd/table';
-import { Subject, switchMap, catchError, of, map } from 'rxjs';
+import { Subject, switchMap, catchError, of, map, firstValueFrom } from 'rxjs';
 import { CurriculumService } from 'src/app/services/curriculum.service';
 import { StandardService } from 'src/app/services/standard.service';
 import {
@@ -21,7 +21,11 @@ import {
   REVOKE_CERTIFICATE_PERMISSIONS,
   RecognitionSettings,
   STATUS_LABEL,
-  failureText,
+  ISSUE_BATCH,
+  inBatches,
+  mergeIssued,
+  scopeOptionsFrom,
+  IssueAnswer,
   issueAllLabel,
   issueSummary,
   offeredTiers,
@@ -30,6 +34,7 @@ import {
   shortDate,
   whyLines,
 } from './certificate';
+import { sayFailure } from './certificate-errors';
 import { CertificateService, ScopeRequest } from './certificate.service';
 
 interface CurriculumRow extends RecognitionSettings {
@@ -390,6 +395,8 @@ export class CertificatesPageComponent {
   readonly error = signal('');
   readonly summary = signal<IssueSummary | null>(null);
   readonly notice = signal('');
+  /** A failure that must outlive the refresh that follows it (a later batch of an issue failed after earlier ones went through). */
+  private kept = '';
 
   readonly revoking = signal<Candidate | null>(null);
   readonly reason = signal('');
@@ -433,7 +440,7 @@ export class CertificatesPageComponent {
           this.loading.set(true);
           return this.api.candidates(request).pipe(
             map((rows) => ({ rows })),
-            catchError((err) => of({ failure: failureText(err, LOAD_FAILED) })),
+            catchError((err) => of({ failure: sayFailure(err, LOAD_FAILED) })),
           );
         }),
         takeUntilDestroyed(this.destroyRef),
@@ -441,7 +448,7 @@ export class CertificatesPageComponent {
       .subscribe((result) => {
         this.loading.set(false);
         if ('rows' in result) {
-          this.error.set('');
+          this.error.set(this.kept);
           this.rows.set(Array.isArray(result.rows) ? result.rows : []);
         } else {
           // one banner; whatever table is showing stays
@@ -466,13 +473,8 @@ export class CertificatesPageComponent {
       });
   }
 
-  /** The grades (or the levels, each with its grade when there is more than one) of the chosen curriculum. */
   private optionsFrom(tree: any): ScopeOption[] {
-    const grades: any[] = Array.isArray(tree?.grades) ? tree.grades : [];
-    if (this.scope() === 'grade') return grades.map((g) => ({ id: g.gradeid, label: g.gradename }));
-    return grades.flatMap((g) =>
-      (Array.isArray(g.levels) ? g.levels : []).map((l: any) => ({ id: l.levelid, label: grades.length > 1 ? `${l.levelname} (${g.gradename})` : l.levelname })),
-    );
+    return scopeOptionsFrom(tree, this.scope());
   }
 
   why(row: Candidate): string[] {
@@ -517,6 +519,7 @@ export class CertificatesPageComponent {
     }
     this.standardid.set(null);
     this.rows.set([]);
+    this.kept = '';
     this.error.set('');
     this.summary.set(null);
     this.notice.set('');
@@ -544,18 +547,30 @@ export class CertificatesPageComponent {
     if (!request || studentids.length === 0 || this.busy()) return;
     this.busy.set(true);
     this.notice.set('');
-    this.api.issue({ curriculumid: request.curriculumid, scope: request.scope, scopeid: request.scopeid, studentids }).subscribe({
-      next: (answer) => {
-        this.busy.set(false);
-        this.error.set('');
-        this.summary.set(issueSummary(answer, this.nameOf));
-        this.refresh();
-      },
-      error: (err) => {
-        this.busy.set(false);
-        this.error.set(failureText(err, 'The certificates could not be issued. Try again in a moment.'));
-      },
-    });
+    this.kept = '';
+    void this.issueInBatches({ curriculumid: request.curriculumid, scope: request.scope, scopeid: request.scopeid }, studentids);
+  }
+
+  /** Central takes at most ISSUE_BATCH learners at once: send them in turn and show one summary of everything issued. */
+  private async issueInBatches(scope: ScopeRequest, studentids: string[]): Promise<void> {
+    const answers: IssueAnswer[] = [];
+    let failure = '';
+    for (const batch of inBatches(studentids, ISSUE_BATCH)) {
+      try {
+        answers.push(await firstValueFrom(this.api.issue({ ...scope, studentids: batch })));
+      } catch (err) {
+        failure = sayFailure(err, 'The certificates could not be issued. Try again in a moment.');
+        break;
+      }
+    }
+    this.busy.set(false);
+    // what was issued before a failure is real: say it, and refresh
+    if (answers.length > 0) {
+      this.summary.set(issueSummary(mergeIssued(answers), this.nameOf));
+      this.refresh();
+    }
+    this.kept = failure;
+    this.error.set(failure);
   }
 
   startRevoke(row: Candidate): void {
@@ -579,7 +594,7 @@ export class CertificatesPageComponent {
       },
       error: (err) => {
         this.busy.set(false);
-        this.revokeError.set(failureText(err, 'The certificate could not be revoked. Try again in a moment.'));
+        this.revokeError.set(sayFailure(err, 'The certificate could not be revoked. Try again in a moment.'));
       },
     });
   }

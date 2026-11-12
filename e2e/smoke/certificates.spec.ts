@@ -27,7 +27,35 @@ const ok = (data: unknown) => json(200, { error: false, data });
 const CUR_ALL = { curriculumid: 'cur-all', curriculumname: 'Digital Skills for Small Business', levelrecognition: 'certificate', graderecognition: 'certificate', curriculumrecognition: 'certificate' };
 const CUR_GRADE = { curriculumid: 'cur-grade', curriculumname: 'Grade Maths', levelrecognition: 'award', graderecognition: 'certificate', curriculumrecognition: 'none' };
 const CUR_NONE = { curriculumid: 'cur-none', curriculumname: 'Awards Only', levelrecognition: 'award', graderecognition: 'none', curriculumrecognition: 'none' };
-const TREE = [{ curriculumid: 'cur-all', grades: [{ gradeid: 'gr-1', gradename: 'Grade 1', levels: [{ levelid: 'lv-1', levelname: 'Module 1' }, { levelid: 'lv-2', levelname: 'Module 2' }] }] }];
+// central's tree carries deleted and switched-off rows too, and the levels under them
+const TREE = [
+  {
+    curriculumid: 'cur-all',
+    grades: [
+      {
+        gradeid: 'gr-1', gradename: 'Grade 1', isdeleted: false, gradestatus: true,
+        levels: [
+          { levelid: 'lv-1', levelname: 'Module 1', isdeleted: false, levelstatus: true },
+          { levelid: 'lv-2', levelname: 'Module 2', isdeleted: false, levelstatus: true },
+          { levelid: 'lv-del', levelname: 'Deleted module', isdeleted: true, levelstatus: true },
+          { levelid: 'lv-off', levelname: 'Switched-off module', isdeleted: false, levelstatus: false },
+        ],
+      },
+      { gradeid: 'gr-del', gradename: 'Deleted grade', isdeleted: true, gradestatus: true, levels: [{ levelid: 'lv-under-del', levelname: 'Module under deleted grade', isdeleted: false, levelstatus: true }] },
+      { gradeid: 'gr-off', gradename: 'Switched-off grade', isdeleted: false, gradestatus: false, levels: [{ levelid: 'lv-under-off', levelname: 'Module under off grade', isdeleted: false, levelstatus: true }] },
+    ],
+  },
+];
+/** central's real 502 body */
+const BAD_GATEWAY = {
+  error: true,
+  data: false,
+  code: 'BAD_GATEWAY',
+  errormessage: "The learning server could not be asked for the learners' quiz results, so nothing was changed. Try again in a few minutes.",
+  reference: 'ref-123',
+  hint: 'Nothing was changed. If it keeps happening, contact support with the reference.',
+};
+const BAD_GATEWAY_TEXT = `${BAD_GATEWAY.errormessage} ${BAD_GATEWAY.hint} Reference: ref-123.`;
 
 const quiz = (state: string, best: number | null, kind = 'level', name = 'Module 2', lesson?: string) => ({
   quiz: { id: `q-${name}-${kind}`, kind, name: kind === 'level' ? `${name} final` : `${lesson} quiz raw` },
@@ -40,8 +68,9 @@ const cand = (id: string, name: string, status: string, reasons: unknown[] = [],
   student: { studentid: id, name, standardid: 'std-1', classname },
   status,
   reasons,
-  quizcount: 6,
-  passedcount: status === 'ready' || status === 'issued' ? 6 : 3,
+  // like central: a learner who holds a certificate (not asked) or is not on the learning server has no counts
+  quizcount: status === 'issued' || JSON.stringify(reasons).includes('not_on_learning_server') ? 0 : 6,
+  passedcount: status === 'ready' ? 6 : status === 'issued' || JSON.stringify(reasons).includes('not_on_learning_server') ? 0 : 3,
   certificate,
 });
 const CERT_1 = { certificateid: 'cert-1', shortcode: '7F3K-92QD', issuedat: '2026-11-12T05:00:00.000Z' };
@@ -77,6 +106,7 @@ interface Mock {
   certificate: Record<string, unknown>;
   forStudent: unknown[];
   uitheme: string;
+  mineFails: boolean;
   verify: (code: string) => ReturnType<typeof json>;
 }
 const newMock = (over: Partial<Mock> = {}): Mock => ({
@@ -87,6 +117,7 @@ const newMock = (over: Partial<Mock> = {}): Mock => ({
   certificate: record(),
   forStudent: [],
   uitheme: 'kids',
+  mineFails: false,
   verify: () => json(404, { error: true, errormessage: 'That code does not match a certificate.' }),
   ...over,
 });
@@ -134,6 +165,7 @@ async function open(context: BrowserContext, permissions: string[], mock: Mock, 
     if (method === 'POST' && /^certificate\/[^/]+\/revoke$/.test(path)) return send(mock.revoke(call));
     if (method === 'GET' && path === 'certificate/student/stu-1') return send(ok(mock.forStudent));
     if (method === 'GET' && /^certificate\/[^/]+$/.test(path)) return send(ok(mock.certificate));
+    if (method === 'GET' && path === 'organisation/mine' && mock.mineFails) return send(json(500, { error: true, errormessage: 'Something went wrong' }));
     if (method === 'GET' && path === 'organisation/mine') return send(ok({ organisationid: 'org-1', organisationname: 'Example Trading Co', uitheme: mock.uitheme, organisationpreset: 'company' }));
     if (method === 'GET' && path.startsWith('certificates/verify/')) return send(mock.verify(path.replace('certificates/verify/', '')));
     if (method === 'GET' && path === 'student/stu-1') {
@@ -216,7 +248,7 @@ test.describe('the Certificates page', () => {
     const page = await newPage(context, '/certificates');
     await choose(page, 'pick-curriculum', 'Digital Skills');
     await choose(page, 'pick-tier', 'Level');
-    expect(await optionsOf(page, 'pick-scope')).toEqual(['Module 1', 'Module 2']);
+    expect(await optionsOf(page, 'pick-scope'), 'deleted and switched-off modules, and those under a dropped grade, are not offered').toEqual(['Module 1', 'Module 2']);
     await choose(page, 'pick-scope', 'Module 2');
     await expect(page.getByTestId('cert-why-line')).toHaveText(['No quizzes in this level']);
     expect(paths(mock, 'certificate/candidates')[0].body).toEqual({ curriculumid: 'cur-all', scope: 'level', scopeid: 'lv-2' });
@@ -224,6 +256,14 @@ test.describe('the Certificates page', () => {
     await choose(page, 'pick-class', 'Cohort II');
     await expect.poll(() => paths(mock, 'certificate/candidates').length).toBe(2);
     expect(paths(mock, 'certificate/candidates')[1].body).toEqual({ curriculumid: 'cur-all', scope: 'level', scopeid: 'lv-2', standardid: 'std-1' });
+  });
+
+  test('a. a grade is picked from the live grades only', async ({ context }) => {
+    await open(context, ALL, newMock());
+    const page = await newPage(context, '/certificates');
+    await choose(page, 'pick-curriculum', 'Digital Skills');
+    await choose(page, 'pick-tier', 'Grade');
+    expect(await optionsOf(page, 'pick-scope')).toEqual(['Grade 1']);
   });
 
   test('b. only the tiers set to certificate are offered; none gives the message', async ({ context }) => {
@@ -277,6 +317,21 @@ test.describe('the Certificates page', () => {
     await expect.poll(() => paths(mock, 'certificate/candidates').length).toBe(2);
     await expect(page.getByTestId('cert-row').nth(1).getByTestId('cert-status')).toHaveText('Issued');
     await expect(button).toHaveText('Issue to 1 ready');
+  });
+
+  test('c. 250 ready learners are issued in batches of 200 then 50, and one summary says all 250', async ({ context }) => {
+    const many = Array.from({ length: 250 }, (_, i) => cand(`stu-${i}`, `Learner ${i}`, 'ready'));
+    const mock = newMock({
+      candidates: () => ok(many),
+      issue: (call) => ok({ issued: call.body.studentids.map((id: string, i: number) => record({ certificateid: `c-${id}`, shortcode: `C${String(i).padStart(3, '0')}-${id.slice(-4).padStart(4, '0')}`, studentid: id }, { learnername: id })), refused: [] }),
+    });
+    const page = await openCurriculumTier(context, mock);
+    await expect(page.getByTestId('issue-all')).toHaveText('Issue to 250 ready');
+    await page.getByTestId('issue-all').click();
+    await expect(page.getByTestId('issue-headline')).toHaveText('250 certificates issued.');
+    const sent = paths(mock, 'certificate/issue');
+    expect(sent.map((c) => c.body.studentids.length)).toEqual([200, 50]);
+    expect(sent.flatMap((c) => c.body.studentids)).toEqual(many.map((c) => c.student.studentid));
   });
 
   test('c. the Issue on a row sends only that learner', async ({ context }) => {
@@ -342,23 +397,23 @@ test.describe('the Certificates page', () => {
     const mock = newMock({
       candidates: () =>
         down
-          ? json(502, { error: true, errormessage: "The learning server could not be asked for the learners' quiz results, so nothing was changed. Try again in a few minutes.", hint: 'Nothing was changed.' })
+          ? json(502, BAD_GATEWAY)
           : ok(MIXED),
     });
     const page = await openCurriculumTier(context, mock);
     await expect(page.getByTestId('cert-row')).toHaveCount(8);
     down = true;
     await choose(page, 'pick-class', 'Cohort II');
-    await expect(page.getByTestId('cert-error')).toHaveText("The learning server could not be asked for the learners' quiz results, so nothing was changed. Try again in a few minutes. Nothing was changed.");
+    await expect(page.getByTestId('cert-error')).toHaveText(BAD_GATEWAY_TEXT);
     await expect(page.getByTestId('cert-row'), 'the table is kept').toHaveCount(8);
     await fence(page);
     expect(await page.locator('.ant-notification-notice').count(), 'one message, not a banner and a toast').toBe(0);
   });
 
   test('g. a 502 on the first load shows the banner and no table', async ({ context }) => {
-    const mock = newMock({ candidates: () => json(502, { error: true, errormessage: 'The learning server could not be asked.' }) });
+    const mock = newMock({ candidates: () => json(502, BAD_GATEWAY) });
     const page = await openCurriculumTier(context, mock);
-    await expect(page.getByTestId('cert-error')).toHaveText('The learning server could not be asked.');
+    await expect(page.getByTestId('cert-error')).toHaveText(BAD_GATEWAY_TEXT);
     await expect(page.getByTestId('cert-row')).toHaveCount(0);
     await expect(page.getByTestId('cert-none')).toHaveCount(0);
   });
@@ -464,6 +519,31 @@ test.describe('the print page', () => {
     await second.close();
   });
 
+  test('e. a revoked certificate does not print, only its notice does', async ({ context }) => {
+    await open(context, ALL, newMock({ certificate: record({ revokedat: '2026-11-13T05:00:00.000Z' }) }));
+    const page = await newPage(context, printUrl);
+    await expect(page.getByTestId('sheet')).toBeVisible();
+    await expect(page.getByTestId('print-revoked-print')).toBeHidden();
+    await page.emulateMedia({ media: 'print' });
+    await expect(page.getByTestId('sheet')).toBeHidden();
+    await expect(page.getByTestId('print-revoked-print')).toBeVisible();
+  });
+
+  test('e. a failed read of the organisation shows a one-line notice and the school look', async ({ context }) => {
+    await open(context, ALL, newMock({ mineFails: true }));
+    const page = await newPage(context, printUrl);
+    await expect(page.getByTestId('print-look-note')).toHaveText("Could not read the organisation's look; showing the school look.");
+    await expect(page.getByTestId('sheet')).toHaveAttribute('data-look', 'school');
+    await page.emulateMedia({ media: 'print' });
+    await expect(page.getByTestId('print-look-note')).toBeHidden();
+    const ok = await context.browser()!.newContext();
+    await open(ok, ALL, newMock());
+    const fine = await newPage(ok, printUrl);
+    await expect(fine.getByTestId('sheet')).toBeVisible();
+    await expect(fine.getByTestId('print-look-note')).toHaveCount(0);
+    await ok.close();
+  });
+
   test('e. on screen the slots are dashed boxes; on paper they are blank and the admin shell is gone', async ({ context }) => {
     await open(context, ALL, newMock({ uitheme: 'corporate' }));
     const page = await newPage(context, printUrl);
@@ -533,7 +613,7 @@ test.describe('the public check page', () => {
 });
 
 test.describe('the learner page: Certificates', () => {
-  const older = record({ certificateid: 'cert-old', shortcode: 'AAAA-1111', issuedat: '2026-10-01T05:00:00.000Z', revokedat: '2026-10-05T05:00:00.000Z' }, { scopename: 'Module 1', tierlabel: 'Module' });
+  const older = record({ certificateid: 'cert-old', scope: 'level', shortcode: 'AAAA-1111', issuedat: '2026-10-01T05:00:00.000Z', revokedat: '2026-10-05T05:00:00.000Z' }, { scopename: 'Module 1', tierlabel: 'Module' });
   const newer = record({ certificateid: 'cert-new', shortcode: 'BBBB-2222', issuedat: '2026-11-12T05:00:00.000Z' });
 
   test('lists issued and revoked certificates newest first, with View links', async ({ context }) => {
@@ -543,7 +623,7 @@ test.describe('the learner page: Certificates', () => {
     const section = page.getByTestId('learner-certificates');
     await expect(section.getByRole('heading', { name: 'Certificates' })).toBeVisible();
     await expect(section.getByTestId('cert-state')).toHaveText(['Issued 12 Nov 2026', 'Revoked 5 Oct 2026']);
-    await expect(section.getByTestId('cert-what')).toHaveText(['Programme Digital Skills for Small Business — Digital Skills for Small Business', 'Module Module 1 — Digital Skills for Small Business']);
+    await expect(section.getByTestId('cert-what')).toHaveText(['Digital Skills for Small Business', 'Module Module 1 — Digital Skills for Small Business']);
     await expect(section.getByTestId('cert-view')).toHaveText(['View', 'View']);
     await expect(section.getByTestId('cert-view').first()).toHaveAttribute('href', '/certificates/cert-new/print');
   });

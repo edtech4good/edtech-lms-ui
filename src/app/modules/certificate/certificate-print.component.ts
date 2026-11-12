@@ -4,7 +4,8 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { OrganisationService } from '../organisation/organisation.service';
 import { CertificateSheetComponent } from './certificate-sheet.component';
-import { CertificateLook, CertificateRecord, LOAD_FAILED, PaperSize, failureText, isRevoked, lookFor, pageRule } from './certificate';
+import { CertificateLook, CertificateRecord, LOAD_FAILED, PaperSize, isRevoked, lookFor, pageRule } from './certificate';
+import { sayFailure } from './certificate-errors';
 import { CertificateService } from './certificate.service';
 
 /**
@@ -33,9 +34,15 @@ import { CertificateService } from './certificate.service';
     @if (revoked()) {
       <p class="warn" data-testid="print-revoked-note">This certificate has been revoked, so it cannot be printed.</p>
     }
+    @if (lookFailed()) {
+      <p class="warn" data-testid="print-look-note">Could not read the organisation's look; showing the school look.</p>
+    }
+    @if (revoked()) {
+      <p class="print-only" data-testid="print-revoked-print">REVOKED: this certificate has been withdrawn and is not valid.</p>
+    }
     @if (certificate(); as cert) {
       @if (lookKnown()) {
-      <div class="paperwrap" [class.a3]="paper() === 'A3'" data-testid="paper" [attr.data-paper]="paper()">
+      <div class="paperwrap" [class.revoked]="revoked()" [class.a3]="paper() === 'A3'" data-testid="paper" [attr.data-paper]="paper()">
         <app-certificate-sheet [certificate]="cert" [look]="look()" [origin]="origin"></app-certificate-sheet>
       </div>
       }
@@ -99,7 +106,18 @@ import { CertificateService } from './certificate.service';
       .paperwrap.a3 {
         max-width: 1588px;
       }
+      .print-only {
+        display: none;
+      }
       @media print {
+        .print-only {
+          display: block;
+          font: 700 24px/1.5 var(--font-body, sans-serif);
+        }
+        /* a revoked certificate does not print: only the notice above does */
+        .paperwrap.revoked {
+          display: none;
+        }
         .toolbar,
         .warn,
         .error {
@@ -126,6 +144,7 @@ export class CertificatePrintComponent implements OnInit {
   readonly look = signal<CertificateLook>('school');
   /** The sheet is drawn once the look is known, so it does not change under the reader. */
   readonly lookKnown = signal(false);
+  readonly lookFailed = signal(false);
   readonly error = signal('');
   readonly origin = this.document.location.origin;
   private style: HTMLStyleElement | null = null;
@@ -154,7 +173,7 @@ export class CertificatePrintComponent implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (certificate) => this.certificate.set(certificate),
-        error: (err) => this.error.set(err?.status === 404 ? 'No such certificate.' : failureText(err, LOAD_FAILED.replace('learners', 'certificate'))),
+        error: (err) => this.error.set(err?.status === 404 ? 'No such certificate.' : sayFailure(err, LOAD_FAILED.replace('learners', 'certificate'))),
       });
     // The look is the organisation's; where it cannot be read (a platform account acting in none, a failed read) it is the school look.
     this.organisations
@@ -166,6 +185,7 @@ export class CertificatePrintComponent implements OnInit {
           this.lookKnown.set(true);
         },
         error: () => {
+          this.lookFailed.set(true);
           this.look.set('school');
           this.lookKnown.set(true);
         },

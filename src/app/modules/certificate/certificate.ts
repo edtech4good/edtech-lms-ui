@@ -249,20 +249,52 @@ export const LOAD_FAILED = 'The learners could not be loaded. Try again in a mom
 export const FORBIDDEN = "You don't have permission to do that.";
 
 /**
- * One plain sentence for a failed request. A 502 or 503 carries central's own words (the learning server could not be asked;
- * nothing was changed); anything else is a generic line, or the API's own sentence for a 400 and a 409.
+ * One plain sentence for a failed request: a permission line for a 403, the API's own sentence for a 400 and a 409, else the
+ * fallback. A 502 or 503 is worded by `gatewayText` (certificate-errors.ts), which the interceptor uses too.
  */
 export function failureText(error: { status?: number; error?: { errormessage?: unknown; hint?: unknown } } | null | undefined, fallback: string): string {
   const said = typeof error?.error?.errormessage === 'string' ? error.error.errormessage.trim() : '';
   const status = error?.status;
   if (status === 403) return FORBIDDEN;
-  if (status === 502 || status === 503) {
-    const hint = typeof error?.error?.hint === 'string' ? error.error.hint.trim() : '';
-    return said ? `${said}${hint ? ` ${hint}` : ''}` : 'The learning server could not be reached. Nothing was changed. Try again in a few minutes.';
-  }
   if ((status === 400 || status === 409) && said) return said;
   return fallback;
 }
+
+// ---- Which levels and grades are offered ------------------------------------------
+
+export interface ScopeOption {
+  id: string;
+  label: string;
+}
+/** Central's curriculum tree carries deleted and switched-off rows too; a grade or level is offered only when it is live. */
+const live = (row: { isdeleted?: boolean; gradestatus?: boolean; levelstatus?: boolean } | null | undefined): boolean =>
+  !!row && row.isdeleted !== true && row.gradestatus !== false && row.levelstatus !== false;
+
+/**
+ * The grades (scope 'grade'), or the levels (scope 'level', each with its grade's name when more than one grade is live) of one
+ * curriculum tree. A deleted or switched-off grade or level is left out, and so are the levels under a dropped grade.
+ */
+export function scopeOptionsFrom(tree: any, scope: CertificateScope | null): ScopeOption[] {
+  const grades: any[] = (Array.isArray(tree?.grades) ? tree.grades : []).filter(live);
+  if (scope === 'grade') return grades.map((g) => ({ id: g.gradeid, label: g.gradename }));
+  return grades.flatMap((g) =>
+    (Array.isArray(g.levels) ? g.levels : []).filter(live).map((l: any) => ({ id: l.levelid, label: grades.length > 1 ? `${l.levelname} (${g.gradename})` : l.levelname })),
+  );
+}
+
+// ---- Issuing in batches ---------------------------------------------------------------
+
+/** Central takes at most this many learners in one issue. */
+export const ISSUE_BATCH = 200;
+export function inBatches<T>(items: readonly T[], size = ISSUE_BATCH): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+export const mergeIssued = (answers: readonly IssueAnswer[]): IssueAnswer => ({
+  issued: answers.flatMap((a) => a.issued ?? []),
+  refused: answers.flatMap((a) => a.refused ?? []),
+});
 
 // ---- The certificate page ------------------------------------------------------
 
