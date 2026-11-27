@@ -25,12 +25,18 @@
 }
 
 .line {
-  min-height: 28px;
-  display: flex;
-  align-items: center;
+  height: 28px;
+  display: block;
+  line-height: 28px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 260px;
 }
 
 .progress-line {
+  display: flex;
+  align-items: center;
   gap: 8px;
   nz-progress {
     width: 90px;

@@ -77,7 +77,7 @@
           <td>{{ r.classname }}</td>
           <td>
             @for (c of lines(r); track c.curriculumid) {
-              <div class="line" data-testid="lp-programme">{{ c.curriculumname }}</div>
+              <div class="line" data-testid="lp-programme" [title]="c.curriculumname">{{ c.curriculumname }}</div>
             } @empty {
               <div class="line">—</div>
             }
@@ -101,22 +101,20 @@
           </td>
           <td>
             @for (c of lines(r); track c.curriculumid) {
-              <div class="line" data-testid="lp-current">{{ currentModuleLabel(c) }}</div>
+              <div class="line" data-testid="lp-current" [title]="currentModuleLabel(c)">{{ currentModuleLabel(c) }}</div>
             } @empty {
               <div class="line">—</div>
             }
           </td>
-          <td data-testid="lp-last-active">{{ lastActive(r) }}</td>
+          <td data-testid="lp-last-active">{{ (lastActive(r) | date: 'mediumDate') ?? 'Never' }}</td>
         </tr>
       }
     </tbody>
   </nz-table>
 </nz-card>
-<ng-template #totalTemplate let-total>{{ total }} learners</ng-template>
+<ng-template #totalTemplate let-total>{{ total }} {{ total === 1 ? 'learner' : 'learners' }}</ng-template>
 <ng-template #empty>
-  @if (failed()) {
-    <span data-testid="lp-empty">The report could not be loaded. Try again in a moment.</span>
-  } @else if (hasFilter()) {
+  @if (hasFilter()) {
     <span data-testid="lp-empty">No learners match these filters.</span>
   } @else {
     <span data-testid="lp-empty">No learners to show yet.</span>

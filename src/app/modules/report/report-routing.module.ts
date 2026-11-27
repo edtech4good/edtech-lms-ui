@@ -6,6 +6,7 @@ import { Role } from 'src/app/models/enums/role.enum';
 import { ClassCompletedQuizComponent } from './class-completed-quiz/completed-quiz.component';
 import { ClassLevelQuizComponent } from './class-level-quiz/level-quiz.component';
 import { LearnerProgressComponent } from './learner-progress/learner-progress.component';
+import { LEARNER_PROGRESS_PERMISSIONS } from '../shell/shell-nav.config';
 import { ReportIndexComponent } from './report-index/report-index.component';
 import { StudentActivityComponent } from './student-activity/student-activity.component';
 import { StudentCompletedQuizComponent } from './student-completed-quiz/completed-quiz.component';
@@ -33,7 +34,7 @@ const routes: Routes = [
       {
         path: 'learner-progress',
         component: LearnerProgressComponent,
-        canActivate: [AuthGuard, requireAllPermissions('view_online_report', 'view_student')],
+        canActivate: [AuthGuard, requireAllPermissions(...LEARNER_PROGRESS_PERMISSIONS)],
         data: {
           crumb: 'Learner progress',
           roles: [Role.admin, Role.superadmin, Role.user],

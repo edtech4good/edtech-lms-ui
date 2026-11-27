@@ -1,7 +1,7 @@
 import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject } from 'rxjs';
-import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { debounceTime } from 'rxjs/operators';
 import { IMultiFilter } from 'src/app/models/IPaging';
 import { ReportService } from 'src/app/services/report.service';
 import { SchoolService } from 'src/app/services/school.service';
@@ -11,7 +11,7 @@ import {
   LearnerProgressRow,
   currentModuleLabel,
   fullName,
-  lastActiveLabel,
+  lastActive,
   modulesLabel,
   progressLabel,
 } from './learner-progress.format';
@@ -32,7 +32,6 @@ export class LearnerProgressComponent implements OnInit {
   readonly total = signal(0);
   readonly pageIndex = signal(1);
   readonly loading = signal(false);
-  readonly failed = signal(false);
   readonly schools = signal<Array<{ schoolid: string; schoolname: string }>>([]);
   readonly classes = signal<Array<{ standardid: string; standardname: string }>>([]);
 
@@ -56,7 +55,7 @@ export class LearnerProgressComponent implements OnInit {
       error: () => this.schools.set([]),
     });
     this.search$
-      .pipe(debounceTime(300), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
+      .pipe(debounceTime(300), takeUntilDestroyed(this.destroyRef))
       .subscribe(() => this.load(1));
     this.load(1);
   }
@@ -75,7 +74,9 @@ export class LearnerProgressComponent implements OnInit {
         next: (a: any) => {
           if (this.schoolid === schoolid) this.classes.set(a?.data ?? []);
         },
-        error: () => this.classes.set([]),
+        error: () => {
+          if (this.schoolid === schoolid) this.classes.set([]);
+        },
       });
     }
     this.load(1);
@@ -97,7 +98,6 @@ export class LearnerProgressComponent implements OnInit {
     if (text) filter.push({ key: 'search', value: text });
     const no = ++this.requestNo;
     this.loading.set(true);
-    this.failed.set(false);
     this.pageIndex.set(pageindex);
     this.reportService.getLearnerProgress({ pageindex, pagesize: this.pageSize, filter }).subscribe({
       next: (a: any) => {
@@ -110,7 +110,6 @@ export class LearnerProgressComponent implements OnInit {
         if (no !== this.requestNo) return;
         this.rows.set([]);
         this.total.set(0);
-        this.failed.set(true);
         this.loading.set(false);
       },
     });
@@ -121,7 +120,7 @@ export class LearnerProgressComponent implements OnInit {
   readonly progressLabel = progressLabel;
   readonly modulesLabel = modulesLabel;
   readonly currentModuleLabel = currentModuleLabel;
-  readonly lastActive = (r: LearnerProgressRow) => lastActiveLabel(r.lastlogin, r.lastprogressat);
+  readonly lastActive = (r: LearnerProgressRow): Date | null => lastActive(r.lastlogin, r.lastprogressat);
   /** A learner with no curriculum still gets one empty line, so the row reads as "no programme". */
   readonly lines = (r: LearnerProgressRow): LearnerCurriculum[] => r.curricula ?? [];
   readonly percentOf = (c: LearnerCurriculum): number => (c.lessonsTotal > 0 ? c.percent : 0);

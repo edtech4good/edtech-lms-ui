@@ -49,22 +49,13 @@ export function currentModuleLabel(c: Pick<LearnerCurriculum, 'currentLevel' | '
   return c.lessonsTotal > 0 ? 'Finished' : NONE;
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-/** The later of the two moments, or null when neither is a date. */
+/** The later of the two moments, or null when neither is a date (the screen shows null as "Never", a date as mediumDate). */
 export function lastActive(lastlogin: string | null, lastprogressat: string | null): Date | null {
   const times = [lastlogin, lastprogressat]
     .map((s) => (s ? new Date(s) : null))
     .filter((d): d is Date => d !== null && !isNaN(d.getTime()));
   if (times.length === 0) return null;
   return times.reduce((a, b) => (b.getTime() > a.getTime() ? b : a));
-}
-
-/** "25 Nov 2026" (the viewer's own calendar day), or "Never". */
-export function lastActiveLabel(lastlogin: string | null, lastprogressat: string | null): string {
-  const d = lastActive(lastlogin, lastprogressat);
-  if (!d) return 'Never';
-  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 /** The learner's full name, then the username; either name may be empty. */

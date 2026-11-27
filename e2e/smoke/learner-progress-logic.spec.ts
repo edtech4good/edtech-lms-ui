@@ -3,11 +3,11 @@ import { join } from 'node:path';
 import { expect, test } from '@playwright/test';
 import {
   currentModuleLabel,
-  lastActiveLabel,
+  lastActive,
   modulesLabel,
   progressLabel,
 } from '../../src/app/modules/report/learner-progress/learner-progress.format';
-import { REPORT_HUB, hubLinkVisible, hubSectionVisible, holdsAll } from '../../src/app/modules/shell/shell-nav.config';
+import { LEARNER_PROGRESS_PERMISSIONS, REPORT_HUB, hubLinkVisible, hubSectionVisible, holdsAll } from '../../src/app/modules/shell/shell-nav.config';
 
 /**
  * Reports > Learner progress, the parts that are plain logic: the words in the cells, and who is offered the link.
@@ -36,12 +36,13 @@ test.describe('Learner progress: the words in the cells', () => {
     expect(modulesLabel({ levelsCompleted: 2, levelsTotal: 6 })).toBe('2 of 6');
   });
 
-  test('last active is the later of last sign-in and last progress; "Never" when neither', () => {
-    expect(lastActiveLabel('2026-11-20T12:00:00Z', '2026-11-25T12:00:00Z')).toBe('25 Nov 2026');
-    expect(lastActiveLabel('2026-11-26T12:00:00Z', '2026-11-25T12:00:00Z')).toBe('26 Nov 2026');
-    expect(lastActiveLabel('2026-11-20T12:00:00Z', null)).toBe('20 Nov 2026');
-    expect(lastActiveLabel(null, '2026-11-25T12:00:00Z')).toBe('25 Nov 2026');
-    expect(lastActiveLabel(null, null)).toBe('Never');
+  test('last active is the later of last sign-in and last progress; null (shown "Never") when neither', () => {
+    const iso = (d: Date | null) => d?.toISOString();
+    expect(iso(lastActive('2026-11-20T12:00:00Z', '2026-11-25T12:00:00Z'))).toBe('2026-11-25T12:00:00.000Z');
+    expect(iso(lastActive('2026-11-26T12:00:00Z', '2026-11-25T12:00:00Z'))).toBe('2026-11-26T12:00:00.000Z');
+    expect(iso(lastActive('2026-11-20T12:00:00Z', null))).toBe('2026-11-20T12:00:00.000Z');
+    expect(iso(lastActive(null, '2026-11-25T12:00:00Z'))).toBe('2026-11-25T12:00:00.000Z');
+    expect(lastActive(null, null)).toBeNull();
   });
 });
 
@@ -58,10 +59,12 @@ test.describe('Learner progress: who is offered the link', () => {
     expect(online.links[0].route).toBe('/report/learner-progress');
   });
 
-  test('only view_online_report: not shown; only view_student: not shown; both: shown', () => {
+  test('shown only with all four: view_online_report, view_student, view_school, view_standard', () => {
+    const four = ['view_online_report', 'view_student', 'view_school', 'view_standard'];
     expect(hubLinkVisible(link(), ['view_online_report'])).toBe(false);
     expect(hubLinkVisible(link(), ['view_student'])).toBe(false);
-    expect(hubLinkVisible(link(), ['view_online_report', 'view_student', 'view_school'])).toBe(true);
+    for (const missing of four) expect(hubLinkVisible(link(), four.filter((k) => k !== missing)), `without ${missing}`).toBe(false);
+    expect(hubLinkVisible(link(), [...four, 'view_teacher'])).toBe(true);
     expect(hubLinkVisible(link(), [])).toBe(false);
   });
 
@@ -78,7 +81,14 @@ test.describe('Learner progress: who is offered the link', () => {
   test('a section with only hidden links is hidden', () => {
     const online = REPORT_HUB.find((s) => s.key === 'online')!;
     expect(hubSectionVisible(online, ['view_online_report'])).toBe(false);
-    expect(hubSectionVisible(online, ['view_online_report', 'view_student'])).toBe(true);
+    expect(hubSectionVisible(online, ['view_online_report', 'view_student', 'view_school', 'view_standard'])).toBe(true);
+  });
+
+  test('the link adds nothing to the any-of lists: the online section and the Reports item are what they were', () => {
+    expect(link().permissions).toEqual([]);
+    const online = REPORT_HUB.find((s) => s.key === 'online')!;
+    expect(online.permissions).not.toContain('view_student');
+    expect(online.permissions).toContain('view_online_active_status');
   });
 
   test('holdsAll needs every key', () => {
@@ -88,7 +98,8 @@ test.describe('Learner progress: who is offered the link', () => {
 
   test('the route is guarded by both permissions, and calls central\'s online learner-progress path', () => {
     const routing = readFileSync(join(__dirname, '../../src/app/modules/report/report-routing.module.ts'), 'utf8');
-    expect(routing).toMatch(/path: 'learner-progress'[\s\S]*?requireAllPermissions\('view_online_report', 'view_student'\)/);
+    expect(routing).toMatch(/path: 'learner-progress'[\s\S]*?requireAllPermissions\(\.\.\.LEARNER_PROGRESS_PERMISSIONS\)/);
+    expect(LEARNER_PROGRESS_PERMISSIONS).toEqual(['view_online_report', 'view_student', 'view_school', 'view_standard']);
     const service = readFileSync(join(__dirname, '../../src/app/services/report.service.ts'), 'utf8');
     expect(service).toContain('report/online/learner-progress');
   });
