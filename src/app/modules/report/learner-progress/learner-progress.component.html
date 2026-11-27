@@ -1,0 +1,122 @@
+<h1 class="page-title">Learner progress</h1>
+<div class="filters">
+  <nz-select
+    data-testid="lp-school"
+    nzPlaceHolder="School"
+    nzAllowClear
+    nzShowSearch
+    [(ngModel)]="schoolid"
+    (ngModelChange)="onSchoolChange($event)"
+    class="filter"
+  >
+    @for (s of schools(); track s.schoolid) {
+      <nz-option [nzValue]="s.schoolid" [nzLabel]="s.schoolname"></nz-option>
+    }
+  </nz-select>
+  <nz-select
+    data-testid="lp-class"
+    nzPlaceHolder="Class"
+    nzAllowClear
+    nzShowSearch
+    [nzDisabled]="!schoolid"
+    [(ngModel)]="standardid"
+    (ngModelChange)="onClassChange()"
+    class="filter"
+  >
+    @for (c of classes(); track c.standardid) {
+      <nz-option [nzValue]="c.standardid" [nzLabel]="c.standardname"></nz-option>
+    }
+  </nz-select>
+  <input
+    nz-input
+    data-testid="lp-search"
+    class="filter"
+    placeholder="Search name or username"
+    [ngModel]="search"
+    (ngModelChange)="onSearchInput($event)"
+  />
+</div>
+
+<nz-card [nzBordered]="true">
+  <nz-table
+    #table
+    [nzData]="rows()"
+    [nzLoading]="loading()"
+    [nzFrontPagination]="false"
+    [nzTotal]="total()"
+    [nzPageSize]="pageSize"
+    [nzPageIndex]="pageIndex()"
+    (nzPageIndexChange)="onPageChange($event)"
+    [nzShowTotal]="totalTemplate"
+    nzSize="small"
+    [nzNoResult]="empty"
+  >
+    <thead>
+      <tr>
+        <th>Learner</th>
+        <th>Class</th>
+        <th>Programme</th>
+        <th>Progress</th>
+        <th>Modules</th>
+        <th>Current module</th>
+        <th>Last active</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (r of table.data; track r.studentid) {
+        <tr data-testid="lp-row">
+          <td>
+            <div class="learner">
+              <span class="learner-name">{{ name(r) }}</span>
+              @if (r.status === 'disabled') {
+                <nz-tag class="disabled-tag">Disabled</nz-tag>
+              }
+            </div>
+            <div class="username">{{ r.username }}</div>
+          </td>
+          <td>{{ r.classname }}</td>
+          <td>
+            @for (c of lines(r); track c.curriculumid) {
+              <div class="line" data-testid="lp-programme" [title]="c.curriculumname">{{ c.curriculumname }}</div>
+            } @empty {
+              <div class="line">—</div>
+            }
+          </td>
+          <td>
+            @for (c of lines(r); track c.curriculumid) {
+              <div class="line progress-line" data-testid="lp-progress">
+                <nz-progress [nzPercent]="percentOf(c)" [nzShowInfo]="false" nzSize="small"></nz-progress>
+                <span class="progress-text" [title]="progressLabel(c)">{{ progressLabel(c) }}</span>
+              </div>
+            } @empty {
+              <div class="line">—</div>
+            }
+          </td>
+          <td>
+            @for (c of lines(r); track c.curriculumid) {
+              <div class="line" data-testid="lp-modules">{{ modulesLabel(c) }}</div>
+            } @empty {
+              <div class="line">—</div>
+            }
+          </td>
+          <td>
+            @for (c of lines(r); track c.curriculumid) {
+              <div class="line" data-testid="lp-current" [title]="currentModuleLabel(c)">{{ currentModuleLabel(c) }}</div>
+            } @empty {
+              <div class="line">—</div>
+            }
+          </td>
+          <td data-testid="lp-last-active">{{ (lastActive(r) | date: 'mediumDate') ?? 'Never' }}</td>
+        </tr>
+      }
+    </tbody>
+  </nz-table>
+</nz-card>
+<ng-template #totalTemplate let-total>{{ total }} {{ total === 1 ? 'learner' : 'learners' }}</ng-template>
+<ng-template #empty>
+  @if (hasFilter()) {
+    <span data-testid="lp-empty">No learners match these filters.</span>
+  } @else {
+    <span data-testid="lp-empty">No learners to show yet.</span>
+  }
+</ng-template>

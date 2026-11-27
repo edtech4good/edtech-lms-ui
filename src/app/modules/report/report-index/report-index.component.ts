@@ -1,5 +1,8 @@
-import { Component } from '@angular/core';
-import { REPORT_HUB } from '../../shell/shell-nav.config';
+import { Component, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { NgxPermissionsService } from 'ngx-permissions';
+import { map } from 'rxjs/operators';
+import { REPORT_HUB, ReportHubLink, ReportHubSection, hubLinkVisible, hubSectionVisible } from '../../shell/shell-nav.config';
 import { ShellNavService } from '../../shell/shell-nav.service';
 
 /**
@@ -16,6 +19,21 @@ import { ShellNavService } from '../../shell/shell-nav.service';
 })
 export class ReportIndexComponent {
   readonly sections = REPORT_HUB;
+
+  /** The permission names the user holds now; it follows the permissions as the shell loads them. */
+  private readonly held = toSignal(
+    inject(NgxPermissionsService).permissions$.pipe(map((p) => Object.keys(p))),
+    { initialValue: Object.keys(inject(NgxPermissionsService).getPermissions()) },
+  );
+
+  /** Any-of for most links, all-of for the ones that say so (Learner progress): see hubLinkVisible. */
+  linkVisible(link: ReportHubLink): boolean {
+    return hubLinkVisible(link, this.held());
+  }
+
+  sectionVisible(section: ReportHubSection): boolean {
+    return hubSectionVisible(section, this.held());
+  }
 
   /** Reach is Home's screen for users who hold it, so the hub does not repeat it. */
   constructor(readonly nav: ShellNavService) {}

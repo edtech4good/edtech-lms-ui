@@ -160,8 +160,10 @@ export interface ReportHubLink {
   queryParams?: Record<string, string>;
   /** One line under the label, for a report whose name alone does not say what it is. */
   description?: string;
-  /** Already includes `superadmin`. */
+  /** Already includes `superadmin`. Any one of them shows the link, unless `requireAll` is set. */
   permissions: string[];
+  /** When set, the link shows only for a user who holds EVERY one of these (or `superadmin`). */
+  requireAll?: string[];
 }
 
 export interface ReportHubSection {
@@ -180,6 +182,30 @@ const hubLink = (
   description?: string,
 ): ReportHubLink => ({ label, route, queryParams, description, permissions: sidebarPerm(...perms) });
 
+/** A link that needs every one of `perms`, not any one. It adds nothing to the any-of lists (section union, Reports item). */
+const hubLinkAll = (
+  label: string,
+  route: string,
+  perms: string[],
+  queryParams?: Record<string, string>,
+): ReportHubLink => ({ label, route, queryParams, permissions: [], requireAll: perms });
+
+/** True when `held` has every key in `keys`, or the synthetic `superadmin`. An empty list is never satisfied. */
+export function holdsAll(held: string[], keys: string[]): boolean {
+  if (keys.length === 0) return false;
+  return held.includes('superadmin') || keys.every((k) => held.includes(k));
+}
+
+/** Whether a user holding `held` is offered the link: all-of when the link says so, else any-of. */
+export function hubLinkVisible(link: ReportHubLink, held: string[]): boolean {
+  return link.requireAll ? holdsAll(held, link.requireAll) : link.permissions.some((p) => held.includes(p));
+}
+
+/** A section shows when at least one of its links does. */
+export function hubSectionVisible(section: ReportHubSection, held: string[]): boolean {
+  return section.links.some((l) => hubLinkVisible(l, held));
+}
+
 const hubSection = (
   key: string,
   title: string,
@@ -195,6 +221,9 @@ const hubSection = (
 
 const ONLINE = { online: 'true' };
 const AWARDS_HELP = 'Which learners have earned which module awards, and when';
+
+/** Learner progress lists learners (view_student) by school and class (the filters read schools and classes). */
+export const LEARNER_PROGRESS_PERMISSIONS = ['view_online_report', 'view_student', 'view_school', 'view_standard'];
 
 export const REPORT_HUB: ReportHubSection[] = [
   hubSection(
@@ -226,6 +255,7 @@ export const REPORT_HUB: ReportHubSection[] = [
     'Learners, online schools',
     'The same reports for learners in schools that study online.',
     [
+      hubLinkAll('Learner progress', '/report/learner-progress', LEARNER_PROGRESS_PERMISSIONS),
       hubLink('Quiz scores', '/report/student-completed-quiz/online', ['view_online_quiz_score', 'view_online_class_quiz_score'], ONLINE),
       hubLink('Current level', '/report/student-last-completed-quiz/online', ['view_online_current_level'], ONLINE),
       hubLink('Active status', '/report/student-activity/online', ['view_online_active_status'], ONLINE),
