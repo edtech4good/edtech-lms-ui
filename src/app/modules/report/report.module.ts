@@ -3,6 +3,7 @@ import { NgModule } from '@angular/core';
 import { SharedModule } from 'src/app/shared/shared.module';
 import { ClassCompletedQuizComponent } from './class-completed-quiz/completed-quiz.component';
 import { ClassLevelQuizComponent } from './class-level-quiz/level-quiz.component';
+import { LearnerProgressComponent } from './learner-progress/learner-progress.component';
 import { ReportIndexComponent } from './report-index/report-index.component';
 import { ReportRoutingModule } from './report-routing.module';
 import { AwardsTableComponent } from '../awards/awards-table.component';
@@ -19,6 +20,7 @@ import { SyncRecordComponent } from './sync-record/sync-record.component';
 @NgModule({
   declarations: [
     ReportIndexComponent,
+    LearnerProgressComponent,
     StudentCompletedQuizComponent,
     ClassCompletedQuizComponent,
     StudentLevelQuizComponent,
