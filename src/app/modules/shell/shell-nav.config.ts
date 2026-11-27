@@ -190,8 +190,9 @@ const hubLinkAll = (
   queryParams?: Record<string, string>,
 ): ReportHubLink => ({ label, route, queryParams, permissions: [], requireAll: perms });
 
-/** True when `held` has every key in `keys`, or the synthetic `superadmin`. */
+/** True when `held` has every key in `keys`, or the synthetic `superadmin`. An empty list is never satisfied. */
 export function holdsAll(held: string[], keys: string[]): boolean {
+  if (keys.length === 0) return false;
   return held.includes('superadmin') || keys.every((k) => held.includes(k));
 }
 

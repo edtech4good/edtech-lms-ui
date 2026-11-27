@@ -86,7 +86,7 @@
             @for (c of lines(r); track c.curriculumid) {
               <div class="line progress-line" data-testid="lp-progress">
                 <nz-progress [nzPercent]="percentOf(c)" [nzShowInfo]="false" nzSize="small"></nz-progress>
-                <span class="progress-text">{{ progressLabel(c) }}</span>
+                <span class="progress-text" [title]="progressLabel(c)">{{ progressLabel(c) }}</span>
               </div>
             } @empty {
               <div class="line">—</div>

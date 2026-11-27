@@ -40,6 +40,7 @@ export function requireAllPermissions(...keys: string[]): CanActivateFn {
     const permissions = inject(NgxPermissionsService);
     const auth = inject(AuthService);
     const router = inject(Router);
+    if (keys.length === 0) return router.createUrlTree(['/un-authorized']);
     if (Object.keys(permissions.getPermissions()).length === 0) {
       const user = auth.getLmsUser() ?? auth.getuser();
       permissions.loadPermissions(user.permissions ?? []);

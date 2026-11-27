@@ -78,9 +78,11 @@ test.describe('Learner progress: who is offered the link', () => {
     expect(hubLinkVisible(quiz, ['view_student'])).toBe(false);
   });
 
-  test('a section with only hidden links is hidden', () => {
+  test('a section shows when one of its links does, and hides when none does', () => {
     const online = REPORT_HUB.find((s) => s.key === 'online')!;
-    expect(hubSectionVisible(online, ['view_online_report'])).toBe(false);
+    // view_online_report alone still opens the section: the Awards link is on it (any-of).
+    expect(hubSectionVisible(online, ['view_online_report'])).toBe(true);
+    expect(hubSectionVisible(online, ['view_student'])).toBe(false);
     expect(hubSectionVisible(online, ['view_online_report', 'view_student', 'view_school', 'view_standard'])).toBe(true);
   });
 
@@ -89,6 +91,23 @@ test.describe('Learner progress: who is offered the link', () => {
     const online = REPORT_HUB.find((s) => s.key === 'online')!;
     expect(online.permissions).not.toContain('view_student');
     expect(online.permissions).toContain('view_online_active_status');
+  });
+
+  test('an empty all-of list never shows a link, even for superadmin; and the guard refuses with no keys', () => {
+    expect(holdsAll(['superadmin', 'a'], [])).toBe(false);
+    const guard = readFileSync(join(__dirname, '../../src/app/guards/permission.guard.ts'), 'utf8');
+    expect(guard).toMatch(/keys\.length === 0\) return router\.createUrlTree\(\['\/un-authorized'\]\)/);
+  });
+
+  test('the Awards links stay any-of, on their own permissions', () => {
+    const awards = REPORT_HUB.flatMap((s) => s.links).filter((l) => l.label === 'Awards');
+    expect(awards.length).toBe(2);
+    for (const a of awards) {
+      expect(a.requireAll).toBeUndefined();
+      expect(hubLinkVisible(a, ['view_student'])).toBe(false);
+    }
+    expect(hubLinkVisible(awards[0], ['view_offline_report'])).toBe(true);
+    expect(hubLinkVisible(awards[1], ['view_online_report'])).toBe(true);
   });
 
   test('holdsAll needs every key', () => {
