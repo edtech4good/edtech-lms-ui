@@ -100,6 +100,15 @@ export class ReportService {
     );
   }
 
+  /** Reports > Learner progress: one row per learner with a line per enrolled curriculum. */
+  getLearnerProgress(paging: IMultiPaging) {
+    return this.http.post(
+      `${this.coreService.CORE_API()}report/online/learner-progress`,
+      paging,
+      this.coreService.jsonhttpOptions
+    );
+  }
+
   getSyncRecords(paging: IMultiPaging) {
     return this.http.post(
       `${this.coreService.CORE_API()}report/syncrecords`,

@@ -1,9 +1,11 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { AuthGuard } from 'src/app/guards/auth-guard.service';
+import { requireAllPermissions } from 'src/app/guards/permission.guard';
 import { Role } from 'src/app/models/enums/role.enum';
 import { ClassCompletedQuizComponent } from './class-completed-quiz/completed-quiz.component';
 import { ClassLevelQuizComponent } from './class-level-quiz/level-quiz.component';
+import { LearnerProgressComponent } from './learner-progress/learner-progress.component';
 import { ReportIndexComponent } from './report-index/report-index.component';
 import { StudentActivityComponent } from './student-activity/student-activity.component';
 import { StudentCompletedQuizComponent } from './student-completed-quiz/completed-quiz.component';
@@ -25,6 +27,15 @@ const routes: Routes = [
         component: ReportIndexComponent,
         canActivate: [AuthGuard],
         data: {
+          roles: [Role.admin, Role.superadmin, Role.user],
+        },
+      },
+      {
+        path: 'learner-progress',
+        component: LearnerProgressComponent,
+        canActivate: [AuthGuard, requireAllPermissions('view_online_report', 'view_student')],
+        data: {
+          crumb: 'Learner progress',
           roles: [Role.admin, Role.superadmin, Role.user],
         },
       },

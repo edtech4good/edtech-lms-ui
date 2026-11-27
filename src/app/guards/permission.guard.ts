@@ -1,6 +1,7 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { NgxPermissionsService } from 'ngx-permissions';
+import { holdsAll } from '../modules/shell/shell-nav.config';
 import { OrgContextService } from '../modules/shell/org-context.service';
 import { AuthService } from '../services/auth.service';
 
@@ -27,6 +28,23 @@ export function requirePermission(permission: string): CanActivateFn {
       permissions.loadPermissions(user.permissions ?? []);
     }
     return permissions.getPermission(permission) ? true : router.createUrlTree(['/un-authorized']);
+  };
+}
+
+/**
+ * A route that needs EVERY one of the named permissions (the synthetic `superadmin` stands for all, as in the menu).
+ * Listed after AuthGuard, for the reasons given above.
+ */
+export function requireAllPermissions(...keys: string[]): CanActivateFn {
+  return () => {
+    const permissions = inject(NgxPermissionsService);
+    const auth = inject(AuthService);
+    const router = inject(Router);
+    if (Object.keys(permissions.getPermissions()).length === 0) {
+      const user = auth.getLmsUser() ?? auth.getuser();
+      permissions.loadPermissions(user.permissions ?? []);
+    }
+    return holdsAll(Object.keys(permissions.getPermissions()), keys) ? true : router.createUrlTree(['/un-authorized']);
   };
 }
 

@@ -158,8 +158,10 @@ export interface ReportHubLink {
   label: string;
   route: string;
   queryParams?: Record<string, string>;
-  /** Already includes `superadmin`. */
+  /** Already includes `superadmin`. Any one of them shows the link, unless `requireAll` is set. */
   permissions: string[];
+  /** When set, the link shows only for a user who holds EVERY one of these (or `superadmin`). */
+  requireAll?: string[];
 }
 
 export interface ReportHubSection {
@@ -176,6 +178,29 @@ const hubLink = (
   perms: string[],
   queryParams?: Record<string, string>,
 ): ReportHubLink => ({ label, route, queryParams, permissions: sidebarPerm(...perms) });
+
+/** A link that needs every one of `perms`, not any one. `permissions` carries the first only, for the menu's any-of lists. */
+const hubLinkAll = (
+  label: string,
+  route: string,
+  perms: string[],
+  queryParams?: Record<string, string>,
+): ReportHubLink => ({ label, route, queryParams, permissions: sidebarPerm(perms[0]), requireAll: perms });
+
+/** True when `held` has every key in `keys`, or the synthetic `superadmin`. */
+export function holdsAll(held: string[], keys: string[]): boolean {
+  return held.includes('superadmin') || keys.every((k) => held.includes(k));
+}
+
+/** Whether a user holding `held` is offered the link: all-of when the link says so, else any-of. */
+export function hubLinkVisible(link: ReportHubLink, held: string[]): boolean {
+  return link.requireAll ? holdsAll(held, link.requireAll) : link.permissions.some((p) => held.includes(p));
+}
+
+/** A section shows when at least one of its links does. */
+export function hubSectionVisible(section: ReportHubSection, held: string[]): boolean {
+  return section.links.some((l) => hubLinkVisible(l, held));
+}
 
 const hubSection = (
   key: string,
@@ -221,6 +246,7 @@ export const REPORT_HUB: ReportHubSection[] = [
     'Learners, online schools',
     'The same reports for learners in schools that study online.',
     [
+      hubLinkAll('Learner progress', '/report/learner-progress', ['view_online_report', 'view_student']),
       hubLink('Quiz scores', '/report/student-completed-quiz/online', ['view_online_quiz_score', 'view_online_class_quiz_score'], ONLINE),
       hubLink('Current level', '/report/student-last-completed-quiz/online', ['view_online_current_level'], ONLINE),
       hubLink('Active status', '/report/student-activity/online', ['view_online_active_status'], ONLINE),

@@ -1,12 +1,13 @@
 <h1 class="page-title">Reports</h1>
 @for (section of sections; track section.key) {
-  <nz-card *ngxPermissionsOnly="section.permissions" class="section" [nzTitle]="heading">
+  @if (sectionVisible(section)) {
+  <nz-card class="section" [nzTitle]="heading">
     <ng-template #heading><h2 class="card-title">{{ section.title }}</h2></ng-template>
     <p class="help">{{ section.help }}</p>
     <ul class="links">
       @for (link of section.links; track link.route) {
-        @if (link.route !== nav.homeRoute) {
-          <li *ngxPermissionsOnly="link.permissions">
+        @if (link.route !== nav.homeRoute && linkVisible(link)) {
+          <li>
             <a class="link-card" [routerLink]="link.route" [queryParams]="link.queryParams">
               <span>{{ link.label }}</span>
               <svg
@@ -29,4 +30,5 @@
       }
     </ul>
   </nz-card>
+  }
 }
